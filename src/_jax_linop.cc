@@ -32,7 +32,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /*
- *  Copyright (C) 2023 Max-Planck-Society
+ *  Copyright (C) 2023, 2024 Max-Planck-Society
  *  Authors: Martin Reinecke, Jakob Roth, Gordian Edenhofer 
  */
 
