@@ -9,17 +9,21 @@ jax.config.update("jax_enable_x64", True)
 
 
 def fft_operator(axes):
-    def fftfunc(inp, out, adjoint, state):
-        # we don't want normalization, just adjointness, hence the strange norms
-        if adjoint:
-            out[()] = scipy.fft.ifftn(inp, axes=state["axes"], norm="forward")
-        else:
-            out[()] = scipy.fft.fftn(inp, axes=state["axes"], norm="backward")
+    def fft(inp, out, state):
+        # we don't want normalization, just transpose, hence the strange norms
+        out[()] = scipy.fft.fftn(inp, axes=state["axes"], norm="backward")
 
-    def fftfunc_abstract(shape, dtype, adjoint, state):
+    def fft_T(inp, out, state):
+        out[()
+           ] = scipy.fft.ifftn(inp.conj(), axes=state["axes"],
+                               norm="forward").conj()
+
+    def fft_abstract(shape, dtype, state):
         return shape, dtype
 
-    return jax_linop.make_linop(fftfunc, fftfunc_abstract, axes=tuple(axes))
+    return jax_linop.get_linear_call(
+        fft, fft_T, fft_abstract, fft_abstract, axes=tuple(axes)
+    )
 
 
 # create an FFT operator that transforms the first axis of its input array,

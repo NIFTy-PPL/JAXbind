@@ -11,8 +11,6 @@ import numpy as np
 from jax.interpreters import ad, mlir, batching
 from jaxlib.hlo_helpers import custom_call
 
-__all__ = ["make_linop"]
-
 # incremented for every registered operator, strictly for uniqueness purposes
 _global_opcounter = 0
 
@@ -28,9 +26,9 @@ def _from_id(objectid):
     return ctypes.cast(objectid, ctypes.py_object).value
 
 
-def _exec_abstract(x, stateid, transpose):
+def _exec_abstract(x, stateid):
     state = _from_id(stateid)
-    shp, tp = state["_func_abstract"](x.shape, x.dtype, transpose, state)
+    shp, tp = state["_func_abstract"](x.shape, x.dtype, state)
     return (jax.core.ShapedArray(shp, tp), )
 
 
@@ -43,7 +41,7 @@ _dtype_dict = {
 }
 
 
-def _lowering(ctx, x, *, platform="cpu", stateid, transpose):
+def _lowering(ctx, x, *, platform="cpu", stateid):
     state = _from_id(stateid)
     if len(ctx.avals_in) != 1:
         raise RuntimeError("need exactly one input object")
@@ -51,9 +49,7 @@ def _lowering(ctx, x, *, platform="cpu", stateid, transpose):
     dtype_in = ctx.avals_in[0].dtype
     if len(ctx.avals_out) != 1:
         raise RuntimeError("need exactly one output object")
-    shape_out, dtype_out = state["_func_abstract"](
-        shape_in, dtype_in, transpose, state
-    )
+    shape_out, dtype_out = state["_func_abstract"](shape_in, dtype_in, state)
 
     dtype_out_mlir = mlir.dtype_to_ir_type(dtype_out)
     jaxtype_out = mlir.ir.RankedTensorType.get(shape_out, dtype_out_mlir)
@@ -65,8 +61,6 @@ def _lowering(ctx, x, *, platform="cpu", stateid, transpose):
     # add opid and stateid
     operands.append(mlir.ir_constant(state["_opid"]))
     operands.append(mlir.ir_constant(stateid))
-    # add forward/transpose mode
-    operands.append(mlir.ir_constant(int(transpose)))
     # add input dtype, rank, and shape
     operands.append(mlir.ir_constant(_dtype_dict[dtype_in]))
     operands.append(mlir.ir_constant(len(shape_in)))
@@ -76,11 +70,11 @@ def _lowering(ctx, x, *, platform="cpu", stateid, transpose):
     operands.append(mlir.ir_constant(len(shape_out)))
     operands += [mlir.ir_constant(i) for i in shape_out]
 
-    operand_layouts = [layout_in] + [()] * (7 + len(shape_in) + len(shape_out))
+    operand_layouts = [layout_in] + [()] * (6 + len(shape_in) + len(shape_out))
 
     if platform == "cpu":
         return custom_call(
-            platform + "_linop",
+            platform + "_pycall",
             result_types=[jaxtype_out],
             result_layouts=[layout_out],
             operands=operands,
@@ -91,21 +85,25 @@ def _lowering(ctx, x, *, platform="cpu", stateid, transpose):
     raise ValueError("Unsupported platform; this must be either 'cpu' or 'gpu'")
 
 
-def _jvp(args, tangents, *, stateid, transpose):
-    res = _prim.bind(args[0], stateid=stateid, transpose=transpose)
+def _jvp(args, tangents, *, stateid):
+    res = _prim.bind(args[0], stateid=stateid)
     return (
         res,
         jax.lax.zeros_like_array(res) if type(tangents[0]) is ad.Zero else
-        _prim.bind(tangents[0], stateid=stateid, transpose=transpose),
+        _prim.bind(tangents[0], stateid=stateid),
     )
 
 
-def _transpose(cotangents, args, *, stateid, transpose):
-    tmp = _prim.bind(cotangents[0], stateid=stateid, transpose=not transpose)
+def _transpose(cotangents, args, *, stateid):
+    state = _from_id(stateid)
+    state["_func_T"], state["_func"] = state["_func"], state["_func_T"]
+    state["_func_abstract_T"], state["_func_abstract"] = state[
+        "_func_abstract"], state["_func_abstract_T"]
+    tmp = _prim.bind(cotangents[0], stateid=stateid)
     return tmp
 
 
-def _batch(args, axes, *, stateid, transpose):
+def _batch(args, axes, *, stateid):
     raise NotImplementedError("FIXME")
 
 
@@ -123,28 +121,26 @@ for platform in ["cpu", "gpu"]:
     batching.primitive_batchers[_prim] = _batch
 
 
-def _call(x, state, transpose):
-    return _prim.bind(x, stateid=id(state), transpose=transpose)
+def _call(x, state):
+    return _prim.bind(x, stateid=id(state))
 
 
-def make_linop(func, func_abstract, **kwargs):
+def get_linear_call(func, func_T, /, func_abstract, func_abstract_T, **kwargs):
     """Create Jax functions for the provided linear operator
 
     Parameters
     ----------
-    func : the function which performs the linear operation
-        The function signature must be (inp, out, transpose, state), where
+    func, func_T : linear function respectively its transpose
+        The function signature must be (inp, out, state), where
         inp and out are numpy.ndarrays of float[32/64] or complex[64/128] type,
-        transpose is a bool indicating whether the forward or transpose operation
-        should be carried out, and state is a dictionary containing additional
-        information that the operator might need.
-    func_abstract : a function which computes the shape and dtype of the
-        operator's output from shape and dtype of its input.
-        Its signature must be (shape, dtype, transpose, state), where `transpose`
-        and `state` are analogous to those from `func`, `shape` is a
-        tuple of integers, and dtype is a numpy data type (float[32/64]
-        or complex[64/128]).
-        The function must return the tuple (shape_out, dtype_out).
+        and state is a dictionary containing additional information that the
+        operator might need.
+    func_abstract, func_abstract_T : function respectively its tranpose
+        computing the shape and dtype of the operator's output from shape and dtype of its input
+        Its signature must be (shape, dtype, state), where `state` is analogous
+        to the one from `func`, `shape` is a tuple of integers, and dtype is a
+        numpy data type (float[32/64] or complex[64/128]). The function must
+        return the tuple (shape_out, dtype_out).
     **kwargs : optional arguments that will be provided in `state` when calling
         `func` and `func_abstract`.
 
@@ -160,7 +156,7 @@ def make_linop(func, func_abstract, **kwargs):
     - no references to `inp` or `out` may be stored beyond the execution
       time of `func`
     - `state` must not be modified
-    - when calling `func` or `func_abstract`, `state` may contain some entries
+    - when calling `func`* or `func_abstract`*, `state` may contain some entries
       that the user did not supply in `**kwargs`; these will have names starting
       with an underscore.
     """
@@ -173,5 +169,7 @@ def make_linop(func, func_abstract, **kwargs):
     kwargs_clean["_opid"] = _global_opcounter
     _global_opcounter += 1
     kwargs_clean["_func"] = func
+    kwargs_clean["_func_T"] = func_T
     kwargs_clean["_func_abstract"] = func_abstract
-    return partial(_call, state=kwargs_clean, transpose=False)
+    kwargs_clean["_func_abstract_T"] = func_abstract_T
+    return partial(_call, state=kwargs_clean)
