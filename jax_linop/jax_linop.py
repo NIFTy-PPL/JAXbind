@@ -26,7 +26,7 @@ def _from_id(objectid):
     return ctypes.cast(objectid, ctypes.py_object).value
 
 
-def _exec_abstract(x, stateid):
+def _exec_abstract(x, *, stateid, stateTid):
     state = _from_id(stateid)
     shp, tp = state["_func_abstract"](x.shape, x.dtype, state)
     return (jax.core.ShapedArray(shp, tp), )
@@ -41,7 +41,7 @@ _dtype_dict = {
 }
 
 
-def _lowering(ctx, x, *, platform="cpu", stateid):
+def _lowering(ctx, x, *, platform="cpu", stateid, stateTid):
     state = _from_id(stateid)
     if len(ctx.avals_in) != 1:
         raise RuntimeError("need exactly one input object")
@@ -85,25 +85,20 @@ def _lowering(ctx, x, *, platform="cpu", stateid):
     raise ValueError("Unsupported platform; this must be either 'cpu' or 'gpu'")
 
 
-def _jvp(args, tangents, *, stateid):
-    res = _prim.bind(args[0], stateid=stateid)
+def _jvp(args, tangents, *, stateid, stateTid):
+    res = _prim.bind(args[0], stateid=stateid, stateTid=stateTid)
     return (
         res,
         jax.lax.zeros_like_array(res) if type(tangents[0]) is ad.Zero else
-        _prim.bind(tangents[0], stateid=stateid),
+        _prim.bind(tangents[0], stateid=stateid, stateTid=stateTid),
     )
 
 
-def _transpose(cotangents, args, *, stateid):
-    state = _from_id(stateid)
-    state["_func_T"], state["_func"] = state["_func"], state["_func_T"]
-    state["_func_abstract_T"], state["_func_abstract"] = state[
-        "_func_abstract"], state["_func_abstract_T"]
-    tmp = _prim.bind(cotangents[0], stateid=stateid)
-    return tmp
+def _transpose(cotangents, args, *, stateid, stateTid):
+    return _prim.bind(cotangents[0], stateid=stateTid, stateTid=stateid)
 
 
-def _batch(args, axes, *, stateid):
+def _batch(args, axes, *, stateid, state_id_T):
     raise NotImplementedError("FIXME")
 
 
@@ -121,8 +116,8 @@ for platform in ["cpu", "gpu"]:
     batching.primitive_batchers[_prim] = _batch
 
 
-def _call(x, state):
-    return _prim.bind(x, stateid=id(state))
+def _call(x, state, stateT):
+    return _prim.bind(x, stateid=id(state), stateTid=id(stateT))
 
 
 def get_linear_call(func, func_T, /, func_abstract, func_abstract_T, **kwargs):
@@ -164,12 +159,13 @@ def get_linear_call(func, func_T, /, func_abstract, func_abstract_T, **kwargs):
 
     # somehow make sure that kwargs_clean only contains deep copies of
     # everything in kwargs that are not accessible from anywhere else.
-    kwargs_clean = copy.deepcopy(kwargs)  # FIXME TODO
+    state = copy.deepcopy(kwargs)  # FIXME TODO
+    stateT = copy.copy(state)
     global _global_opcounter
-    kwargs_clean["_opid"] = _global_opcounter
+    state["_opid"] = stateT["_opid"] = _global_opcounter
     _global_opcounter += 1
-    kwargs_clean["_func"] = func
-    kwargs_clean["_func_T"] = func_T
-    kwargs_clean["_func_abstract"] = func_abstract
-    kwargs_clean["_func_abstract_T"] = func_abstract_T
-    return partial(_call, state=kwargs_clean)
+    state["_func"] = stateT["_func_T"] = func
+    state["_func_T"] = stateT["_func"] = func_T
+    state["_func_abstract"] = stateT["_func_abstract_T"] = func_abstract
+    state["_func_abstract_T"] = stateT["_func_abstract"] = func_abstract_T
+    return partial(_call, state=state, stateT=stateT)
