@@ -126,6 +126,43 @@ def _call(x, state, adjoint):
 
 
 def make_linop(func, func_abstract, **kwargs):
+    """Create Jax functions for the provided linear operator
+
+    Parameters
+    ----------
+    func : the function which performs the linear operation
+        The function signature must be (inp, out, adjoint, state), where
+        inp and out are numpy.ndarrays of float[32/64] or complex[64/128] type,
+        adjoint is a bool indicating whether the forward or adjoint operation
+        should be carried out, and state is a dictionary containing additional
+        information that the operator might need.
+    func_abstract : a function which computes the shape and dtype of the
+        operator's output from shape and dtype of its input.
+        Its signature must be (shape, dtype, adjoint, state), where `adjoint`
+        and `state` are analogous to those from `func`, `shape` is a
+        tuple of integers, and dtype is a numpy data type (float[32/64]
+        or complex[64/128]).
+        The function must return the tuple (shape_out, dtype_out).
+    **kwargs : optional arguments that will be provided in `state` when calling
+        `func` and `func_abstract`.
+
+    Returns
+    -------
+    op, op_adjoint : jitted functions of the operator and its adjoint for use
+        in Jax computations
+
+    Notes
+    -----
+    - `func` must not return anything; the result of the computation must be
+      written into `out`.
+    - the contents of `inp` must not be modified.
+    - no references to `inp` or `out` may be stored beyond the execution
+      time of `func`
+    - `state` must not be modified
+    - when calling `func` or `func_abstract`, `state` may contain some entries
+      that the user did not supply in `**kwargs`; these will have names starting
+      with an underscore.
+    """
     import copy
 
     # somehow make sure that kwargs_clean only contains deep copies of
