@@ -8,7 +8,7 @@ from functools import partial
 import _jax_linop
 import jax
 import numpy as np
-from jax.interpreters import ad, mlir
+from jax.interpreters import ad, mlir, batching
 from jaxlib.hlo_helpers import custom_call
 
 __all__ = ["make_linop"]
@@ -109,7 +109,7 @@ def _batch(args, axes, *, stateid, transpose):
     raise NotImplementedError("FIXME")
 
 
-_prim = jax.core.Primitive("ducc_linop_prim")
+_prim = jax.core.Primitive("jax_linop_prim")
 _prim.multiple_results = True
 _prim.def_impl(partial(jax.interpreters.xla.apply_primitive, _prim))
 _prim.def_abstract_eval(_exec_abstract)
@@ -120,7 +120,7 @@ for platform in ["cpu", "gpu"]:
     )
     ad.primitive_jvps[_prim] = _jvp
     ad.primitive_transposes[_prim] = _transpose
-    jax.interpreters.batching.primitive_batchers[_prim] = _batch
+    batching.primitive_batchers[_prim] = _batch
 
 
 def _call(x, state, transpose):
