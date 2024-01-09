@@ -28,9 +28,9 @@ def _from_id(objectid):
     return ctypes.cast(objectid, ctypes.py_object).value
 
 
-def _exec_abstract(x, stateid, adjoint):
+def _exec_abstract(x, stateid, transpose):
     state = _from_id(stateid)
-    shp, tp = state["_func_abstract"](x.shape, x.dtype, adjoint, state)
+    shp, tp = state["_func_abstract"](x.shape, x.dtype, transpose, state)
     return (jax.core.ShapedArray(shp, tp), )
 
 
@@ -43,7 +43,7 @@ _dtype_dict = {
 }
 
 
-def _lowering(ctx, x, *, platform="cpu", stateid, adjoint):
+def _lowering(ctx, x, *, platform="cpu", stateid, transpose):
     state = _from_id(stateid)
     if len(ctx.avals_in) != 1:
         raise RuntimeError("need exactly one input object")
@@ -52,7 +52,7 @@ def _lowering(ctx, x, *, platform="cpu", stateid, adjoint):
     if len(ctx.avals_out) != 1:
         raise RuntimeError("need exactly one output object")
     shape_out, dtype_out = state["_func_abstract"](
-        shape_in, dtype_in, adjoint, state
+        shape_in, dtype_in, transpose, state
     )
 
     dtype_out_mlir = mlir.dtype_to_ir_type(dtype_out)
@@ -65,8 +65,8 @@ def _lowering(ctx, x, *, platform="cpu", stateid, adjoint):
     # add opid and stateid
     operands.append(mlir.ir_constant(state["_opid"]))
     operands.append(mlir.ir_constant(stateid))
-    # add forward/adjoint mode
-    operands.append(mlir.ir_constant(int(adjoint)))
+    # add forward/transpose mode
+    operands.append(mlir.ir_constant(int(transpose)))
     # add input dtype, rank, and shape
     operands.append(mlir.ir_constant(_dtype_dict[dtype_in]))
     operands.append(mlir.ir_constant(len(shape_in)))
@@ -91,22 +91,21 @@ def _lowering(ctx, x, *, platform="cpu", stateid, adjoint):
     raise ValueError("Unsupported platform; this must be either 'cpu' or 'gpu'")
 
 
-def _jvp(args, tangents, *, stateid, adjoint):
-    res = _prim.bind(args[0], stateid=stateid, adjoint=adjoint)
+def _jvp(args, tangents, *, stateid, transpose):
+    res = _prim.bind(args[0], stateid=stateid, transpose=transpose)
     return (
         res,
         jax.lax.zeros_like_array(res) if type(tangents[0]) is ad.Zero else
-        _prim.bind(tangents[0], stateid=stateid, adjoint=adjoint),
+        _prim.bind(tangents[0], stateid=stateid, transpose=transpose),
     )
 
 
-def _transpose(cotangents, args, *, stateid, adjoint):
-    tmp = _prim.bind(cotangents[0].conj(), stateid=stateid, adjoint=not adjoint)
-    tmp[0] = tmp[0].conj()
+def _transpose(cotangents, args, *, stateid, transpose):
+    tmp = _prim.bind(cotangents[0], stateid=stateid, transpose=not transpose)
     return tmp
 
 
-def _batch(args, axes, *, stateid, adjoint):
+def _batch(args, axes, *, stateid, transpose):
     raise NotImplementedError("FIXME")
 
 
@@ -124,8 +123,8 @@ for platform in ["cpu", "gpu"]:
     jax.interpreters.batching.primitive_batchers[_prim] = _batch
 
 
-def _call(x, state, adjoint):
-    return _prim.bind(x, stateid=id(state), adjoint=adjoint)
+def _call(x, state, transpose):
+    return _prim.bind(x, stateid=id(state), transpose=transpose)
 
 
 def make_linop(func, func_abstract, **kwargs):
@@ -134,14 +133,14 @@ def make_linop(func, func_abstract, **kwargs):
     Parameters
     ----------
     func : the function which performs the linear operation
-        The function signature must be (inp, out, adjoint, state), where
+        The function signature must be (inp, out, transpose, state), where
         inp and out are numpy.ndarrays of float[32/64] or complex[64/128] type,
-        adjoint is a bool indicating whether the forward or adjoint operation
+        transpose is a bool indicating whether the forward or transpose operation
         should be carried out, and state is a dictionary containing additional
         information that the operator might need.
     func_abstract : a function which computes the shape and dtype of the
         operator's output from shape and dtype of its input.
-        Its signature must be (shape, dtype, adjoint, state), where `adjoint`
+        Its signature must be (shape, dtype, transpose, state), where `transpose`
         and `state` are analogous to those from `func`, `shape` is a
         tuple of integers, and dtype is a numpy data type (float[32/64]
         or complex[64/128]).
@@ -175,4 +174,4 @@ def make_linop(func, func_abstract, **kwargs):
     _global_opcounter += 1
     kwargs_clean["_func"] = func
     kwargs_clean["_func_abstract"] = func_abstract
-    return partial(_call, state=kwargs_clean, adjoint=False)
+    return partial(_call, state=kwargs_clean, transpose=False)
