@@ -151,8 +151,7 @@ def make_linop(func, func_abstract, **kwargs):
 
     Returns
     -------
-    op, op_adjoint : jitted functions of the operator and its adjoint for use
-        in Jax computations
+    op : function of the operator for use in Jax computations
 
     Notes
     -----
@@ -176,7 +175,4 @@ def make_linop(func, func_abstract, **kwargs):
     _global_opcounter += 1
     kwargs_clean["_func"] = func
     kwargs_clean["_func_abstract"] = func_abstract
-    return (
-        jax.jit(partial(_call, state=kwargs_clean, adjoint=False)),
-        jax.jit(partial(_call, state=kwargs_clean, adjoint=True)),
-    )
+    return partial(_call, state=kwargs_clean, adjoint=False)

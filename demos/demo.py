@@ -1,6 +1,12 @@
-import scipy.fft
-import jax_linop
+import jax
 import numpy as np
+import scipy.fft
+from jax.test_util import check_grads
+
+import jax_linop
+
+jax.config.update("jax_enable_x64", True)
+
 
 def fft_operator(axes):
     def fftfunc(inp, out, adjoint, state):
@@ -15,17 +21,15 @@ def fft_operator(axes):
 
     return jax_linop.make_linop(fftfunc, fftfunc_abstract, axes=tuple(axes))
 
+
 # create an FFT operator that transforms the first axis of its input array,
 # as well as its adjoint operator
-fft_op, fft_op_adjoint = fft_operator(axes=(0,))
-
-from jax import config
-config.update("jax_enable_x64", True)
-
-from jax.test_util import check_grads
+fft_op = fft_operator(axes=(0, ))
 
 rng = np.random.default_rng(42)
-a = rng.random((100,20,30))-0.5 + 1j*(rng.random((100,20,30))-0.5)
+a = rng.random((100, 20, 30)) - 0.5 + 1j * (rng.random((100, 20, 30)) - 0.5)
 
-check_grads(fft_op, (a,), order=2, modes=["fwd", "rev"], eps=1.)
-check_grads(fft_op_adjoint, (a,), order=2, modes=["fwd", "rev"], eps=1.)
+fft_op_T = jax.linear_transpose(fft_op, a)
+
+check_grads(fft_op, (a, ), order=2, modes=["fwd", "rev"], eps=1.)
+check_grads(fft_op_T, ([a], ), order=2, modes=["fwd", "rev"], eps=1.)
