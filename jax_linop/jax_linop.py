@@ -3,11 +3,13 @@
 
 # Copyright(C) 2023, 2024 Max-Planck-Society
 
-import jax
 from functools import partial
-import numpy as np
+
 import _jax_linop
+import jax
+import numpy as np
 from jax.interpreters import ad, mlir
+from jaxlib.hlo_helpers import custom_call
 
 __all__ = ["make_linop"]
 
@@ -15,7 +17,9 @@ __all__ = ["make_linop"]
 _global_opcounter = 0
 
 for _name, _value in _jax_linop.registrations().items():
-    jax.lib.xla_client.register_custom_call_target(_name, _value, platform="cpu")
+    jax.lib.xla_client.register_custom_call_target(
+        _name, _value, platform="cpu"
+    )
 
 
 def _from_id(objectid):
@@ -27,7 +31,7 @@ def _from_id(objectid):
 def _exec_abstract(x, stateid, adjoint):
     state = _from_id(stateid)
     shp, tp = state["_func_abstract"](x.shape, x.dtype, adjoint, state)
-    return (jax.core.ShapedArray(shp, tp),)
+    return (jax.core.ShapedArray(shp, tp), )
 
 
 # the values are explained in src/duc0/bindings/typecode.h
@@ -40,8 +44,6 @@ _dtype_dict = {
 
 
 def _lowering(ctx, x, *, platform="cpu", stateid, adjoint):
-    import jaxlib
-
     state = _from_id(stateid)
     if len(ctx.avals_in) != 1:
         raise RuntimeError("need exactly one input object")
@@ -49,7 +51,9 @@ def _lowering(ctx, x, *, platform="cpu", stateid, adjoint):
     dtype_in = ctx.avals_in[0].dtype
     if len(ctx.avals_out) != 1:
         raise RuntimeError("need exactly one output object")
-    shape_out, dtype_out = state["_func_abstract"](shape_in, dtype_in, adjoint, state)
+    shape_out, dtype_out = state["_func_abstract"](
+        shape_in, dtype_in, adjoint, state
+    )
 
     dtype_out_mlir = mlir.dtype_to_ir_type(dtype_out)
     jaxtype_out = mlir.ir.RankedTensorType.get(shape_out, dtype_out_mlir)
@@ -75,7 +79,7 @@ def _lowering(ctx, x, *, platform="cpu", stateid, adjoint):
     operand_layouts = [layout_in] + [()] * (7 + len(shape_in) + len(shape_out))
 
     if platform == "cpu":
-        return jaxlib.hlo_helpers.custom_call(
+        return custom_call(
             platform + "_linop",
             result_types=[jaxtype_out],
             result_layouts=[layout_out],
@@ -91,9 +95,8 @@ def _jvp(args, tangents, *, stateid, adjoint):
     res = _prim.bind(args[0], stateid=stateid, adjoint=adjoint)
     return (
         res,
-        jax.lax.zeros_like_array(res)
-        if type(tangents[0]) is ad.Zero
-        else _prim.bind(tangents[0], stateid=stateid, adjoint=adjoint),
+        jax.lax.zeros_like_array(res) if type(tangents[0]) is ad.Zero else
+        _prim.bind(tangents[0], stateid=stateid, adjoint=adjoint),
     )
 
 
