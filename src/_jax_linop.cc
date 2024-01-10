@@ -40,7 +40,7 @@ template <typename T>
 pybind11::capsule EncapsulateFunction(T* fn)
   { return pybind11::capsule(bit_cast<void*>(fn), "xla._CUSTOM_CALL_TARGET"); }
 
-void linop(void *out, void **in)
+void pycall(void *out, void **in)
   {
   py::gil_scoped_acquire get_GIL;
 
@@ -58,10 +58,8 @@ void linop(void *out, void **in)
   py::handle hnd(*reinterpret_cast<PyObject **>(in[2]));
   auto obj = py::reinterpret_borrow<py::object>(hnd);
   const py::dict state(obj);
-  // Are we doing the forward operation or the adjoint?
-  auto adjoint = bool(*reinterpret_cast<int64_t *>(in[3]));
-  
-  size_t idx = 4;
+
+  size_t idx = 3;
   // Getting type, rank, and shape of the input
   auto dtin = tcdict.at(uint8_t(*reinterpret_cast<int64_t *>(in[idx++])));
   size_t ndim_in = *reinterpret_cast<uint64_t *>(in[idx++]);
@@ -88,13 +86,13 @@ void linop(void *out, void **in)
 //  MR_assert(pyout.writeable(), "output data must be writable");
 
   // Execute the Python function implementing the linear operation
-  state["_func"](pyin, pyout, adjoint, state);
+  state["_func"](pyin, pyout, state);
   }
 
 pybind11::dict Registrations()
   {
   pybind11::dict dict;
-  dict["cpu_linop"] = EncapsulateFunction(linop);
+  dict["cpu_pycall"] = EncapsulateFunction(pycall);
   return dict;
   }
 
