@@ -51,35 +51,26 @@ def fht_operator(axes, nthreads):
     )
 
 
-def c2c_operator(axes, nthreads):
+def c2c_operator(axes, forward, nthreads):
     def c2cfunc(inp, out, state):
         ducc0.fft.c2c(
             inp,
             out=out,
             axes=state["axes"],
             nthreads=state["nthreads"],
-            forward=True
+            forward=state["forward"]
         )
-
-    def c2cfunc_T(inp, out, state):
-        ducc0.fft.c2c(
-            inp.conj(),
-            out=out,
-            axes=state["axes"],
-            nthreads=state["nthreads"],
-            forward=False
-        )
-        out.imag *= -1  # inplace complex conjugation
 
     def c2cfunc_abstract(shape, dtype, state):
         return shape, dtype
 
     return jax_linop.get_linear_call(
         c2cfunc,
-        c2cfunc_T,
+        c2cfunc,  # The C2C FFT matrix is symmetric!
         c2cfunc_abstract,
         c2cfunc_abstract,
         axes=tuple(axes),
+        forward=bool(forward),
         nthreads=int(nthreads)
     )
 
@@ -173,16 +164,17 @@ def test_fht(shape, axes, dtype, nthreads):
 
 
 @pmp("shape,axes", (((100, ), (0, )), ((10, 17), (0, 1)), ((10, 17, 3), (1, ))))
+@pmp("forward", (False, True))
 @pmp("dtype", (np.complex64, np.complex128))
 @pmp("nthreads", (1, 2))
-def test_c2c(shape, axes, dtype, nthreads):
+def test_c2c(shape, axes, forward, dtype, nthreads):
     rng = np.random.default_rng(42)
 
-    op = c2c_operator(axes=axes, nthreads=nthreads)
+    op = c2c_operator(axes=axes, forward=forward, nthreads=nthreads)
     a = (rng.random(shape) -
          0.5).astype(dtype) + (1j * (rng.random(shape) - 0.5)).astype(dtype)
     b1 = np.array(op(a)[0])
-    b2 = ducc0.fft.c2c(a, axes=axes, forward=True, nthreads=nthreads)
+    b2 = ducc0.fft.c2c(a, axes=axes, forward=forward, nthreads=nthreads)
     _assert_close(b1, b2, epsilon=1e-6 if dtype == np.complex64 else 1e-14)
 
     max_order = 2
@@ -259,7 +251,5 @@ def test_sht2d(lmmax, geometry, ntheta, nphi, spin, dtype, nthreads):
     _assert_close(alm1, alm2, epsilon=1e-6 if dtype == np.float32 else 1e-14)
 
     max_order = 2
-    check_grads(op, (alm0r, ), order=max_order, modes=("fwd", ), eps=1.)
-    check_grads(op_adj, (map0, ), order=max_order, modes=("fwd", ), eps=1.)
-    check_grads(op, (alm0r, ), order=max_order, modes=("rev", ), eps=1.)
-    check_grads(op_adj, (map0, ), order=max_order, modes=("rev", ), eps=1.)
+    check_grads(op, (alm0r, ), order=max_order, modes=("fwd", "rev"), eps=1.)
+    check_grads(op_adj, (map0, ), order=max_order, modes=("fwd", "rev"), eps=1.)
