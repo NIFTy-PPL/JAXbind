@@ -88,7 +88,7 @@ def _transpose(cotangents, args, *, stateid, stateTid):
     return _prim.bind(cotangents[0], stateid=stateTid, stateTid=stateid)
 
 
-def _batch(args, axes, *, stateid, state_id_T):
+def _batch(args, axes, *, stateid, stateTid):
     raise NotImplementedError("FIXME")
 
 
