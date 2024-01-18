@@ -75,18 +75,22 @@ def c2c_operator(axes, forward, nthreads):
     )
 
 
-def alm2realalm(alm, lmax, dtype):
-    res = np.zeros((alm.shape[0], alm.shape[1] * 2 - lmax - 1), dtype=dtype)
-    res[:, 0:lmax + 1] = alm[:, 0:lmax + 1].real
-    res[:, lmax + 1:] = alm[:, lmax + 1:].view(dtype) * np.sqrt(2.)
-    return res
+def alm2realalm(alm, lmax, dtype, out=None):
+    if out is None:
+        out = np.empty((alm.shape[0], alm.shape[1] * 2 - lmax - 1), dtype=dtype)
+    out[:, 0:lmax + 1] = alm[:, 0:lmax + 1].real
+    out[:, lmax + 1:] = alm[:, lmax + 1:].view(dtype)
+    out[:, lmax + 1:] *= np.sqrt(2.)
+    return out
 
 
-def realalm2alm(alm, lmax, dtype):
-    res = np.zeros((alm.shape[0], (alm.shape[1] + lmax + 1) // 2), dtype=dtype)
-    res[:, 0:lmax + 1] = alm[:, 0:lmax + 1]
-    res[:, lmax + 1:] = alm[:, lmax + 1:].view(dtype) * (np.sqrt(2.) / 2)
-    return res
+def realalm2alm(alm, lmax, dtype, out=None):
+    if out is None:
+        out = np.empty((alm.shape[0], (alm.shape[1] + lmax + 1) // 2), dtype=dtype)
+    out[:, 0:lmax + 1] = alm[:, 0:lmax + 1]
+    out[:, lmax + 1:] = alm[:, lmax + 1:].view(dtype)
+    out[:, lmax + 1:] *= np.sqrt(2.) / 2
+    return out
 
 
 def sht2d_operator(lmax, mmax, ntheta, nphi, geometry, spin, nthreads):
@@ -111,7 +115,7 @@ def sht2d_operator(lmax, mmax, ntheta, nphi, geometry, spin, nthreads):
             nthreads=state["nthreads"],
             geometry=state["geometry"]
         )
-        out[()] = alm2realalm(tmp, state["lmax"], inp.dtype)
+        alm2realalm(tmp, state["lmax"], inp.dtype, out)
 
     def sht2dfunc_abstract(shape_in, dtype_in, state):
         spin = state["spin"]
@@ -140,6 +144,60 @@ def sht2d_operator(lmax, mmax, ntheta, nphi, geometry, spin, nthreads):
         nphi=int(nphi),
         geometry=str(geometry),
         nthreads=int(nthreads)
+    )
+
+def healpix_operator(lmax, mmax, nside, spin, nthreads):
+    def healpixfunc(inp, out, state):
+        tmp = realalm2alm(inp, state["lmax"], complextype(inp.dtype))
+        ducc0.sht.synthesis(
+            lmax=state["lmax"],
+            mmax=state["mmax"],
+            spin=state["spin"],
+            map=out,
+            alm=tmp,
+            nthreads=state["nthreads"],
+            **state["hpxparam"]
+        )
+
+    def healpixfunc_T(inp, out, state):
+        tmp = ducc0.sht.adjoint_synthesis(
+            lmax=state["lmax"],
+            mmax=state["mmax"],
+            spin=state["spin"],
+            map=inp,
+            nthreads=state["nthreads"],
+            **state["hpxparam"]
+        )
+        alm2realalm(tmp, state["lmax"], inp.dtype, out)
+
+    def healpixfunc_abstract(shape_in, dtype_in, state):
+        spin = state["spin"]
+        ncomp = 1 if spin == 0 else 2
+        shape_out = (ncomp, 12*state["nside"]**2)
+        return shape_out, dtype_in
+
+    def healpixfunc_abstract_T(shape_in, dtype_in, state):
+        spin = state["spin"]
+        ncomp = 1 if spin == 0 else 2
+        lmax, mmax = state["lmax"], state["mmax"]
+        nalm = ((mmax + 1) * (mmax + 2)) // 2 + (mmax + 1) * (lmax - mmax)
+        nalm = nalm * 2 - lmax - 1
+        shape_out = (ncomp, nalm)
+        return shape_out, dtype_in
+
+    nside = int(nside)
+    base = ducc0.healpix.Healpix_Base(nside, "RING")
+    return jax_linop.get_linear_call(
+        healpixfunc,
+        healpixfunc_T,
+        healpixfunc_abstract,
+        healpixfunc_abstract_T,
+        lmax=int(lmax),
+        mmax=int(mmax),
+        spin=int(spin),
+        nthreads=int(nthreads),
+        nside=nside,
+        hpxparam=base.sht_info()
     )
 
 
@@ -247,6 +305,59 @@ def test_sht2d(lmmax, geometry, ntheta, nphi, spin, dtype, nthreads):
         spin=spin,
         geometry=geometry,
         nthreads=nthreads
+    )
+    _assert_close(alm1, alm2, epsilon=1e-6 if dtype == np.float32 else 1e-14)
+
+    max_order = 2
+    check_grads(op, (alm0r, ), order=max_order, modes=("fwd", "rev"), eps=1.)
+    check_grads(op_adj, (map0, ), order=max_order, modes=("fwd", "rev"), eps=1.)
+
+@pmp("lmmax", ((10, 10), (20, 5)))
+@pmp("nside", (16, 2))
+@pmp("spin", (0, 2))
+@pmp("dtype", (np.float32, np.float64))
+@pmp("nthreads", (1, 2))
+def test_healpix(lmmax, nside, spin, dtype, nthreads):
+    rng = np.random.default_rng(42)
+
+    lmax, mmax = lmmax
+    ncomp = 1 if spin == 0 else 2
+    alm0 = random_alm(lmax, mmax, spin, ncomp, rng).astype(complextype(dtype))
+    alm0r = alm2realalm(alm0, lmax, dtype)
+    base = ducc0.healpix.Healpix_Base(nside, "RING")
+    hpxparam = base.sht_info()
+
+    op = healpix_operator(
+        lmax=lmax,
+        mmax=mmax,
+        nside=nside,
+        spin=spin,
+        nthreads=nthreads
+    )
+    op_adj = lambda x: jax.linear_transpose(lambda y: op(y)[0], alm0r
+                                           )(x.conj())[0].conj()
+
+    map1 = np.array(op(alm0r)[0])
+    map2 = ducc0.sht.synthesis(
+        alm=alm0,
+        lmax=lmax,
+        mmax=mmax,
+        spin=spin,
+        nthreads=nthreads,
+        **hpxparam
+    )
+    _assert_close(map1, map2, epsilon=1e-6 if dtype == np.float32 else 1e-14)
+
+    map0 = (rng.random((ncomp, 12*nside**2)) - 0.5).astype(dtype)
+    alm1r = np.array(op_adj(map0))
+    alm1 = realalm2alm(alm1r, lmax, complextype(dtype))
+    alm2 = ducc0.sht.adjoint_synthesis(
+        map=map0,
+        lmax=lmax,
+        mmax=mmax,
+        spin=spin,
+        nthreads=nthreads,
+        **hpxparam
     )
     _assert_close(alm1, alm2, epsilon=1e-6 if dtype == np.float32 else 1e-14)
 

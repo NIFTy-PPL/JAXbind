@@ -56,29 +56,19 @@ def _lowering(ctx, x, *, platform="cpu", stateid, stateTid):
     layout_in = tuple(range(len(shape_in) - 1, -1, -1))
     layout_out = tuple(range(len(shape_out) - 1, -1, -1))
 
-    # add array
-    operands = [x]
-    # add opid and stateid
-    operands.append(mlir.ir_constant(state["_opid"]))
-    operands.append(mlir.ir_constant(stateid))
-    # add input dtype, rank, and shape
-    operands.append(mlir.ir_constant(_dtype_dict[dtype_in]))
-    operands.append(mlir.ir_constant(len(shape_in)))
-    operands += [mlir.ir_constant(i) for i in shape_in]
-    # add output dtype, rank, and shape
-    operands.append(mlir.ir_constant(_dtype_dict[dtype_out]))
-    operands.append(mlir.ir_constant(len(shape_out)))
-    operands += [mlir.ir_constant(i) for i in shape_out]
-
+    irc = mlir.ir_constant
+    operands = [
+        x, irc(state["_opid"]), irc(stateid), irc(_dtype_dict[dtype_in]),
+        irc(len(shape_in))] + [irc (i) for i in shape_in] + \
+        [irc(_dtype_dict[dtype_out]), irc(len(shape_out))] + \
+        [irc (i) for i in shape_out]
     operand_layouts = [layout_in] + [()] * (6 + len(shape_in) + len(shape_out))
 
     if platform == "cpu":
         return custom_call(
             platform + "_pycall",
-            result_types=[jaxtype_out],
-            result_layouts=[layout_out],
-            operands=operands,
-            operand_layouts=operand_layouts,
+            result_types=[jaxtype_out], result_layouts=[layout_out],
+            operands=operands, operand_layouts=operand_layouts,
         ).results
     elif platform == "gpu":
         raise ValueError("No GPU support")
