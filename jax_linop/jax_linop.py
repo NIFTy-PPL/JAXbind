@@ -67,8 +67,10 @@ def _lowering(ctx, x, *, platform="cpu", stateid, stateTid):
     if platform == "cpu":
         return custom_call(
             platform + "_pycall",
-            result_types=[jaxtype_out], result_layouts=[layout_out],
-            operands=operands, operand_layouts=operand_layouts,
+            result_types=[jaxtype_out],
+            result_layouts=[layout_out],
+            operands=operands,
+            operand_layouts=operand_layouts,
         ).results
     elif platform == "gpu":
         raise ValueError("No GPU support")
@@ -89,7 +91,13 @@ def _transpose(cotangents, args, *, stateid, stateTid):
 
 
 def _batch(args, axes, *, stateid, stateTid):
-    raise NotImplementedError("FIXME")
+    from .custom_map import smap
+
+    return smap(
+        partial(_prim.bind, stateid=stateid, stateTid=stateTid),
+        in_axes=axes[0],
+        out_axes=axes[0]
+    )(*args), axes
 
 
 _prim = jax.core.Primitive("jax_linop_prim")
