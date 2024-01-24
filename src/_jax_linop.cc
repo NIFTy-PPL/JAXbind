@@ -40,7 +40,7 @@ template <typename T>
 pybind11::capsule EncapsulateFunction(T* fn)
   { return pybind11::capsule(bit_cast<void*>(fn), "xla._CUSTOM_CALL_TARGET"); }
 
-void pycall(void *out_tuple, void **in)
+void pycall(void *out, void **in)
   {
   py::gil_scoped_acquire get_GIL;
 
@@ -83,9 +83,8 @@ void pycall(void *out_tuple, void **in)
 //  MR_assert(!pyin.owndata(), "owndata should be false");
   py_x.attr("flags").attr("writeable") = false;
 
-  void **out = reinterpret_cast<void **>(out_tuple);
 //  MR_assert(!pyin.writeable(), "input array should not be writeable");
-  py::array py_y (dtp_y, shape_y, out[0], dummy);
+  py::array py_y (dtp_y, shape_y, out, dummy);
 //  MR_assert(!pyout.owndata(), "owndata should be false");
 //  MR_assert(pyout.writeable(), "output data must be writable");
 
