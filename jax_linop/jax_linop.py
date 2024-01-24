@@ -32,7 +32,9 @@ def _from_id(objectid):
     return ctypes.cast(objectid, ctypes.py_object).value
 
 
-def _exec_abstract(*args, _func, _func_T, _func_abstract, _func_abstract_T, **kwargs):
+def _exec_abstract(
+    *args, _func, _func_T, _func_abstract, _func_abstract_T, **kwargs
+):
     shp, dtp, _ = _func_abstract(*args, **kwargs)
     return (jax.core.ShapedArray(shp, dtp), )
 
@@ -48,52 +50,67 @@ _dtype_dict = {
 
 
 def _lowering(
-    ctx, *args, _func, _func_T, _func_abstract, _func_abstract_T, _platform="cpu", **kwargs
+    ctx,
+    *args,
+    _func,
+    _func_T,
+    _func_abstract,
+    _func_abstract_T,
+    _platform="cpu",
+    **kwargs
 ):
-    assert len(ctx.avals_out) == 1
-    shape_y, dtype_y = ctx.avals_out[0].shape, ctx.avals_out[0].dtype
-    jaxtype_y = mlir.ir.RankedTensorType.get(
-        shape_y, mlir.dtype_to_ir_type(dtype_y)
-    )
-    layout_y = tuple(range(len(shape_y) - 1, -1, -1))
-
     operands = [irc(id(_func))]  # Pass the ID of the callable to C++
-    operands_layout = [()]
+    operand_layouts = [()]
+
     operands += [irc(len(args))]
-    operands_layout += [()]
+    operand_layouts += [()]
     assert len(args) == len(ctx.avals_in)
     # All `args` are assumed to be JAX arrays
     for a, ca in zip(args, ctx.avals_in):
         operands += [irc(_dtype_dict[ca.dtype]),
                      irc(ca.ndim)] + [irc(i) for i in ca.shape] + [a]
         lyt_a = tuple(range(ca.ndim - 1, -1, -1))
-        operands_layout += [()] * (2 + ca.ndim) + [lyt_a]
+        operand_layouts += [()] * (2 + ca.ndim) + [lyt_a]
 
-    operands += [irc(_dtype_dict[dtype_y]),
-                 irc(len(shape_y))] + [irc(i) for i in shape_y]
-    operands_layout += [()] * (2 + len(shape_y))
+    operands += [irc(len(ctx.avals_out))]
+    operand_layouts += [()]
+    result_layouts = []
+    result_types = []
+    for co in ctx.avals_out:
+        operands += [irc(_dtype_dict[co.dtype]),
+                     irc(co.ndim)] + [irc(i) for i in co.shape]
+        operand_layouts += [()] * (2 + co.ndim)
+        result_layouts += [tuple(range(co.ndim - 1, -1, -1))]
+        rs_typ = mlir.ir.RankedTensorType.get(
+            co.shape, mlir.dtype_to_ir_type(co.dtype)
+        )
+        result_types += [rs_typ]
 
     kwargs = np.frombuffer(pickle.dumps(kwargs), dtype=np.uint8)
     kwargs_ir = hlo.constant(
         ir.DenseElementsAttr.get(kwargs, type=ir.IntegerType.get_unsigned(8))
     )
     operands += [irc(_dtype_dict[kwargs.dtype]), irc(kwargs.size), kwargs_ir]
-    operands_layout += [(), (), [0]]
+    operand_layouts += [(), (), [0]]
 
+    assert len(operand_layouts) == len(operands)
     if _platform == "cpu":
         return custom_call(
             _platform + "_pycall",
-            result_types=[jaxtype_y],
-            result_layouts=[layout_y],
+            result_types=result_types,
+            result_layouts=result_layouts,
             operands=operands,
-            operand_layouts=operands_layout,
+            operand_layouts=operand_layouts,
         ).results
     elif _platform == "gpu":
         raise ValueError("No GPU support")
     raise ValueError("Unsupported platform; this must be either 'cpu' or 'gpu'")
 
 
-def _jvp(args, tangents, *, _func, _func_T, _func_abstract, _func_abstract_T, **kwargs):
+def _jvp(
+    args, tangents, *, _func, _func_T, _func_abstract, _func_abstract_T,
+    **kwargs
+):
     res = _prim.bind(
         *args,
         **kwargs,
@@ -129,7 +146,10 @@ def _jvp(args, tangents, *, _func, _func_T, _func_abstract, _func_abstract_T, **
     return (res, tans)
 
 
-def _transpose(cotangents, args, *, _func, _func_T, _func_abstract, _func_abstract_T, **kwargs):
+def _transpose(
+    cotangents, args, *, _func, _func_T, _func_abstract, _func_abstract_T,
+    **kwargs
+):
     return _prim.bind(
         *cotangents,
         **kwargs,
@@ -272,5 +292,9 @@ def get_linear_call(
     # keep a reference. Ideally this reference is cheap but just to be sure,
     # also implemenet a clear cache function
     return partial(
-        _call, _func=func, _func_T=func_T, _func_abstract=func_abstract, _func_abstract_T=func_abstract_T
+        _call,
+        _func=func,
+        _func_T=func_T,
+        _func_abstract=func_abstract,
+        _func_abstract_T=func_abstract_T
     )

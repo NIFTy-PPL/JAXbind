@@ -11,6 +11,7 @@
 
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
+#include <iostream>
 
 #include <vector>
 #include <map>
@@ -40,7 +41,7 @@ template <typename T>
 pybind11::capsule EncapsulateFunction(T* fn)
   { return pybind11::capsule(bit_cast<void*>(fn), "xla._CUSTOM_CALL_TARGET"); }
 
-void pycall(void *out, void **in)
+void pycall(void *out_tuple, void **in)
   {
   py::gil_scoped_acquire get_GIL;
 
@@ -56,9 +57,10 @@ void pycall(void *out, void **in)
   py::handle hnd(*reinterpret_cast<PyObject **>(in[0]));
   auto func = py::reinterpret_borrow<py::object>(hnd);
 
+  std::cout << "-1" << std::flush;
   size_t idx = 1;
   size_t nargs = *reinterpret_cast<uint64_t *>(in[idx++]);
-  py::list args;
+  py::list py_in;
   for (size_t i=0; i<nargs; i++) {
     // Getting type, rank, and shape of the input
     auto dtp_a = tcdict.at(uint8_t(*reinterpret_cast<int64_t *>(in[idx++])));
@@ -72,23 +74,36 @@ void pycall(void *out, void **in)
     // keep any references to them.
     py::array py_a (dtp_a, shape_a, in[idx++], dummy);
     py_a.attr("flags").attr("writeable") = false;
-    args.append(py_a);
+    py_in.append(py_a);
   }
-  // Getting type, rank, and shape of the output
-  auto dtp_out = tcdict.at(uint8_t(*reinterpret_cast<int64_t *>(in[idx++])));
-  size_t ndim_out = *reinterpret_cast<uint64_t *>(in[idx++]);
-  vector<size_t> shape_out;
-  for (size_t i=0; i<ndim_out; ++i) {
-    shape_out.push_back(*reinterpret_cast<uint64_t *>(in[idx++]));
-  }
-  py::array py_out (dtp_out, shape_out, out, dummy);
 
+  std::cout << "1" << std::flush;
+  void **out = reinterpret_cast<void **>(out_tuple);
+  size_t nout = *reinterpret_cast<uint64_t *>(in[idx++]);
+  py::list py_out;
+  for (size_t i=0; i<nout; i++) {
+    std::cout << "2" << std::flush;
+    // Getting type, rank, and shape of the output
+    auto dtp_out = tcdict.at(uint8_t(*reinterpret_cast<int64_t *>(in[idx++])));
+    size_t ndim_out = *reinterpret_cast<uint64_t *>(in[idx++]);
+    vector<size_t> shape_out;
+    for (size_t j=0; j<ndim_out; ++j) {
+      shape_out.push_back(*reinterpret_cast<uint64_t *>(in[idx++]));
+    }
+    py::array py_o (dtp_out, shape_out, out[i], dummy);
+    py_out.append(py_o);
+    std::cout << "3" << std::flush;
+  }
+
+  std::cout << "4" << std::flush;
   auto dtp_kwargs = tcdict.at(uint8_t(*reinterpret_cast<int64_t *>(in[idx++])));
   size_t size_kwargs = *reinterpret_cast<uint64_t *>(in[idx++]);
   py::array py_kwargs (dtp_kwargs, size_kwargs, in[idx++], dummy);
+  std::cout << "5" << std::flush;
 
   // Execute the Python function implementing the linear operation
-  func(args, py_out, py_kwargs);
+  func(py_out, py_in, py_kwargs);
+  std::cout << "6" << std::flush;
   }
 
 pybind11::dict Registrations()
