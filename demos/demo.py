@@ -36,8 +36,7 @@ fft_jl = jax_linop.get_linear_call(
 inp = (4 + jnp.zeros((2, 2, 14)), 1 + jnp.zeros((2, 2, 14)))
 fft_jl(*inp, axes=(3, 4))
 
-
-check_grads(partial(fft_jl, axes=(3,4)), inp , order=2, modes=["fwd"], eps=1.)
+check_grads(partial(fft_jl, axes=(3, 4)), inp, order=2, modes=["fwd"], eps=1.)
 # fft_jl_j = jax.jit(jax.vmap(jax.vmap(fft_jl, in_axes=0), in_axes=0))
 # fft_jl_j = jax.vmap(jax.vmap(fft_jl, in_axes=0), in_axes=0)
 # fft_jl_j(jnp.zeros((2, 2, 14)).astype(jnp.complex128))

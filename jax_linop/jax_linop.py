@@ -47,7 +47,9 @@ _dtype_dict = {
 }
 
 
-def _lowering(ctx, *args, _func, _func_T, _func_abstract, _platform="cpu", **kwargs):
+def _lowering(
+    ctx, *args, _func, _func_T, _func_abstract, _platform="cpu", **kwargs
+):
     assert len(ctx.avals_out) == 1
     shape_y, dtype_y = ctx.avals_out[0].shape, ctx.avals_out[0].dtype
     jaxtype_y = mlir.ir.RankedTensorType.get(
@@ -93,9 +95,14 @@ def _lowering(ctx, *args, _func, _func_T, _func_abstract, _platform="cpu", **kwa
 
 def _jvp(args, tangents, *, _func, _func_T, _func_abstract, **kwargs):
     res = _prim.bind(
-        *args, **kwargs, _func=_func, _func_T=_func_T, _func_abstract=_func_abstract
-        )
+        *args,
+        **kwargs,
+        _func=_func,
+        _func_T=_func_T,
+        _func_abstract=_func_abstract
+    )
     print("within jvp")
+
     def make_zeros(tan):
         return jax.lax.zeros_like_array(res) if type(tan) is ad.Zero else tan
 
@@ -106,17 +113,29 @@ def _jvp(args, tangents, *, _func, _func_T, _func_abstract, **kwargs):
         for i, t in enumerate(tangents):
             t = make_zeros(t)
             tn = _prim.bind(
-                *args[:i], t, *args[i+1:], **kwargs, _func=_func, _func_T=_func_T, _func_abstract=_func_abstract
-                )
-            tans = tn if tans is None else tuple(t + tn_i for t, tn_i in zip(tans, tn))
+                *args[:i],
+                t,
+                *args[i + 1:],
+                **kwargs,
+                _func=_func,
+                _func_T=_func_T,
+                _func_abstract=_func_abstract
+            )
+            tans = tn if tans is None else tuple(
+                t + tn_i for t, tn_i in zip(tans, tn)
+            )
     assert tans is not None
     return (res, tans)
 
 
 def _transpose(cotangents, args, *, _func, _func_T, _func_abstract, **kwargs):
     return _prim.bind(
-        *cotangents, **kwargs, _func=_func_T, func_T=_func, _func_abstract=_func_abstract
-        )
+        *cotangents,
+        **kwargs,
+        _func=_func_T,
+        func_T=_func,
+        _func_abstract=_func_abstract
+    )
 
 
 def _batch(args, in_axes, *, stateid, stateTid):
@@ -192,7 +211,11 @@ for platform in ["cpu", "gpu"]:
 
 def _call(*args, _func, _func_T, _func_abstract, **kwargs):
     out, = _prim.bind(
-        *args, **kwargs, _func=_func, _func_T=_func_T, _func_abstract=_func_abstract
+        *args,
+        **kwargs,
+        _func=_func,
+        _func_T=_func_T,
+        _func_abstract=_func_abstract
     )
     return out
 
@@ -260,4 +283,6 @@ def get_linear_call(
     state["_func_can_batch"] = stateT["_func_can_batch"] = func_can_batch
 
     # return partial(_call, state=state, stateT=stateT)
-    return partial(_call, _func=func, _func_T=func_T, _func_abstract=func_abstract)
+    return partial(
+        _call, _func=func, _func_T=func_T, _func_abstract=func_abstract
+    )
