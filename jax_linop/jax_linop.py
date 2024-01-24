@@ -265,24 +265,9 @@ def get_linear_call(
       that the user did not supply in `**kwargs`; these will have names starting
       with an underscore.
     """
-    import copy
-
-    safe_copy = copy.deepcopy if deepcopy_kwargs is True else copy.copy
-    # somehow make sure that kwargs_clean only contains deep copies of
-    # everything in kwargs that are not accessible from anywhere else.
-    state = safe_copy(kwargs)  # FIXME TODO
-    stateT = copy.copy(state)
-    global _global_opcounter
-    state["_opid"] = stateT["_opid"] = _global_opcounter
-    _global_opcounter += 1
-    state["_func"] = stateT["_func_T"] = func
-    state["_func_T"] = stateT["_func"] = func_T
-    state["_func_abstract"] = stateT["_func_abstract_T"] = func_abstract
-    state["_func_abstract_T"] = stateT["_func_abstract"] = func_abstract_T
-    state["_batch_axes"] = stateT["_batch_axes"] = batch_axes
-    state["_func_can_batch"] = stateT["_func_can_batch"] = func_can_batch
-
-    # return partial(_call, state=state, stateT=stateT)
+    # TODO: register all func* in global scope such that the user does not need
+    # keep a reference. Ideally this reference is cheap but just to be sure,
+    # also implemenet a clear cache function
     return partial(
         _call, _func=func, _func_T=func_T, _func_abstract=func_abstract
     )
