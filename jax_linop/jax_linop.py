@@ -5,11 +5,12 @@
 
 from functools import partial
 
-import _jax_linop
 import jax
 import numpy as np
-from jax.interpreters import ad, mlir, batching
+from jax.interpreters import ad, batching, mlir
 from jaxlib.hlo_helpers import custom_call
+
+import _jax_linop
 
 # incremented for every registered operator, strictly for uniqueness purposes
 _global_opcounter = 0
@@ -28,7 +29,7 @@ def _from_id(objectid):
 
 def _exec_abstract(x, *, stateid, stateTid):
     state = _from_id(stateid)
-    shp, tp = state["_func_abstract"](x.shape, x.dtype, state)
+    shp, tp, _ = state["_func_abstract"](x.shape, x.dtype, state)
     return (jax.core.ShapedArray(shp, tp), )
 
 
@@ -45,30 +46,33 @@ def _lowering(ctx, x, *, platform="cpu", stateid, stateTid):
     state = _from_id(stateid)
     if len(ctx.avals_in) != 1:
         raise RuntimeError("need exactly one input object")
-    shape_in = ctx.avals_in[0].shape
-    dtype_in = ctx.avals_in[0].dtype
     if len(ctx.avals_out) != 1:
         raise RuntimeError("need exactly one output object")
-    shape_out, dtype_out = state["_func_abstract"](shape_in, dtype_in, state)
+    shape_x, dtype_x = ctx.avals_in[0].shape, ctx.avals_in[0].dtype
+    shape_y, dtype_y = ctx.avals_out[0].shape, ctx.avals_out[0].dtype
 
-    dtype_out_mlir = mlir.dtype_to_ir_type(dtype_out)
-    jaxtype_out = mlir.ir.RankedTensorType.get(shape_out, dtype_out_mlir)
-    layout_in = tuple(range(len(shape_in) - 1, -1, -1))
-    layout_out = tuple(range(len(shape_out) - 1, -1, -1))
+    dtype_mlir_y = mlir.dtype_to_ir_type(dtype_y)
+    jaxtype_y = mlir.ir.RankedTensorType.get(shape_y, dtype_mlir_y)
+    layout_x = tuple(range(len(shape_x) - 1, -1, -1))
+    layout_y = tuple(range(len(shape_y) - 1, -1, -1))
 
     irc = mlir.ir_constant
     operands = [
-        x, irc(state["_opid"]), irc(stateid), irc(_dtype_dict[dtype_in]),
-        irc(len(shape_in))] + [irc (i) for i in shape_in] + \
-        [irc(_dtype_dict[dtype_out]), irc(len(shape_out))] + \
-        [irc (i) for i in shape_out]
-    operand_layouts = [layout_in] + [()] * (6 + len(shape_in) + len(shape_out))
+        x,
+        irc(state["_opid"]),
+        irc(stateid),
+        irc(_dtype_dict[dtype_x]),
+        irc(len(shape_x))
+    ] + [irc(i) for i in shape_x]
+    operands += [irc(_dtype_dict[dtype_y]),
+                 irc(len(shape_y))] + [irc(i) for i in shape_y]
+    operand_layouts = [layout_x] + [()] * (6 + len(shape_x) + len(shape_y))
 
     if platform == "cpu":
         return custom_call(
             platform + "_pycall",
-            result_types=[jaxtype_out],
-            result_layouts=[layout_out],
+            result_types=[jaxtype_y],
+            result_layouts=[layout_y],
             operands=operands,
             operand_layouts=operand_layouts,
         ).results
@@ -90,14 +94,50 @@ def _transpose(cotangents, args, *, stateid, stateTid):
     return _prim.bind(cotangents[0], stateid=stateTid, stateTid=stateid)
 
 
-def _batch(args, axes, *, stateid, stateTid):
+def _batch(args, in_axes, *, stateid, stateTid):
     from .custom_map import smap
 
-    return smap(
-        partial(_prim.bind, stateid=stateid, stateTid=stateTid),
-        in_axes=axes[0],
-        out_axes=axes[0]
-    )(*args), axes
+    ia, _ = in_axes
+    state = _from_id(stateid)
+    if state["_func_can_batch"] is False:
+        y = smap(
+            partial(_prim.bind, stateid=stateid, stateTid=stateTid),
+            in_axes=(ia, ),
+            out_axes=(ia, )
+        )(*args)
+        oa = ia
+    else:
+        internal_fields = (
+            "_opid", "_func_can_batch", "_batch_axes", "_func", "_func_T",
+            "_func_abstract", "_func_abstract_T"
+        )
+        kw_batch = {
+            k.removeprefix("_") if k in internal_fields else k: v
+            for k, v in state.items()
+        }
+        # TODO: transposed batched state
+        batch_axes = kw_batch.pop("batch_axes", ())
+        for b in batch_axes:
+            if ia >= b:
+                ia += 1
+        kw_batch["batch_axes"] = sorted(batch_axes + (ia, ))
+
+        call = get_linear_call(**kw_batch, deepcopy_kwargs=False)
+        x, = args
+        y = call(x)
+
+        _, _, ba_wob = state["_func_abstract"](
+            x.shape[:ia] + x.shape[ia + 1:], x.dtype, state
+        )
+        _, _, ba_wb = state["_func_abstract"](
+            x.shape, x.dtype, call.keywords["state"]
+        )
+        out_axes = set(ba_wob) - set(ba_wb)
+        oa, = out_axes
+        for b in ba_wb[::-1]:
+            if oa >= b:
+                oa -= 1
+    return y, (oa, )
 
 
 _prim = jax.core.Primitive("jax_linop_prim")
@@ -114,11 +154,21 @@ for platform in ["cpu", "gpu"]:
     batching.primitive_batchers[_prim] = _batch
 
 
-def _call(x, state, stateT):
+def _call(x, *, state, stateT):
     return _prim.bind(x, stateid=id(state), stateTid=id(stateT))
 
 
-def get_linear_call(func, func_T, /, func_abstract, func_abstract_T, **kwargs):
+def get_linear_call(
+    func,
+    func_T,
+    /,
+    func_abstract,
+    func_abstract_T,
+    batch_axes=(),
+    func_can_batch=False,
+    deepcopy_kwargs=True,
+    **kwargs
+) -> partial:
     """Create Jax functions for the provided linear operator
 
     Parameters
@@ -155,9 +205,10 @@ def get_linear_call(func, func_T, /, func_abstract, func_abstract_T, **kwargs):
     """
     import copy
 
+    safe_copy = copy.deepcopy if deepcopy_kwargs is True else copy.copy
     # somehow make sure that kwargs_clean only contains deep copies of
     # everything in kwargs that are not accessible from anywhere else.
-    state = copy.deepcopy(kwargs)  # FIXME TODO
+    state = safe_copy(kwargs)  # FIXME TODO
     stateT = copy.copy(state)
     global _global_opcounter
     state["_opid"] = stateT["_opid"] = _global_opcounter
@@ -166,4 +217,13 @@ def get_linear_call(func, func_T, /, func_abstract, func_abstract_T, **kwargs):
     state["_func_T"] = stateT["_func"] = func_T
     state["_func_abstract"] = stateT["_func_abstract_T"] = func_abstract
     state["_func_abstract_T"] = stateT["_func_abstract"] = func_abstract_T
-    return partial(_call, state=state, stateT=stateT)
+    state["_batch_axes"] = stateT["_batch_axes"] = batch_axes
+    state["_func_can_batch"] = stateT["_func_can_batch"] = func_can_batch
+
+    @partial(partial, state=state, stateT=stateT)
+    def call(*args, state, stateT):
+        assert len(args) == 1
+        out, = _call(*args, state=state, stateT=stateT)
+        return out
+
+    return call

@@ -40,7 +40,7 @@ template <typename T>
 pybind11::capsule EncapsulateFunction(T* fn)
   { return pybind11::capsule(bit_cast<void*>(fn), "xla._CUSTOM_CALL_TARGET"); }
 
-void pycall(void *out, void **in)
+void pycall(void *out_tuple, void **in)
   {
   py::gil_scoped_acquire get_GIL;
 
@@ -51,7 +51,7 @@ void pycall(void *out, void **in)
     {71, py::dtype::of<complex<double>>()}};
 
   // the "opid" in in[1] is not used; it is only passed to guarantee uniqueness
-  // of the passed parameters for every distinvt operator, so that JAX knows
+  // of the passed parameters for every distinct operator, so that JAX knows
   // when and when not to recompile.
 
   // Getting the "state" dictionary from the passed ID
@@ -61,32 +61,36 @@ void pycall(void *out, void **in)
 
   size_t idx = 3;
   // Getting type, rank, and shape of the input
-  auto dtin = tcdict.at(uint8_t(*reinterpret_cast<int64_t *>(in[idx++])));
-  size_t ndim_in = *reinterpret_cast<uint64_t *>(in[idx++]);
-  vector<size_t> shape_in;
-  for (size_t i=0; i<ndim_in; ++i)
-    shape_in.push_back(*reinterpret_cast<uint64_t *>(in[idx++]));
+  auto dtp_x = tcdict.at(uint8_t(*reinterpret_cast<int64_t *>(in[idx++])));
+  size_t ndim_x = *reinterpret_cast<uint64_t *>(in[idx++]);
+  vector<size_t> shape_x;
+  for (size_t i=0; i<ndim_x; ++i) {
+    shape_x.push_back(*reinterpret_cast<uint64_t *>(in[idx++]));
+  }
   // Getting type, rank, and shape of the output
-  auto dtout = tcdict.at(uint8_t(*reinterpret_cast<int64_t *>(in[idx++])));
-  size_t ndim_out = *reinterpret_cast<uint64_t *>(in[idx++]);
-  vector<size_t> shape_out;
-  for (size_t i=0; i<ndim_out; ++i)
-    shape_out.push_back(*reinterpret_cast<uint64_t *>(in[idx++]));
+  auto dtp_y = tcdict.at(uint8_t(*reinterpret_cast<int64_t *>(in[idx++])));
+  size_t ndim_y = *reinterpret_cast<uint64_t *>(in[idx++]);
+  vector<size_t> shape_y;
+  for (size_t i=0; i<ndim_y; ++i) {
+    shape_y.push_back(*reinterpret_cast<uint64_t *>(in[idx++]));
+  }
 
   // Building "pseudo" numpy.ndarays on top of the provided memory regions.
   // This should be completely fine, as long as the called function does not
   // keep any references to them.
   py::str dummy;
-  py::array pyin (dtin, shape_in, in[0], dummy);
+  py::array py_x (dtp_x, shape_x, in[0], dummy);
 //  MR_assert(!pyin.owndata(), "owndata should be false");
-  pyin.attr("flags").attr("writeable")=false;
+  py_x.attr("flags").attr("writeable") = false;
+
+  void **out = reinterpret_cast<void **>(out_tuple);
 //  MR_assert(!pyin.writeable(), "input array should not be writeable");
-  py::array pyout (dtout, shape_out, out, dummy);
+  py::array py_y (dtp_y, shape_y, out[0], dummy);
 //  MR_assert(!pyout.owndata(), "owndata should be false");
 //  MR_assert(pyout.writeable(), "output data must be writable");
 
   // Execute the Python function implementing the linear operation
-  state["_func"](pyin, pyout, state);
+  state["_func"](py_x, py_y, state);
   }
 
 pybind11::dict Registrations()
