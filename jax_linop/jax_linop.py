@@ -3,13 +3,16 @@
 
 # Copyright(C) 2023, 2024 Max-Planck-Society
 
+import pickle
 from functools import partial
 
 import jax
+import jaxlib.mlir.dialects.stablehlo as hlo
+import jaxlib.mlir.ir as ir
 import numpy as np
 from jax.interpreters import ad, batching, mlir
-from jaxlib.hlo_helpers import custom_call
 from jax.interpreters.mlir import ir_constant as irc
+from jaxlib.hlo_helpers import custom_call
 
 import _jax_linop
 
@@ -29,9 +32,8 @@ def _from_id(objectid):
     return ctypes.cast(objectid, ctypes.py_object).value
 
 
-def _exec_abstract(*args, stateid, stateTid):
-    state = _from_id(stateid)
-    shp, dtp, _ = state["_func_abstract"](*args, state=state)
+def _exec_abstract(*args, _func, _func_abstract, **kwargs):
+    shp, dtp, _ = _func_abstract(*args, **kwargs)
     return (jax.core.ShapedArray(shp, dtp), )
 
 
@@ -39,14 +41,13 @@ def _exec_abstract(*args, stateid, stateTid):
 _dtype_dict = {
     np.dtype(np.float32): 3,
     np.dtype(np.float64): 7,
+    np.dtype(np.uint8): 32,
     np.dtype(np.complex64): 67,
     np.dtype(np.complex128): 71,
 }
 
 
-def _lowering(ctx, *args, platform="cpu", stateid, stateTid):
-    state = _from_id(stateid)
-
+def _lowering(ctx, *args, _func, _func_abstract, _platform="cpu", **kwargs):
     assert len(ctx.avals_out) == 1
     shape_y, dtype_y = ctx.avals_out[0].shape, ctx.avals_out[0].dtype
     jaxtype_y = mlir.ir.RankedTensorType.get(
@@ -54,29 +55,38 @@ def _lowering(ctx, *args, platform="cpu", stateid, stateTid):
     )
     layout_y = tuple(range(len(shape_y) - 1, -1, -1))
 
-    operands = [irc(len(args))]
+    operands = [irc(id(_func))]  # Pass the ID of the callable to C++
     operands_layout = [()]
+    operands += [irc(len(args))]
+    operands_layout += [()]
     assert len(args) == len(ctx.avals_in)
+    # All `args` are assumed to be JAX arrays
     for a, ca in zip(args, ctx.avals_in):
         operands += [irc(_dtype_dict[ca.dtype]),
                      irc(ca.ndim)] + [irc(i) for i in ca.shape] + [a]
         lyt_a = tuple(range(ca.ndim - 1, -1, -1))
         operands_layout += [()] * (2 + ca.ndim) + [lyt_a]
+
     operands += [irc(_dtype_dict[dtype_y]),
                  irc(len(shape_y))] + [irc(i) for i in shape_y]
     operands_layout += [()] * (2 + len(shape_y))
-    operands += [irc(stateid), irc(state["_opid"])]
-    operands_layout += [(), ()]
 
-    if platform == "cpu":
+    kwargs = np.frombuffer(pickle.dumps(kwargs), dtype=np.uint8)
+    kwargs_ir = hlo.constant(
+        ir.DenseElementsAttr.get(kwargs, type=ir.IntegerType.get_unsigned(8))
+    )
+    operands += [irc(_dtype_dict[kwargs.dtype]), irc(kwargs.size), kwargs_ir]
+    operands_layout += [(), (), [0]]
+
+    if _platform == "cpu":
         return custom_call(
-            platform + "_pycall",
+            _platform + "_pycall",
             result_types=[jaxtype_y],
             result_layouts=[layout_y],
             operands=operands,
             operand_layouts=operands_layout,
         ).results
-    elif platform == "gpu":
+    elif _platform == "gpu":
         raise ValueError("No GPU support")
     raise ValueError("Unsupported platform; this must be either 'cpu' or 'gpu'")
 
@@ -159,15 +169,17 @@ _prim.def_abstract_eval(_exec_abstract)
 
 for platform in ["cpu", "gpu"]:
     mlir.register_lowering(
-        _prim, partial(_lowering, platform=platform), platform=platform
+        _prim, partial(_lowering, _platform=platform), platform=platform
     )
     ad.primitive_jvps[_prim] = _jvp
     ad.primitive_transposes[_prim] = _transpose
     batching.primitive_batchers[_prim] = _batch
 
 
-def _call(*args, state, stateT):
-    out, = _prim.bind(*args, stateid=id(state), stateTid=id(stateT))
+def _call(*args, _func, _func_abstract, **kwargs):
+    out, = _prim.bind(
+        *args, **kwargs, _func=_func, _func_abstract=_func_abstract
+    )
     return out
 
 
@@ -233,4 +245,5 @@ def get_linear_call(
     state["_batch_axes"] = stateT["_batch_axes"] = batch_axes
     state["_func_can_batch"] = stateT["_func_can_batch"] = func_can_batch
 
-    return partial(_call, state=state, stateT=stateT)
+    # return partial(_call, state=state, stateT=stateT)
+    return partial(_call, _func=func, _func_abstract=func_abstract)
