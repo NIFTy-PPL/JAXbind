@@ -32,7 +32,7 @@ def _from_id(objectid):
     return ctypes.cast(objectid, ctypes.py_object).value
 
 
-def _exec_abstract(*args, _func, _func_T, _func_abstract, **kwargs):
+def _exec_abstract(*args, _func, _func_T, _func_abstract, _func_abstract_T, **kwargs):
     shp, dtp, _ = _func_abstract(*args, **kwargs)
     return (jax.core.ShapedArray(shp, dtp), )
 
@@ -48,7 +48,7 @@ _dtype_dict = {
 
 
 def _lowering(
-    ctx, *args, _func, _func_T, _func_abstract, _platform="cpu", **kwargs
+    ctx, *args, _func, _func_T, _func_abstract, _func_abstract_T, _platform="cpu", **kwargs
 ):
     assert len(ctx.avals_out) == 1
     shape_y, dtype_y = ctx.avals_out[0].shape, ctx.avals_out[0].dtype
@@ -93,15 +93,15 @@ def _lowering(
     raise ValueError("Unsupported platform; this must be either 'cpu' or 'gpu'")
 
 
-def _jvp(args, tangents, *, _func, _func_T, _func_abstract, **kwargs):
+def _jvp(args, tangents, *, _func, _func_T, _func_abstract, _func_abstract_T, **kwargs):
     res = _prim.bind(
         *args,
         **kwargs,
         _func=_func,
         _func_T=_func_T,
-        _func_abstract=_func_abstract
+        _func_abstract=_func_abstract,
+        _func_abstract_T=_func_abstract_T
     )
-    print("within jvp")
 
     def make_zeros(tan):
         return jax.lax.zeros_like_array(res) if type(tan) is ad.Zero else tan
@@ -119,7 +119,8 @@ def _jvp(args, tangents, *, _func, _func_T, _func_abstract, **kwargs):
                 **kwargs,
                 _func=_func,
                 _func_T=_func_T,
-                _func_abstract=_func_abstract
+                _func_abstract=_func_abstract,
+                _func_abstract_T=_func_abstract_T
             )
             tans = tn if tans is None else tuple(
                 t + tn_i for t, tn_i in zip(tans, tn)
@@ -128,13 +129,14 @@ def _jvp(args, tangents, *, _func, _func_T, _func_abstract, **kwargs):
     return (res, tans)
 
 
-def _transpose(cotangents, args, *, _func, _func_T, _func_abstract, **kwargs):
+def _transpose(cotangents, args, *, _func, _func_T, _func_abstract, _func_abstract_T, **kwargs):
     return _prim.bind(
         *cotangents,
         **kwargs,
         _func=_func_T,
         func_T=_func,
-        _func_abstract=_func_abstract
+        _func_abstract=_func_abstract_T,
+        _func_abstract_T=_func_abstract
     )
 
 
@@ -209,13 +211,14 @@ for platform in ["cpu", "gpu"]:
     batching.primitive_batchers[_prim] = _batch
 
 
-def _call(*args, _func, _func_T, _func_abstract, **kwargs):
+def _call(*args, _func, _func_T, _func_abstract, _func_abstract_T, **kwargs):
     out, = _prim.bind(
         *args,
         **kwargs,
         _func=_func,
         _func_T=_func_T,
-        _func_abstract=_func_abstract
+        _func_abstract=_func_abstract,
+        _func_abstract_T=_func_abstract_T
     )
     return out
 
@@ -269,5 +272,5 @@ def get_linear_call(
     # keep a reference. Ideally this reference is cheap but just to be sure,
     # also implemenet a clear cache function
     return partial(
-        _call, _func=func, _func_T=func_T, _func_abstract=func_abstract
+        _call, _func=func, _func_T=func_T, _func_abstract=func_abstract, _func_abstract_T=func_abstract_T
     )
