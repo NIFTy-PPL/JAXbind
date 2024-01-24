@@ -59,9 +59,9 @@ def _lowering(ctx, *args, platform="cpu", stateid, stateTid):
     assert len(args) == len(ctx.avals_in)
     for a, ca in zip(args, ctx.avals_in):
         operands += [irc(_dtype_dict[ca.dtype]),
-                     irc(len(ca.shape))] + [irc(i) for i in ca.shape] + [a]
-        lyt_a = tuple(range(len(ca.shape) - 1, -1, -1))
-        operands_layout += [()] * (2 + len(ca.shape)) + [lyt_a]
+                     irc(ca.ndim)] + [irc(i) for i in ca.shape] + [a]
+        lyt_a = tuple(range(ca.ndim - 1, -1, -1))
+        operands_layout += [()] * (2 + ca.ndim) + [lyt_a]
     operands += [irc(_dtype_dict[dtype_y]),
                  irc(len(shape_y))] + [irc(i) for i in shape_y]
     operands_layout += [()] * (2 + len(shape_y))
