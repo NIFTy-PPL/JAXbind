@@ -97,13 +97,13 @@ def _transpose(cotangents, args, *, stateid, stateTid):
 def _batch(args, in_axes, *, stateid, stateTid):
     from .custom_map import smap
 
-    ia, _ = in_axes
+    ia, = in_axes
     state = _from_id(stateid)
     if state["_func_can_batch"] is False:
         y = smap(
             partial(_prim.bind, stateid=stateid, stateTid=stateTid),
             in_axes=(ia, ),
-            out_axes=(ia, )
+            out_axes=ia
         )(*args)
         oa = ia
     else:
