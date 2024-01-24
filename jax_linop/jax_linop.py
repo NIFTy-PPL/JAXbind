@@ -14,6 +14,7 @@ import _jax_linop
 
 # incremented for every registered operator, strictly for uniqueness purposes
 _global_opcounter = 0
+_global_states = []
 
 for _name, _value in _jax_linop.registrations().items():
     jax.lib.xla_client.register_custom_call_target(
@@ -132,6 +133,9 @@ def _batch(args, in_axes, *, stateid, stateTid):
         )
         x, = args
         y = (call(x), )  # Consistent signature with `_prim.bind`
+
+        global _global_states  # HACK AND FIXME
+        _global_states.append((call.keywords["state"], call.keywords["stateT"]))
 
         _, _, ba_wob = state["_func_abstract"](
             x.shape[:ia] + x.shape[ia + 1:], x.dtype, state
