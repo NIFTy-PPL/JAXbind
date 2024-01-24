@@ -138,12 +138,14 @@ def ssht_operator(L, sampling, spin, reality, nthreads, nside=0):
             else:
                 out.real *= -1
 
-    def ssht_abstract(shape_in, dtype_in, state):
-        if not isvalidtype(dtype_in):
-            raise RuntimeError("invalid data type")
-        spin = state["spin"]
-        L = state["L"]
+    def get_config2(shape, dtype, synthesis, state):
+        if synthesis and not iscomplextype(dtype):
+            raise RuntimeError("invalid alm data type")
+        if not isvalidtype(dtype):
+            raise RuntimeError("invalid map data type")
         reality = state["reality"]
+        L = state["L"]
+        spin = state["spin"]
         sampling = state["sampling"]
         if sampling == "mw":
             mapshape = (L, 2*L-1)
@@ -153,34 +155,27 @@ def ssht_operator(L, sampling, spin, reality, nthreads, nside=0):
             mapshape = (2*L, 2*L-1)
         elif sampling == "healpix":
             mapshape = (12*state["nside"]**2,)
+        if synthesis:
+            if shape != (L,2*L-1):
+                raise RuntimeError("bad alm shape")
+        else:
+            if shape != mapshape:
+                raise RuntimeError("bad map shape")
+        return L, spin, reality, mapshape
+
+    def ssht_abstract(shape_in, dtype_in, state):
+        L, spin, reality, mapshape = get_config2(shape_in, dtype_in, True, state)
         
-        if shape_in != (L, 2*L-1):
-            raise RuntimeError("bad flm shape")
         shape_out = mapshape
         dtype_out = dtype_in if not reality else realtype(dtype_in)
         return shape_out, dtype_out
 
     def ssht_abstract_T(shape_in, dtype_in, state):
-        if not isvalidtype(dtype_in):
-            raise RuntimeError("invalid data type")
-        spin = state["spin"]
-        L = state["L"]
-        reality = state["reality"]
-        sampling = state["sampling"]
-        if sampling == "mw":
-            mapshape = (L, 2*L-1)
-        elif sampling == "mwss":
-            mapshape = (L+1, 2*L)
-        elif sampling == "dh":
-            mapshape = (2*L, 2*L-1)
-        elif sampling == "healpix":
-            mapshape = (12*state["nside"]**2,)
-        
-        if shape_in != mapshape:
-            raise RuntimeError("bad map shape")
+        L, spin, reality, mapshape = get_config2(shape_in, dtype_in, False, state)
+
         if isrealtype(dtype_in):
             if (not reality):
-                raise RuntimeError("real map provided,but complex map expected")
+                raise RuntimeError("real map provided, but complex map expected")
             dtype_out = complextype(dtype_in)
         else:
             dtype_out = dtype_in
@@ -212,23 +207,26 @@ import jax.numpy as jnp
 from jax.test_util import check_grads
 
 
-L=32
+L=1024
 lmax = L-1
 spin=0
 nthreads=1
-reality=True
+reality=False
 rng = np.random.default_rng(42)
-sampling="healpix"
+sampling="mwss"
 nside=L//2
 
 flm = s2fft.utils.signal_generator.generate_flm(rng, L, 0, spin, reality)
 
-t0 = time()
 op = ssht_operator(L=L, sampling=sampling, spin=spin, nthreads=nthreads, reality=reality, nside=nside)
-
+op = jax.jit(op)
+#ducc0.misc.preallocate_memory(8)
+t0 = time()
+for i in range(100):
+    op(flm)
 map0 = np.array(op(flm)[0])
 print("ducc time:", time()-t0)
-
+#exit()
 def func2(flm):
     f = op(flm)[0]
     return jnp.sum(jnp.abs(f)**2)
