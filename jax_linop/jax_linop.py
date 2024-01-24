@@ -82,11 +82,11 @@ def _lowering(ctx, x, *, platform="cpu", stateid, stateTid):
 
 
 def _jvp(args, tangents, *, stateid, stateTid):
-    res = _prim.bind(args[0], stateid=stateid, stateTid=stateTid)
+    res = _prim.bind(*args, stateid=stateid, stateTid=stateTid)
     return (
         res,
         jax.lax.zeros_like_array(res) if type(tangents[0]) is ad.Zero else
-        _prim.bind(tangents[0], stateid=stateid, stateTid=stateTid),
+        _prim.bind(*tangents, stateid=stateid, stateTid=stateTid),
     )
 
 
@@ -100,12 +100,12 @@ def _batch(args, in_axes, *, stateid, stateTid):
     ia, = in_axes
     state = _from_id(stateid)
     if state["_func_can_batch"] is False:
+        oa = ia
         y = smap(
             partial(_prim.bind, stateid=stateid, stateTid=stateTid),
             in_axes=(ia, ),
-            out_axes=ia
+            out_axes=oa
         )(*args)
-        oa = ia
     else:
         internal_fields = (
             "_opid", "_func_can_batch", "_batch_axes", "_func", "_func_T",
@@ -115,16 +115,23 @@ def _batch(args, in_axes, *, stateid, stateTid):
             k.removeprefix("_") if k in internal_fields else k: v
             for k, v in state.items()
         }
-        # TODO: transposed batched state
+        del kw_batch["opid"]
+        func, func_T = kw_batch.pop("func"), kw_batch.pop("func_T")
         batch_axes = kw_batch.pop("batch_axes", ())
         for b in batch_axes:
             if ia >= b:
                 ia += 1
-        kw_batch["batch_axes"] = sorted(batch_axes + (ia, ))
+        batch_axes = tuple(sorted(batch_axes + (ia, )))
 
-        call = get_linear_call(**kw_batch, deepcopy_kwargs=False)
+        call = get_linear_call(
+            func,
+            func_T,
+            **kw_batch,
+            batch_axes=batch_axes,
+            deepcopy_kwargs=False
+        )
         x, = args
-        y = call(x)
+        y = (call(x), )  # Consistent signature with `_prim.bind`
 
         _, _, ba_wob = state["_func_abstract"](
             x.shape[:ia] + x.shape[ia + 1:], x.dtype, state
@@ -132,11 +139,11 @@ def _batch(args, in_axes, *, stateid, stateTid):
         _, _, ba_wb = state["_func_abstract"](
             x.shape, x.dtype, call.keywords["state"]
         )
-        out_axes = set(ba_wob) - set(ba_wb)
-        oa, = out_axes
-        for b in ba_wb[::-1]:
+        oa, = set.difference(set(ba_wb), set(ba_wob))
+        for b in ba_wob[::-1]:
             if oa >= b:
                 oa -= 1
+        assert oa >= 0
     return y, (oa, )
 
 
@@ -155,7 +162,8 @@ for platform in ["cpu", "gpu"]:
 
 
 def _call(x, *, state, stateT):
-    return _prim.bind(x, stateid=id(state), stateTid=id(stateT))
+    out, = _prim.bind(x, stateid=id(state), stateTid=id(stateT))
+    return out
 
 
 def get_linear_call(
@@ -220,10 +228,4 @@ def get_linear_call(
     state["_batch_axes"] = stateT["_batch_axes"] = batch_axes
     state["_func_can_batch"] = stateT["_func_can_batch"] = func_can_batch
 
-    @partial(partial, state=state, stateT=stateT)
-    def call(*args, state, stateT):
-        assert len(args) == 1
-        out, = _call(*args, state=state, stateT=stateT)
-        return out
-
-    return call
+    return partial(_call, state=state, stateT=stateT)
