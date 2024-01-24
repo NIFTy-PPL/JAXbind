@@ -9,6 +9,7 @@ import jax
 import numpy as np
 from jax.interpreters import ad, batching, mlir
 from jaxlib.hlo_helpers import custom_call
+from jax.interpreters.mlir import ir_constant as irc
 
 import _jax_linop
 
@@ -28,10 +29,10 @@ def _from_id(objectid):
     return ctypes.cast(objectid, ctypes.py_object).value
 
 
-def _exec_abstract(x, *, stateid, stateTid):
+def _exec_abstract(*args, stateid, stateTid):
     state = _from_id(stateid)
-    shp, tp, _ = state["_func_abstract"](x.shape, x.dtype, state)
-    return (jax.core.ShapedArray(shp, tp), )
+    shp, dtp, _ = state["_func_abstract"](*args, state=state)
+    return (jax.core.ShapedArray(shp, dtp), )
 
 
 # the values are explained in src/duc0/bindings/typecode.h
@@ -43,31 +44,29 @@ _dtype_dict = {
 }
 
 
-def _lowering(ctx, x, *, platform="cpu", stateid, stateTid):
+def _lowering(ctx, *args, platform="cpu", stateid, stateTid):
     state = _from_id(stateid)
-    if len(ctx.avals_in) != 1:
-        raise RuntimeError("need exactly one input object")
-    if len(ctx.avals_out) != 1:
-        raise RuntimeError("need exactly one output object")
-    shape_x, dtype_x = ctx.avals_in[0].shape, ctx.avals_in[0].dtype
-    shape_y, dtype_y = ctx.avals_out[0].shape, ctx.avals_out[0].dtype
 
-    dtype_mlir_y = mlir.dtype_to_ir_type(dtype_y)
-    jaxtype_y = mlir.ir.RankedTensorType.get(shape_y, dtype_mlir_y)
-    layout_x = tuple(range(len(shape_x) - 1, -1, -1))
+    assert len(ctx.avals_out) == 1
+    shape_y, dtype_y = ctx.avals_out[0].shape, ctx.avals_out[0].dtype
+    jaxtype_y = mlir.ir.RankedTensorType.get(
+        shape_y, mlir.dtype_to_ir_type(dtype_y)
+    )
     layout_y = tuple(range(len(shape_y) - 1, -1, -1))
 
-    irc = mlir.ir_constant
-    operands = [
-        x,
-        irc(state["_opid"]),
-        irc(stateid),
-        irc(_dtype_dict[dtype_x]),
-        irc(len(shape_x))
-    ] + [irc(i) for i in shape_x]
+    operands = [irc(len(args))]
+    operands_layout = [()]
+    assert len(args) == len(ctx.avals_in)
+    for a, ca in zip(args, ctx.avals_in):
+        operands += [irc(_dtype_dict[ca.dtype]),
+                     irc(len(ca.shape))] + [irc(i) for i in ca.shape] + [a]
+        lyt_a = tuple(range(len(ca.shape) - 1, -1, -1))
+        operands_layout += [()] * (2 + len(ca.shape)) + [lyt_a]
     operands += [irc(_dtype_dict[dtype_y]),
                  irc(len(shape_y))] + [irc(i) for i in shape_y]
-    operand_layouts = [layout_x] + [()] * (6 + len(shape_x) + len(shape_y))
+    operands_layout += [()] * (2 + len(shape_y))
+    operands += [irc(stateid), irc(state["_opid"])]
+    operands_layout += [(), ()]
 
     if platform == "cpu":
         return custom_call(
@@ -75,7 +74,7 @@ def _lowering(ctx, x, *, platform="cpu", stateid, stateTid):
             result_types=[jaxtype_y],
             result_layouts=[layout_y],
             operands=operands,
-            operand_layouts=operand_layouts,
+            operand_layouts=operands_layout,
         ).results
     elif platform == "gpu":
         raise ValueError("No GPU support")
@@ -86,28 +85,29 @@ def _jvp(args, tangents, *, stateid, stateTid):
     res = _prim.bind(*args, stateid=stateid, stateTid=stateTid)
     return (
         res,
-        jax.lax.zeros_like_array(res) if type(tangents[0]) is ad.Zero else
-        _prim.bind(*tangents, stateid=stateid, stateTid=stateTid),
+        jax.lax.zeros_like_array(res) if any(
+            type(t) is ad.Zero for t in tangents
+        ) else _prim.bind(*tangents, stateid=stateid, stateTid=stateTid),
     )
 
 
 def _transpose(cotangents, args, *, stateid, stateTid):
-    return _prim.bind(cotangents[0], stateid=stateTid, stateTid=stateid)
+    return _prim.bind(*cotangents, stateid=stateTid, stateTid=stateid)
 
 
 def _batch(args, in_axes, *, stateid, stateTid):
     from .custom_map import smap
 
-    ia, = in_axes
     state = _from_id(stateid)
     if state["_func_can_batch"] is False:
-        oa = ia
+        out_axes = in_axes
         y = smap(
             partial(_prim.bind, stateid=stateid, stateTid=stateTid),
-            in_axes=(ia, ),
-            out_axes=oa
+            in_axes=in_axes,
+            out_axes=out_axes
         )(*args)
     else:
+        ia, = in_axes
         internal_fields = (
             "_opid", "_func_can_batch", "_batch_axes", "_func", "_func_T",
             "_func_abstract", "_func_abstract_T"
@@ -148,7 +148,8 @@ def _batch(args, in_axes, *, stateid, stateTid):
             if oa >= b:
                 oa -= 1
         assert oa >= 0
-    return y, (oa, )
+        out_axes = (oa)
+    return y, out_axes
 
 
 _prim = jax.core.Primitive("jax_linop_prim")
@@ -165,8 +166,8 @@ for platform in ["cpu", "gpu"]:
     batching.primitive_batchers[_prim] = _batch
 
 
-def _call(x, *, state, stateT):
-    out, = _prim.bind(x, stateid=id(state), stateTid=id(stateT))
+def _call(*args, state, stateT):
+    out, = _prim.bind(*args, stateid=id(state), stateTid=id(stateT))
     return out
 
 

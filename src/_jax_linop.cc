@@ -6,7 +6,7 @@
 
 /*
  *  Copyright (C) 2023, 2024 Max-Planck-Society
- *  Authors: Martin Reinecke, Jakob Roth, Gordian Edenhofer 
+ *  Authors: Martin Reinecke, Jakob Roth, Gordian Edenhofer
  */
 
 #include <pybind11/pybind11.h>
@@ -50,22 +50,26 @@ void pycall(void *out, void **in)
     {67, py::dtype::of<complex<float>>()},
     {71, py::dtype::of<complex<double>>()}};
 
-  // the "opid" in in[1] is not used; it is only passed to guarantee uniqueness
-  // of the passed parameters for every distinct operator, so that JAX knows
-  // when and when not to recompile.
+  py::str dummy;
 
-  // Getting the "state" dictionary from the passed ID
-  py::handle hnd(*reinterpret_cast<PyObject **>(in[2]));
-  auto obj = py::reinterpret_borrow<py::object>(hnd);
-  const py::dict state(obj);
-
-  size_t idx = 3;
-  // Getting type, rank, and shape of the input
-  auto dtp_x = tcdict.at(uint8_t(*reinterpret_cast<int64_t *>(in[idx++])));
-  size_t ndim_x = *reinterpret_cast<uint64_t *>(in[idx++]);
-  vector<size_t> shape_x;
-  for (size_t i=0; i<ndim_x; ++i) {
-    shape_x.push_back(*reinterpret_cast<uint64_t *>(in[idx++]));
+  size_t nargs = *reinterpret_cast<uint64_t *>(in[0]);
+  size_t idx = 1;
+  py::list args;
+  for (size_t i=0; i<nargs; i++) {
+    // Getting type, rank, and shape of the input
+    // TODO: encode list/tuple/array type
+    auto dtp_a = tcdict.at(uint8_t(*reinterpret_cast<int64_t *>(in[idx++])));
+    size_t ndim_a = *reinterpret_cast<uint64_t *>(in[idx++]);
+    vector<size_t> shape_a;
+    for (size_t j=0; j<ndim_a; ++j) {
+      shape_a.push_back(*reinterpret_cast<uint64_t *>(in[idx++]));
+    }
+    // Building "pseudo" numpy.ndarays on top of the provided memory regions.
+    // This should be completely fine, as long as the called function does not
+    // keep any references to them.
+    py::array py_a (dtp_a, shape_a, in[idx++], dummy);
+    py_a.attr("flags").attr("writeable") = false;
+    args.append(py_a);
   }
   // Getting type, rank, and shape of the output
   auto dtp_y = tcdict.at(uint8_t(*reinterpret_cast<int64_t *>(in[idx++])));
@@ -74,22 +78,19 @@ void pycall(void *out, void **in)
   for (size_t i=0; i<ndim_y; ++i) {
     shape_y.push_back(*reinterpret_cast<uint64_t *>(in[idx++]));
   }
-
-  // Building "pseudo" numpy.ndarays on top of the provided memory regions.
-  // This should be completely fine, as long as the called function does not
-  // keep any references to them.
-  py::str dummy;
-  py::array py_x (dtp_x, shape_x, in[0], dummy);
-//  MR_assert(!pyin.owndata(), "owndata should be false");
-  py_x.attr("flags").attr("writeable") = false;
-
-//  MR_assert(!pyin.writeable(), "input array should not be writeable");
   py::array py_y (dtp_y, shape_y, out, dummy);
-//  MR_assert(!pyout.owndata(), "owndata should be false");
-//  MR_assert(pyout.writeable(), "output data must be writable");
+
+  // Getting the "state" dictionary from the passed ID
+  py::handle hnd(*reinterpret_cast<PyObject **>(in[idx++]));
+  auto obj = py::reinterpret_borrow<py::object>(hnd);
+  const py::dict state(obj);
+
+  // the "opid" in in[idx++] is not used; it is only passed to guarantee
+  // uniqueness of the passed parameters for every distinct operator, so that
+  // JAX knows when and when not to recompile.
 
   // Execute the Python function implementing the linear operation
-  state["_func"](py_x, py_y, state);
+  state["_func"](args, py_y, state);
   }
 
 pybind11::dict Registrations()
