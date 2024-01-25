@@ -35,8 +35,7 @@ def _from_id(objectid):
 def _exec_abstract(
     *args, _func, _func_T, _func_abstract, _func_abstract_T, **kwargs
 ):
-    shp, dtp, _ = _func_abstract(*args, **kwargs)
-    return (jax.core.ShapedArray(shp, dtp), )
+    return tuple(jax.core.ShapedArray(s, d) for s, d, _ in _func_abstract(*args, **kwargs))
 
 
 # the values are explained in src/duc0/bindings/typecode.h
@@ -232,7 +231,7 @@ for platform in ["cpu", "gpu"]:
 
 
 def _call(*args, _func, _func_T, _func_abstract, _func_abstract_T, **kwargs):
-    out, = _prim.bind(
+    out = _prim.bind(
         *args,
         **kwargs,
         _func=_func,

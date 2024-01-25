@@ -30,6 +30,7 @@ def fft(out, args, kwargs_dump):
     print(len(out))
     print("bye 2")
     out[0][()] = args[0] * args[1]
+    out[1][()] = args[0] * args[1]
 
 
 def fft_T(out, args, kwargs_dump):
@@ -40,7 +41,8 @@ def fft_T(out, args, kwargs_dump):
 def fft_abstract(*args, **kwargs):
     # Returns `shape` and `dtype` of output as well as the added batch_axes of the `output``
     out_axes = kwargs.pop("batch_axes", ())
-    return args[0].shape, args[0].dtype, out_axes
+    return ((args[0].shape, args[0].dtype, out_axes)
+    , (args[0].shape, args[0].dtype, out_axes))
 
 
 fft_jl = jax_linop.get_linear_call(
