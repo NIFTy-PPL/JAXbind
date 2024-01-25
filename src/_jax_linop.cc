@@ -41,7 +41,7 @@ template <typename T>
 pybind11::capsule EncapsulateFunction(T* fn)
   { return pybind11::capsule(bit_cast<void*>(fn), "xla._CUSTOM_CALL_TARGET"); }
 
-void pycall(void *out_tuple, void **in)
+void pycall(void *out_raw, void **in)
   {
   py::gil_scoped_acquire get_GIL;
 
@@ -78,7 +78,10 @@ void pycall(void *out_tuple, void **in)
   }
 
   std::cout << "1" << std::flush;
-  void **out = reinterpret_cast<void **>(out_tuple);
+  // if we have only one output, out_raw is a void * pointing to the data of this output
+  // otherwise, out_raw is a void ** pointing to an array of void * pointing to the individual data
+  void **out = reinterpret_cast<void **>(out_raw);
+  void *out_single = reinterpret_cast<void *>(out_raw);
   size_t nout = *reinterpret_cast<uint64_t *>(in[idx++]);
   py::list py_out;
   for (size_t i=0; i<nout; i++) {
@@ -90,7 +93,7 @@ void pycall(void *out_tuple, void **in)
     for (size_t j=0; j<ndim_out; ++j) {
       shape_out.push_back(*reinterpret_cast<uint64_t *>(in[idx++]));
     }
-    py::array py_o (dtp_out, shape_out, out[i], dummy);
+    py::array py_o (dtp_out, shape_out, (nout==1) ? out_single : out[i], dummy);
     py_out.append(py_o);
     std::cout << "3" << std::flush;
   }
