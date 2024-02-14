@@ -57,7 +57,6 @@ void pycall(void *out_raw, void **in)
   py::handle hnd(*reinterpret_cast<PyObject **>(in[0]));
   auto func = py::reinterpret_borrow<py::object>(hnd);
 
-  std::cout << "-1" << std::flush;
   size_t idx = 1;
   size_t nargs = *reinterpret_cast<uint64_t *>(in[idx++]);
   py::list py_in;
@@ -77,7 +76,6 @@ void pycall(void *out_raw, void **in)
     py_in.append(py_a);
   }
 
-  std::cout << "1" << std::flush;
   // if we have only one output, out_raw is a void * pointing to the data of this output
   // otherwise, out_raw is a void ** pointing to an array of void * pointing to the individual data
   void **out = reinterpret_cast<void **>(out_raw);
@@ -85,7 +83,6 @@ void pycall(void *out_raw, void **in)
   size_t nout = *reinterpret_cast<uint64_t *>(in[idx++]);
   py::list py_out;
   for (size_t i=0; i<nout; i++) {
-    std::cout << "2" << std::flush;
     // Getting type, rank, and shape of the output
     auto dtp_out = tcdict.at(uint8_t(*reinterpret_cast<int64_t *>(in[idx++])));
     size_t ndim_out = *reinterpret_cast<uint64_t *>(in[idx++]);
@@ -95,18 +92,14 @@ void pycall(void *out_raw, void **in)
     }
     py::array py_o (dtp_out, shape_out, (nout==1) ? out_single : out[i], dummy);
     py_out.append(py_o);
-    std::cout << "3" << std::flush;
   }
 
-  std::cout << "4" << std::flush;
   auto dtp_kwargs = tcdict.at(uint8_t(*reinterpret_cast<int64_t *>(in[idx++])));
   size_t size_kwargs = *reinterpret_cast<uint64_t *>(in[idx++]);
   py::array py_kwargs (dtp_kwargs, size_kwargs, in[idx++], dummy);
-  std::cout << "5" << std::flush;
 
   // Execute the Python function implementing the linear operation
   func(py_out, py_in, py_kwargs);
-  std::cout << "6" << std::flush;
   }
 
 pybind11::dict Registrations()

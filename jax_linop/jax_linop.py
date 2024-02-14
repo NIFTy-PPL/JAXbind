@@ -33,7 +33,7 @@ def _from_id(objectid):
 
 
 def _exec_abstract(
-    *args, _func, _func_T, _func_abstract, _func_abstract_T, **kwargs
+    *args, _func, _func_T, _func_abstract, _func_abstract_T, _is_multilinear, **kwargs
 ):
     return tuple(jax.core.ShapedArray(s, d) for s, d, _ in _func_abstract(*args, **kwargs))
 
@@ -55,6 +55,7 @@ def _lowering(
     _func_T,
     _func_abstract,
     _func_abstract_T,
+    _is_multilinear,
     _platform="cpu",
     **kwargs
 ):
@@ -107,7 +108,7 @@ def _lowering(
 
 
 def _jvp(
-    args, tangents, *, _func, _func_T, _func_abstract, _func_abstract_T,
+    args, tangents, *, _func, _func_T, _func_abstract, _func_abstract_T, _is_multilinear,
     **kwargs
 ):
     res = _prim.bind(
@@ -116,37 +117,59 @@ def _jvp(
         _func=_func,
         _func_T=_func_T,
         _func_abstract=_func_abstract,
-        _func_abstract_T=_func_abstract_T
+        _func_abstract_T=_func_abstract_T,
+        _is_multilinear=_is_multilinear
     )
+    def is_zero_type(tan):
+        if type(tan) is ad.Zero or type(tan) is jax._src.ad_util.Zero:
+            return True
+        return False
+
+    # probably not needed any more, but not sure what the difference between
+    # jax.lax.zeros_like_array and ad.instantiate_zeros is
+    # def make_zeros_old(tan):
+    #     return jax.lax.zeros_like_array(res) if is_zero_type(tan) else tan
 
     def make_zeros(tan):
-        return jax.lax.zeros_like_array(res) if type(tan) is ad.Zero else tan
+        return ad.instantiate_zeros(tan) if is_zero_type(tan) else tan
+
+    def zeros_like(args):
+        return list((jax.lax.zeros_like_array(a) for a in args))
 
     if all(type(t) is ad.Zero for t in tangents):
         tans = (jax.lax.zeros_like_array(res), )
-    else:
-        tans = None
-        for i, t in enumerate(tangents):
-            t = make_zeros(t)
-            tn = _prim.bind(
-                *args[:i],
-                t,
-                *args[i + 1:],
-                **kwargs,
-                _func=_func,
-                _func_T=_func_T,
-                _func_abstract=_func_abstract,
-                _func_abstract_T=_func_abstract_T
-            )
-            tans = tn if tans is None else tuple(
-                t + tn_i for t, tn_i in zip(tans, tn)
-            )
+        return (res, tans)
+
+    tans = None
+    for i, t in enumerate(tangents):
+        if _is_multilinear:
+            args_in0 = args[:i]
+            args_in1 = args[i + 1:]
+        else:
+            args_in0 = zeros_like(args[:i])
+            args_in1 = zeros_like(args[i + 1:])
+        t = make_zeros(t)
+        tn = _prim.bind(
+            *args_in0,
+            t,
+            *args_in1,
+            **kwargs,
+            _func=_func,
+            _func_T=_func_T,
+            _func_abstract=_func_abstract,
+            _func_abstract_T=_func_abstract_T,
+            _is_multilinear=_is_multilinear
+        )
+        tans = tn if tans is None else tuple(
+            t + tn_i for t, tn_i in zip(tans, tn)
+        )
+
     assert tans is not None
     return (res, tans)
 
 
 def _transpose(
-    cotangents, args, *, _func, _func_T, _func_abstract, _func_abstract_T,
+    cotangents, args, *, _func, _func_T, _func_abstract, _func_abstract_T, is_multilinear,
     **kwargs
 ):
     return _prim.bind(
@@ -230,14 +253,15 @@ for platform in ["cpu", "gpu"]:
     batching.primitive_batchers[_prim] = _batch
 
 
-def _call(*args, _func, _func_T, _func_abstract, _func_abstract_T, **kwargs):
+def _call(*args, _func, _func_T, _func_abstract, _func_abstract_T, _is_multilinear, **kwargs):
     out = _prim.bind(
         *args,
         **kwargs,
         _func=_func,
         _func_T=_func_T,
         _func_abstract=_func_abstract,
-        _func_abstract_T=_func_abstract_T
+        _func_abstract_T=_func_abstract_T,
+        _is_multilinear=_is_multilinear
     )
     return out
 
@@ -248,6 +272,7 @@ def get_linear_call(
     /,
     func_abstract,
     func_abstract_T,
+    is_multilinear,
     batch_axes=(),
     func_can_batch=False,
     deepcopy_kwargs=True,
@@ -295,5 +320,6 @@ def get_linear_call(
         _func=func,
         _func_T=func_T,
         _func_abstract=func_abstract,
-        _func_abstract_T=func_abstract_T
+        _func_abstract_T=func_abstract_T,
+        _is_multilinear=is_multilinear
     )
