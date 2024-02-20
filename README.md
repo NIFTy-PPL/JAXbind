@@ -20,6 +20,13 @@ The latest version of jax_linop can be obtained by cloning the repository via
 
     git clone https://gitlab.mpcdf.mpg.de/mtr/jax_linop.git
 
+## TODOs
+
+* Multi-linear (Jakob has ideas) + transpose (tuple of transpose functions?)
+* Non-diff arguments (tuple of bools?)
+* Batching
+* Paper (JOSS?)
+
 ## Licensing terms
 
 All source code in this package is released under the 3-clause BSD license.
