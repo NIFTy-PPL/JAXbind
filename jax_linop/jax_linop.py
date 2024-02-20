@@ -33,7 +33,7 @@ def _from_id(objectid):
 
 
 def _exec_abstract(
-    *args, _func, _func_T, _func_abstract, _func_abstract_T, _is_multilinear, **kwargs
+    *args, _func, _func_T, _func_abstract, _func_abstract_T, _funcs, **kwargs
 ):
     return tuple(jax.core.ShapedArray(s, d) for s, d, _ in _func_abstract(*args, **kwargs))
 
@@ -55,7 +55,7 @@ def _lowering(
     _func_T,
     _func_abstract,
     _func_abstract_T,
-    _is_multilinear,
+    _funcs,
     _platform="cpu",
     **kwargs
 ):
@@ -108,7 +108,7 @@ def _lowering(
 
 
 def _jvp(
-    args, tangents, *, _func, _func_T, _func_abstract, _func_abstract_T, _is_multilinear,
+    args, tangents, *, _func, _func_T, _func_abstract, _func_abstract_T, _funcs,
     **kwargs
 ):
     res = _prim.bind(
@@ -118,7 +118,7 @@ def _jvp(
         _func_T=_func_T,
         _func_abstract=_func_abstract,
         _func_abstract_T=_func_abstract_T,
-        _is_multilinear=_is_multilinear
+        _funcs=_funcs
     )
     def is_zero_type(tan):
         if type(tan) is ad.Zero or type(tan) is jax._src.ad_util.Zero:
@@ -144,7 +144,7 @@ def _jvp(
         return (res, tans)
 
     tans = None
-    if _is_multilinear:
+    if not _funcs is None:
         for i, t in enumerate(tangents):
             args_in0 = args[:i]
             args_in1 = args[i + 1:]
@@ -158,7 +158,7 @@ def _jvp(
                 _func_T=_func_T,
                 _func_abstract=_func_abstract,
                 _func_abstract_T=_func_abstract_T,
-                _is_multilinear=_is_multilinear
+                _funcs=_funcs
             )
             tans = tn if tans is None else tuple(
                 t + tn_i for t, tn_i in zip(tans, tn)
@@ -172,7 +172,7 @@ def _jvp(
                 _func_T=_func_T,
                 _func_abstract=_func_abstract,
                 _func_abstract_T=_func_abstract_T,
-                _is_multilinear=_is_multilinear
+                _funcs=_funcs
             )
 
     assert tans is not None
@@ -264,7 +264,7 @@ for platform in ["cpu", "gpu"]:
     batching.primitive_batchers[_prim] = _batch
 
 
-def _call(*args, _func, _func_T, _func_abstract, _func_abstract_T, _is_multilinear, **kwargs):
+def _call(*args, _func, _func_T, _func_abstract, _func_abstract_T, _funcs, **kwargs):
     out = _prim.bind(
         *args,
         **kwargs,
@@ -272,7 +272,7 @@ def _call(*args, _func, _func_T, _func_abstract, _func_abstract_T, _is_multiline
         _func_T=_func_T,
         _func_abstract=_func_abstract,
         _func_abstract_T=_func_abstract_T,
-        _is_multilinear=_is_multilinear
+        _funcs=_funcs
     )
     return out
 
@@ -283,7 +283,7 @@ def get_linear_call(
     /,
     func_abstract,
     func_abstract_T,
-    is_multilinear,
+    funcs,
     batch_axes=(),
     func_can_batch=False,
     deepcopy_kwargs=True,
@@ -332,5 +332,5 @@ def get_linear_call(
         _func_T=func_T,
         _func_abstract=func_abstract,
         _func_abstract_T=func_abstract_T,
-        _is_multilinear=is_multilinear
+        _funcs=funcs
     )

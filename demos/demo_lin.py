@@ -13,7 +13,7 @@ from jax import numpy as jnp
 import pickle
 
 
-def fft(out, args, kwargs_dump):
+def lin(out, args, kwargs_dump):
 
     # NOTE, this might look inefficient but for most practical problems it
     # really is not:
@@ -24,36 +24,37 @@ def fft(out, args, kwargs_dump):
     # ```
     kwargs = pickle.loads(np.ndarray.tobytes(kwargs_dump))
     # print(kwargs)
-    out[0][()] = args[0] * args[1]
-    out[1][()] = args[0] * args[1]
+    out[0][()] = args[0] + args[1]
+    out[1][()] = args[0] + args[1]
 
 
-def fft_T(out, args, kwargs_dump):
+def lin_T(out, args, kwargs_dump):
     kwargs = pickle.loads(np.ndarray.tobytes(kwargs_dump))
-    out[()] = args[0] + args[1]
+    out[0][()] = args[0] + args[1]
+    out[1][()] = args[0] + args[1]
 
-
-def fft_abstract(*args, **kwargs):
+def lin_abstract(*args, **kwargs):
     # Returns `shape` and `dtype` of output as well as the added batch_axes of the `output``
     out_axes = kwargs.pop("batch_axes", ())
     assert args[0].shape == args[1].shape
     return ((args[0].shape, args[0].dtype, out_axes)
     , (args[0].shape, args[0].dtype, out_axes))
 
+def lin_abstract_T(*args, **kwargs):
+    # Returns `shape` and `dtype` of output as well as the added batch_axes of the `output``
+    out_axes = kwargs.pop("batch_axes", ())
+    assert args[0].shape == args[1].shape
+    return ((args[0].shape, args[0].dtype, out_axes), (args[0].shape, args[0].dtype, out_axes))
 
-fft_jl = jax_linop.get_linear_call(
-    fft, fft_T, fft_abstract, fft_abstract, True, func_can_batch=True
+
+lin_jax = jax_linop.get_linear_call(
+    lin, lin_T, lin_abstract, lin_abstract_T, None, func_can_batch=True
 )
 inp = (4 + jnp.zeros((2, 2)), 1 + jnp.zeros((2, 2)))
-fft_jl(*inp, axes=(3, 4))
+lin_jax(*inp, axes=(3, 4))
 
-in2 = (2 + jnp.zeros((2, 2)), 2 + jnp.zeros((2, 2)))
-in3 = (3 + jnp.zeros((2, 2)), 3 + jnp.zeros((2, 2)))
-tan = jax.jvp(fft_jl, in2, in3)
+check_grads(partial(lin_jax, axes=(3, 4)), inp, order=2, modes=["fwd"], eps=1.)
+check_grads(partial(lin_jax, axes=(3, 4)), inp, order=2, modes=["rev"], eps=1.)
 
-check_grads(partial(fft_jl, axes=(3, 4)), inp, order=2, modes=["fwd"], eps=1.)
-# fft_jl_j = jax.jit(jax.vmap(jax.vmap(fft_jl, in_axes=0), in_axes=0))
-# fft_jl_j = jax.vmap(jax.vmap(fft_jl, in_axes=0), in_axes=0)
-# fft_jl_j(jnp.zeros((2, 2, 14)).astype(jnp.complex128))
 
 # %%
