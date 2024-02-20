@@ -131,7 +131,10 @@ def _jvp(
     #     return jax.lax.zeros_like_array(res) if is_zero_type(tan) else tan
 
     def make_zeros(tan):
-        return ad.instantiate_zeros(tan) if is_zero_type(tan) else tan
+        if type(tan) is list:
+            return [ad.instantiate_zeros(t) if is_zero_type(t) else t for t in tan]
+        else:
+            return ad.instantiate_zeros(tan) if is_zero_type(tan) else tan
 
     def zeros_like(args):
         return list((jax.lax.zeros_like_array(a) for a in args))
@@ -141,28 +144,36 @@ def _jvp(
         return (res, tans)
 
     tans = None
-    for i, t in enumerate(tangents):
-        if _is_multilinear:
+    if _is_multilinear:
+        for i, t in enumerate(tangents):
             args_in0 = args[:i]
             args_in1 = args[i + 1:]
-        else:
-            args_in0 = zeros_like(args[:i])
-            args_in1 = zeros_like(args[i + 1:])
-        t = make_zeros(t)
-        tn = _prim.bind(
-            *args_in0,
-            t,
-            *args_in1,
-            **kwargs,
-            _func=_func,
-            _func_T=_func_T,
-            _func_abstract=_func_abstract,
-            _func_abstract_T=_func_abstract_T,
-            _is_multilinear=_is_multilinear
-        )
-        tans = tn if tans is None else tuple(
-            t + tn_i for t, tn_i in zip(tans, tn)
-        )
+            t = make_zeros(t)
+            tn = _prim.bind(
+                *args_in0,
+                t,
+                *args_in1,
+                **kwargs,
+                _func=_func,
+                _func_T=_func_T,
+                _func_abstract=_func_abstract,
+                _func_abstract_T=_func_abstract_T,
+                _is_multilinear=_is_multilinear
+            )
+            tans = tn if tans is None else tuple(
+                t + tn_i for t, tn_i in zip(tans, tn)
+            )
+    else:
+        tangents = make_zeros(tangents)
+        tans = _prim.bind(
+                *tangents,
+                **kwargs,
+                _func=_func,
+                _func_T=_func_T,
+                _func_abstract=_func_abstract,
+                _func_abstract_T=_func_abstract_T,
+                _is_multilinear=_is_multilinear
+            )
 
     assert tans is not None
     return (res, tans)
