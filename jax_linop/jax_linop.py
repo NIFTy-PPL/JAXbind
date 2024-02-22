@@ -33,7 +33,7 @@ def _from_id(objectid):
 
 
 def _exec_abstract(
-    *args, _func, _func_T, _func_abstract, _func_abstract_T, _funcs, **kwargs
+    *args, _func, _func_T, _func_abstract, _func_abstract_T, _funcs, _mlin, **kwargs
 ):
     return tuple(jax.core.ShapedArray(s, d) for s, d, _ in _func_abstract(*args, **kwargs))
 
@@ -56,6 +56,7 @@ def _lowering(
     _func_abstract,
     _func_abstract_T,
     _funcs,
+    _mlin,
     _platform="cpu",
     **kwargs
 ):
@@ -108,7 +109,7 @@ def _lowering(
 
 
 def _jvp(
-    args, tangents, *, _func, _func_T, _func_abstract, _func_abstract_T, _funcs,
+    args, tangents, *, _func, _func_T, _func_abstract, _func_abstract_T, _funcs, _mlin,
     **kwargs
 ):
     res = _prim.bind(
@@ -118,7 +119,8 @@ def _jvp(
         _func_T=_func_T,
         _func_abstract=_func_abstract,
         _func_abstract_T=_func_abstract_T,
-        _funcs=_funcs
+        _funcs=_funcs,
+        _mlin=_mlin
     )
     def is_zero_type(tan):
         if type(tan) is ad.Zero or type(tan) is jax._src.ad_util.Zero:
@@ -140,25 +142,25 @@ def _jvp(
         return list((jax.lax.zeros_like_array(a) for a in args))
 
     if all(type(t) is ad.Zero for t in tangents):
-        tans = (jax.lax.zeros_like_array(res), )
+        # tans = (jax.lax.zeros_like_array(res), )
+        tans = zeros_like(res)
         return (res, tans)
 
     tans = None
-    if not _funcs is None:
+    if _mlin:
         for i, t in enumerate(tangents):
-            args_in0 = args[:i]
-            args_in1 = args[i + 1:]
             t = make_zeros(t)
             tn = _prim.bind(
-                *args_in0,
+                *args[:i],
                 t,
-                *args_in1,
+                *args[i + 1:],
                 **kwargs,
                 _func=_func,
                 _func_T=_func_T,
                 _func_abstract=_func_abstract,
                 _func_abstract_T=_func_abstract_T,
-                _funcs=_funcs
+                _funcs=_funcs,
+                _mlin=_mlin
             )
             tans = tn if tans is None else tuple(
                 t + tn_i for t, tn_i in zip(tans, tn)
@@ -172,25 +174,75 @@ def _jvp(
                 _func_T=_func_T,
                 _func_abstract=_func_abstract,
                 _func_abstract_T=_func_abstract_T,
-                _funcs=_funcs
+                _funcs=_funcs,
+                _mlin=_mlin
             )
 
     assert tans is not None
     return (res, tans)
 
-
+# NOTE: for what ever reason will pass each arg separately to _transpose and not
+# as a tuple as for _jvp. Thus we need *args since we don't know the number of arguments.
 def _transpose(
-    cotangents, args, *, _func, _func_T, _func_abstract, _func_abstract_T, is_multilinear,
+    cotangents, *args, _func, _func_T, _func_abstract, _func_abstract_T, _funcs, _mlin,
     **kwargs
 ):
-    return _prim.bind(
-        *cotangents,
-        **kwargs,
-        _func=_func_T,
-        func_T=_func,
-        _func_abstract=_func_abstract_T,
-        _func_abstract_T=_func_abstract
-    )
+    def is_zero_type(tan):
+        if type(tan) is ad.Zero or type(tan) is jax._src.ad_util.Zero:
+            return True
+        return False
+
+    def make_zeros(tan):
+        if type(tan) is list:
+            return [ad.instantiate_zeros(t) if is_zero_type(t) else t for t in tan]
+        return ad.instantiate_zeros(tan) if is_zero_type(tan) else tan
+
+    if _mlin:
+        arg_is_lin = [True if ad.is_undefined_primal(a) else False for a in args]
+        assert sum(arg_is_lin) == 1
+        lin_arg = arg_is_lin.index(True)
+        c_in = cotangents
+        a_in0 = args[:lin_arg]
+        a_in1 = args[lin_arg + 1:]
+        a_in = a_in0 + a_in1
+
+        if _funcs is None:
+            raise NotImplementedError(f'transpose of {_func} not implemented.')
+        else:
+            # TODO: maybe give the user the possibility to provide more functions,
+            # such that more transforms can be computed
+            func = _funcs[0][lin_arg]
+            func_T = None
+            func_abstract = _funcs[1][lin_arg]
+            func_abstract_T = None
+            new_funcs = None
+
+        res =  _prim.bind(
+            *a_in,
+            *c_in,
+            **kwargs,
+            _func=func,
+            _func_T=func_T,
+            _func_abstract=func_abstract,
+            _func_abstract_T=func_abstract_T,
+            _funcs=new_funcs,
+            _mlin=_mlin
+        )
+        res = [None]*lin_arg + res + [None]*(len(arg_is_lin) - (lin_arg+1))
+        return res
+    else:
+        inp = make_zeros(cotangents)
+        res = _prim.bind(
+            *inp,
+            **kwargs,
+            _func=_func_T,
+            _func_T=_func,
+            _func_abstract=_func_abstract_T,
+            _func_abstract_T=_func_abstract,
+            _funcs=_funcs,
+            _mlin=_mlin
+        )
+        return res
 
 
 def _batch(args, in_axes, *, stateid, stateTid):
@@ -264,7 +316,7 @@ for platform in ["cpu", "gpu"]:
     batching.primitive_batchers[_prim] = _batch
 
 
-def _call(*args, _func, _func_T, _func_abstract, _func_abstract_T, _funcs, **kwargs):
+def _call(*args, _func, _func_T, _func_abstract, _func_abstract_T, _funcs, _mlin, **kwargs):
     out = _prim.bind(
         *args,
         **kwargs,
@@ -272,7 +324,8 @@ def _call(*args, _func, _func_T, _func_abstract, _func_abstract_T, _funcs, **kwa
         _func_T=_func_T,
         _func_abstract=_func_abstract,
         _func_abstract_T=_func_abstract_T,
-        _funcs=_funcs
+        _funcs=_funcs,
+        _mlin=_mlin
     )
     return out
 
@@ -284,6 +337,7 @@ def get_linear_call(
     func_abstract,
     func_abstract_T,
     funcs,
+    mlin,
     batch_axes=(),
     func_can_batch=False,
     deepcopy_kwargs=True,
@@ -332,5 +386,6 @@ def get_linear_call(
         _func_T=func_T,
         _func_abstract=func_abstract,
         _func_abstract_T=func_abstract_T,
-        _funcs=funcs
+        _funcs=funcs,
+        _mlin=mlin
     )
