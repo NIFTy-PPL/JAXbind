@@ -16,18 +16,8 @@ from jaxlib.hlo_helpers import custom_call
 
 import _jax_linop
 
-# incremented for every registered operator, strictly for uniqueness purposes
-_global_opcounter = 0
-_global_states = []
-
 for _name, _value in _jax_linop.registrations().items():
     jax.lib.xla_client.register_custom_call_target(_name, _value, platform="cpu")
-
-
-def _from_id(objectid):
-    import ctypes
-
-    return ctypes.cast(objectid, ctypes.py_object).value
 
 
 def _exec_abstract(
@@ -39,8 +29,13 @@ def _exec_abstract(
     _funcs,
     _mlin,
     _arg_fixed,
+    _func_can_batch,
+    _batch_axes,
     **kwargs,
 ):
+    if _func_can_batch:
+        assert "batch_axes" not in kwargs
+        kwargs["batch_axes"] = _batch_axes
     return tuple(
         jax.core.ShapedArray(s, d) for s, d, _ in _func_abstract(*args, **kwargs)
     )
@@ -66,6 +61,8 @@ def _lowering(
     _funcs,
     _mlin,
     _arg_fixed,
+    _func_can_batch,
+    _batch_axes,
     _platform="cpu",
     **kwargs,
 ):
@@ -130,6 +127,8 @@ def _jvp(
     _funcs,
     _mlin,
     _arg_fixed,
+    _func_can_batch,
+    _batch_axes,
     **kwargs,
 ):
     res = _prim.bind(
@@ -142,6 +141,8 @@ def _jvp(
         _funcs=_funcs,
         _mlin=_mlin,
         _arg_fixed=_arg_fixed,
+        _func_can_batch=_func_can_batch,
+        _batch_axes=_batch_axes,
     )
 
     def is_zero_type(tan):
@@ -184,6 +185,8 @@ def _jvp(
                 _funcs=_funcs,
                 _mlin=_mlin,
                 _arg_fixed=_arg_fixed,
+                _func_can_batch=_func_can_batch,
+                _batch_axes=_batch_axes,
             )
             tans = tn if tans is None else tuple(t + tn_i for t, tn_i in zip(tans, tn))
     else:
@@ -198,6 +201,8 @@ def _jvp(
             _funcs=_funcs,
             _mlin=_mlin,
             _arg_fixed=_arg_fixed,
+            _func_can_batch=_func_can_batch,
+            _batch_axes=_batch_axes,
         )
 
     assert tans is not None
@@ -216,6 +221,8 @@ def _transpose(
     _funcs,
     _mlin,
     _arg_fixed,
+    _func_can_batch,
+    _batch_axes,
     **kwargs,
 ):
     def is_zero_type(tan):
@@ -259,6 +266,8 @@ def _transpose(
             _funcs=new_funcs,
             _mlin=_mlin,
             _arg_fixed=_arg_fixed,
+            _func_can_batch=_func_can_batch,
+            _batch_axes=_batch_axes,
         )
         res = [None] * lin_arg + res + [None] * (len(arg_is_lin) - (lin_arg + 1))
         return res
@@ -274,57 +283,64 @@ def _transpose(
             _funcs=_funcs,
             _mlin=_mlin,
             _arg_fixed=_arg_fixed,
+            _func_can_batch=_func_can_batch,
+            _batch_axes=_batch_axes,
         )
         return res
 
 
-def _batch(args, in_axes, *, stateid, stateTid):
+def _batch(
+    args,
+    in_axes,
+    *,
+    _func,
+    _func_T,
+    _func_abstract,
+    _func_abstract_T,
+    _funcs,
+    _mlin,
+    _arg_fixed,
+    _func_can_batch,
+    _batch_axes,
+    **kwargs,
+):
     from .custom_map import smap
 
-    state = _from_id(stateid)
-    if state["_func_can_batch"] is False:
-        out_axes = in_axes
+    kw_batch = {
+        "_func": _func,
+        "_func_T": _func_T,
+        "_func_abstract": _func_abstract,
+        "_func_abstract_T": _func_abstract_T,
+        "_funcs": _funcs,
+        "_mlin": _mlin,
+        "_arg_fixed": _arg_fixed,
+        "_func_can_batch": _func_can_batch,
+        "_batch_axes": _batch_axes,
+    }
+
+    if _func_can_batch:
+        print(f"{in_axes=}")
         y = smap(
-            partial(_prim.bind, stateid=stateid, stateTid=stateTid),
+            partial(_prim.bind, **kw_batch),
             in_axes=in_axes,
-            out_axes=out_axes,
         )(*args)
+        out_axes = [0] * len(y)
     else:
         (ia,) = in_axes
-        internal_fields = (
-            "_opid",
-            "_func_can_batch",
-            "_batch_axes",
-            "_func",
-            "_func_T",
-            "_func_abstract",
-            "_func_abstract_T",
-        )
-        kw_batch = {
-            k.removeprefix("_") if k in internal_fields else k: v
-            for k, v in state.items()
-        }
-        del kw_batch["opid"]
-        func, func_T = kw_batch.pop("func"), kw_batch.pop("func_T")
         batch_axes = kw_batch.pop("batch_axes", ())
         for b in batch_axes:
             if ia >= b:
                 ia += 1
         batch_axes = tuple(sorted(batch_axes + (ia,)))
 
-        call = get_linear_call(
-            func, func_T, **kw_batch, batch_axes=batch_axes, deepcopy_kwargs=False
-        )
+        call = partial(_call, _batch_axes=batch_axes, **kw_batch)
         (x,) = args
         y = (call(x),)  # Consistent signature with `_prim.bind`
 
-        global _global_states  # HACK AND FIXME
-        _global_states.append((call.keywords["state"], call.keywords["stateT"]))
-
-        _, _, ba_wob = state["_func_abstract"](
-            x.shape[:ia] + x.shape[ia + 1 :], x.dtype, state
+        _, _, ba_wob = _func_abstract(
+            x.shape[:ia] + x.shape[ia + 1 :], x.dtype, batch_axes=_batch_axes
         )
-        _, _, ba_wb = state["_func_abstract"](x.shape, x.dtype, call.keywords["state"])
+        _, _, ba_wb = _func_abstract(x.shape, x.dtype, batch_axes=batch_axes)
         (oa,) = set.difference(set(ba_wb), set(ba_wob))
         for b in ba_wob[::-1]:
             if oa >= b:
@@ -357,6 +373,8 @@ def _call(
     _funcs,
     _mlin,
     _arg_fixed,
+    _func_can_batch,
+    _batch_axes,
     **kwargs,
 ):
     out = _prim.bind(
@@ -369,6 +387,8 @@ def _call(
         _funcs=_funcs,
         _mlin=_mlin,
         _arg_fixed=_arg_fixed,
+        _func_can_batch=_func_can_batch,
+        _batch_axes=_batch_axes,
     )
     return out
 
@@ -384,7 +404,6 @@ def get_linear_call(
     arg_fixed=None,
     batch_axes=(),
     func_can_batch=False,
-    deepcopy_kwargs=True,
     **kwargs,
 ) -> partial:
     """Create Jax functions for the provided linear operator
@@ -433,4 +452,6 @@ def get_linear_call(
         _funcs=funcs,
         _mlin=mlin,
         _arg_fixed=arg_fixed,
+        _func_can_batch=func_can_batch,
+        _batch_axes=batch_axes,
     )
