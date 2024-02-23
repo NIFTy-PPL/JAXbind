@@ -35,16 +35,31 @@ TODO
 
 # Statement of Need
 
+* Use of JAX spread in astrophysics and physics more broadly
+* JAX is used for its transformation system allowing one to compute arbitrary derivates of functions and batch computations
+* Furthermore, JAX, effortlessly translates code to run on accelerator hardware and just-in-time compiles code for additional performance.
+
+* However, a huge plethora of code written is already written in a high performance language and with readily available derivates
+* This is especially true for any linear function, where the derivative is trivial
+* So far, it has been very involved to connect the existing code to JAX
+* Deep knowledge of JAX internals, not a lot of documentation
+
+* Provide one-shot solution for bridging any linear function to JAX
+* Interface is in plain python with no C++ necessary
+* Given the function and its transpose function, the call is registered as a JAX native so-called primitive
+* Derivates and compilation rules are then automatically defined
+
 <!-- Mention (if applicable) a representative set of past or ongoing research projects using the software and recent scholarly publications enabled by it. -->
-ongoing research
-* ducc in NIFTy
-* PICARD to JAX
-* Radio gridder for connecting resolve to NIFTy.re
-* Radio gridder for storng-lensing
+We believe this `jax_linop` to be highly useful in scientific computing.
+* Fantastic packages in JAX for optimization and sampling that could be used once functions are connected to JAX
+* We intend to use this package to connect the Hartley transform and the spheric harmonic transform from ducc [@ducc0] to NIFTy [@Edenhofer2023NIFTyRE]
+* We envision many future applications such as, e.g., connecting the astrophysical particle propagation code PICARD (TODO:cite) to JAX and the gridder for radio-astronomical data in @ducc0 to radio-imaging as well as strong lensing codes in JAX
 
 <!-- A list of key references, including to other software addressing related needs. Note that the references should include full names of venues, e.g., journals and conferences, not abbreviations only understood in the context of a specific discipline. -->
-* https://dfm.io/posts/extending-jax/
-
+* Some projects already connected their calls to JAX, e.g., FINUFFT (TODO:cite), TODO.
+* Furthermore, enzyme connected their AD backend for C++ to JAX
+* https://github.com/EnzymeAD/Enzyme-JAX for bridging these to JAX
+* Some guidance on connecting C++ code to JAX is given in https://dfm.io/posts/extending-jax/ but to the best of our knowledge, no generic code for connecting arbitrary codes to JAX
 
 # Acknowledgements
 
