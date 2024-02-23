@@ -57,12 +57,29 @@ funcs = (
     )
 
 mlin_jax = jax_linop.get_linear_call(
-    mlin, None, mlin_abstract, None, funcs, True, func_can_batch=True
+    mlin, None, mlin_abstract, None, funcs, True, arg_fixed=(True, False), func_can_batch=True
 )
 
 
 
 
+inp1 = 4 + jnp.zeros((2, 2))
+inp2 = 1 + jnp.zeros((2, 2))
+
+
+from functools import partial
+mlin_jax_pt = partial(mlin_jax, inp1, axes=(3,4))
+# mlin_jax_pt = partial(mlin_jax, axes=(3,4))
+mlin_jax_pt(inp2)
+check_grads(mlin_jax_pt, (inp2,), order=2, modes=["fwd"], eps=1.)
+# check_grads(partial(mlin_jax_pt, axes=(3, 4)), inp2, order=2, modes=["fwd"], eps=1.)
+
+# from jax.tree_util import Partial
+# mlin_jax_pt = Partial(mlin_jax, inp1)
+# check_grads(partial(mlin_jax_pt, axes=(3, 4)), inp2, order=2, modes=["fwd"], eps=1.)
+
+
+raise SystemExit()
 inp = (4 + jnp.zeros((2, 2)), 1 + jnp.zeros((2, 2)))
 
 check_grads(partial(mlin_jax, axes=(3, 4)), inp, order=2, modes=["fwd"], eps=1.)

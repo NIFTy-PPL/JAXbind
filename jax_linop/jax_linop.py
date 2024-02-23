@@ -145,10 +145,28 @@ def _jvp(
         _batch_axes=_batch_axes,
     )
 
+    # FIXME can this be unified
     def is_zero_type(tan):
         if type(tan) is ad.Zero or type(tan) is jax._src.ad_util.Zero:
             return True
         return False
+
+    def zero_tans(tans):
+        if isinstance(tans, (tuple, list)):
+            return [is_zero_type(t) for t in tans]
+        else:
+            return [is_zero_type(tans)]
+
+    assert len(args) == len(tangents) == len(_arg_fixed)
+
+    tan_is_zero = zero_tans(tangents)
+    assert len(args) == len(tan_is_zero)
+
+    for i, (a, t) in enumerate(zip(_arg_fixed, tan_is_zero)):
+        if a and not t:
+            raise RuntimeError(
+                f"Cannot differentiate with respect to positional argument number {i}"
+            )
 
     # probably not needed any more, but not sure what the difference between
     # jax.lax.zeros_like_array and ad.instantiate_zeros is
@@ -156,7 +174,7 @@ def _jvp(
     #     return jax.lax.zeros_like_array(res) if is_zero_type(tan) else tan
 
     def make_zeros(tan):
-        if type(tan) is list:
+        if isinstance(tan, (tuple, list)):
             return [ad.instantiate_zeros(t) if is_zero_type(t) else t for t in tan]
         else:
             return ad.instantiate_zeros(tan) if is_zero_type(tan) else tan
@@ -234,6 +252,15 @@ def _transpose(
         if type(tan) is list:
             return [ad.instantiate_zeros(t) if is_zero_type(t) else t for t in tan]
         return ad.instantiate_zeros(tan) if is_zero_type(tan) else tan
+
+    arg_is_lin = [True if ad.is_undefined_primal(a) else False for a in args]
+    assert len(_arg_fixed) == len(arg_is_lin)
+
+    for i, (a, l) in enumerate(zip(_arg_fixed, arg_is_lin)):
+        if a and not l:
+            raise RuntimeError(
+                f"Cannot transpose with respect to positional argument number {i}"
+            )
 
     if _mlin:
         arg_is_lin = [True if ad.is_undefined_primal(a) else False for a in args]
