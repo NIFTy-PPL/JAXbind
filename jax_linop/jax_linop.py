@@ -21,9 +21,7 @@ _global_opcounter = 0
 _global_states = []
 
 for _name, _value in _jax_linop.registrations().items():
-    jax.lib.xla_client.register_custom_call_target(
-        _name, _value, platform="cpu"
-    )
+    jax.lib.xla_client.register_custom_call_target(_name, _value, platform="cpu")
 
 
 def _from_id(objectid):
@@ -33,10 +31,19 @@ def _from_id(objectid):
 
 
 def _exec_abstract(
-    *args, _func, _func_T, _func_abstract, _func_abstract_T, _funcs, _mlin,
-    _arg_fixed, **kwargs
+    *args,
+    _func,
+    _func_T,
+    _func_abstract,
+    _func_abstract_T,
+    _funcs,
+    _mlin,
+    _arg_fixed,
+    **kwargs,
 ):
-    return tuple(jax.core.ShapedArray(s, d) for s, d, _ in _func_abstract(*args, **kwargs))
+    return tuple(
+        jax.core.ShapedArray(s, d) for s, d, _ in _func_abstract(*args, **kwargs)
+    )
 
 
 # the values are explained in src/duc0/bindings/typecode.h
@@ -60,7 +67,7 @@ def _lowering(
     _mlin,
     _arg_fixed,
     _platform="cpu",
-    **kwargs
+    **kwargs,
 ):
     operands = [irc(id(_func))]  # Pass the ID of the callable to C++
     operand_layouts = [()]
@@ -70,8 +77,11 @@ def _lowering(
     assert len(args) == len(ctx.avals_in)
     # All `args` are assumed to be JAX arrays
     for a, ca in zip(args, ctx.avals_in):
-        operands += [irc(_dtype_dict[ca.dtype]),
-                     irc(ca.ndim)] + [irc(i) for i in ca.shape] + [a]
+        operands += (
+            [irc(_dtype_dict[ca.dtype]), irc(ca.ndim)]
+            + [irc(i) for i in ca.shape]
+            + [a]
+        )
         lyt_a = tuple(range(ca.ndim - 1, -1, -1))
         operand_layouts += [()] * (2 + ca.ndim) + [lyt_a]
 
@@ -80,13 +90,12 @@ def _lowering(
     result_layouts = []
     result_types = []
     for co in ctx.avals_out:
-        operands += [irc(_dtype_dict[co.dtype]),
-                     irc(co.ndim)] + [irc(i) for i in co.shape]
+        operands += [irc(_dtype_dict[co.dtype]), irc(co.ndim)] + [
+            irc(i) for i in co.shape
+        ]
         operand_layouts += [()] * (2 + co.ndim)
         result_layouts += [tuple(range(co.ndim - 1, -1, -1))]
-        rs_typ = mlir.ir.RankedTensorType.get(
-            co.shape, mlir.dtype_to_ir_type(co.dtype)
-        )
+        rs_typ = mlir.ir.RankedTensorType.get(co.shape, mlir.dtype_to_ir_type(co.dtype))
         result_types += [rs_typ]
 
     kwargs = np.frombuffer(pickle.dumps(kwargs), dtype=np.uint8)
@@ -111,8 +120,17 @@ def _lowering(
 
 
 def _jvp(
-    args, tangents, *, _func, _func_T, _func_abstract, _func_abstract_T, _funcs,
-    _mlin, _arg_fixed, **kwargs
+    args,
+    tangents,
+    *,
+    _func,
+    _func_T,
+    _func_abstract,
+    _func_abstract_T,
+    _funcs,
+    _mlin,
+    _arg_fixed,
+    **kwargs,
 ):
     res = _prim.bind(
         *args,
@@ -123,8 +141,9 @@ def _jvp(
         _func_abstract_T=_func_abstract_T,
         _funcs=_funcs,
         _mlin=_mlin,
-        _arg_fixed=_arg_fixed
+        _arg_fixed=_arg_fixed,
     )
+
     def is_zero_type(tan):
         if type(tan) is ad.Zero or type(tan) is jax._src.ad_util.Zero:
             return True
@@ -156,7 +175,7 @@ def _jvp(
             tn = _prim.bind(
                 *args[:i],
                 t,
-                *args[i + 1:],
+                *args[i + 1 :],
                 **kwargs,
                 _func=_func,
                 _func_T=_func_T,
@@ -164,33 +183,40 @@ def _jvp(
                 _func_abstract_T=_func_abstract_T,
                 _funcs=_funcs,
                 _mlin=_mlin,
-                _arg_fixed=_arg_fixed
+                _arg_fixed=_arg_fixed,
             )
-            tans = tn if tans is None else tuple(
-                t + tn_i for t, tn_i in zip(tans, tn)
-            )
+            tans = tn if tans is None else tuple(t + tn_i for t, tn_i in zip(tans, tn))
     else:
         tangents = make_zeros(tangents)
         tans = _prim.bind(
-                *tangents,
-                **kwargs,
-                _func=_func,
-                _func_T=_func_T,
-                _func_abstract=_func_abstract,
-                _func_abstract_T=_func_abstract_T,
-                _funcs=_funcs,
-                _mlin=_mlin,
-                _arg_fixed=_arg_fixed
-            )
+            *tangents,
+            **kwargs,
+            _func=_func,
+            _func_T=_func_T,
+            _func_abstract=_func_abstract,
+            _func_abstract_T=_func_abstract_T,
+            _funcs=_funcs,
+            _mlin=_mlin,
+            _arg_fixed=_arg_fixed,
+        )
 
     assert tans is not None
     return (res, tans)
 
+
 # NOTE: for what ever reason will pass each arg separately to _transpose and not
 # as a tuple as for _jvp. Thus we need *args since we don't know the number of arguments.
 def _transpose(
-    cotangents, *args, _func, _func_T, _func_abstract, _func_abstract_T, _funcs,
-    _mlin, _arg_fixed, **kwargs
+    cotangents,
+    *args,
+    _func,
+    _func_T,
+    _func_abstract,
+    _func_abstract_T,
+    _funcs,
+    _mlin,
+    _arg_fixed,
+    **kwargs,
 ):
     def is_zero_type(tan):
         if type(tan) is ad.Zero or type(tan) is jax._src.ad_util.Zero:
@@ -208,11 +234,11 @@ def _transpose(
         lin_arg = arg_is_lin.index(True)
         c_in = cotangents
         a_in0 = args[:lin_arg]
-        a_in1 = args[lin_arg + 1:]
+        a_in1 = args[lin_arg + 1 :]
         a_in = a_in0 + a_in1
 
         if _funcs is None:
-            raise NotImplementedError(f'transpose of {_func} not implemented.')
+            raise NotImplementedError(f"transpose of {_func} not implemented.")
         else:
             # TODO: maybe give the user the possibility to provide more functions,
             # such that more transforms can be computed
@@ -222,7 +248,7 @@ def _transpose(
             func_abstract_T = None
             new_funcs = None
 
-        res =  _prim.bind(
+        res = _prim.bind(
             *a_in,
             *c_in,
             **kwargs,
@@ -232,9 +258,9 @@ def _transpose(
             _func_abstract_T=func_abstract_T,
             _funcs=new_funcs,
             _mlin=_mlin,
-            _arg_fixed=_arg_fixed
+            _arg_fixed=_arg_fixed,
         )
-        res = [None]*lin_arg + res + [None]*(len(arg_is_lin) - (lin_arg+1))
+        res = [None] * lin_arg + res + [None] * (len(arg_is_lin) - (lin_arg + 1))
         return res
     else:
         inp = make_zeros(cotangents)
@@ -247,7 +273,7 @@ def _transpose(
             _func_abstract_T=_func_abstract,
             _funcs=_funcs,
             _mlin=_mlin,
-            _arg_fixed=_arg_fixed
+            _arg_fixed=_arg_fixed,
         )
         return res
 
@@ -261,13 +287,18 @@ def _batch(args, in_axes, *, stateid, stateTid):
         y = smap(
             partial(_prim.bind, stateid=stateid, stateTid=stateTid),
             in_axes=in_axes,
-            out_axes=out_axes
+            out_axes=out_axes,
         )(*args)
     else:
-        ia, = in_axes
+        (ia,) = in_axes
         internal_fields = (
-            "_opid", "_func_can_batch", "_batch_axes", "_func", "_func_T",
-            "_func_abstract", "_func_abstract_T"
+            "_opid",
+            "_func_can_batch",
+            "_batch_axes",
+            "_func",
+            "_func_T",
+            "_func_abstract",
+            "_func_abstract_T",
         )
         kw_batch = {
             k.removeprefix("_") if k in internal_fields else k: v
@@ -279,33 +310,27 @@ def _batch(args, in_axes, *, stateid, stateTid):
         for b in batch_axes:
             if ia >= b:
                 ia += 1
-        batch_axes = tuple(sorted(batch_axes + (ia, )))
+        batch_axes = tuple(sorted(batch_axes + (ia,)))
 
         call = get_linear_call(
-            func,
-            func_T,
-            **kw_batch,
-            batch_axes=batch_axes,
-            deepcopy_kwargs=False
+            func, func_T, **kw_batch, batch_axes=batch_axes, deepcopy_kwargs=False
         )
-        x, = args
-        y = (call(x), )  # Consistent signature with `_prim.bind`
+        (x,) = args
+        y = (call(x),)  # Consistent signature with `_prim.bind`
 
         global _global_states  # HACK AND FIXME
         _global_states.append((call.keywords["state"], call.keywords["stateT"]))
 
         _, _, ba_wob = state["_func_abstract"](
-            x.shape[:ia] + x.shape[ia + 1:], x.dtype, state
+            x.shape[:ia] + x.shape[ia + 1 :], x.dtype, state
         )
-        _, _, ba_wb = state["_func_abstract"](
-            x.shape, x.dtype, call.keywords["state"]
-        )
-        oa, = set.difference(set(ba_wb), set(ba_wob))
+        _, _, ba_wb = state["_func_abstract"](x.shape, x.dtype, call.keywords["state"])
+        (oa,) = set.difference(set(ba_wb), set(ba_wob))
         for b in ba_wob[::-1]:
             if oa >= b:
                 oa -= 1
         assert oa >= 0
-        out_axes = (oa)
+        out_axes = oa
     return y, out_axes
 
 
@@ -323,8 +348,17 @@ for platform in ["cpu", "gpu"]:
     batching.primitive_batchers[_prim] = _batch
 
 
-def _call(*args, _func, _func_T, _func_abstract, _func_abstract_T, _funcs, _mlin, _arg_fixed,
- **kwargs):
+def _call(
+    *args,
+    _func,
+    _func_T,
+    _func_abstract,
+    _func_abstract_T,
+    _funcs,
+    _mlin,
+    _arg_fixed,
+    **kwargs,
+):
     out = _prim.bind(
         *args,
         **kwargs,
@@ -334,7 +368,7 @@ def _call(*args, _func, _func_T, _func_abstract, _func_abstract_T, _funcs, _mlin
         _func_abstract_T=_func_abstract_T,
         _funcs=_funcs,
         _mlin=_mlin,
-        _arg_fixed=_arg_fixed
+        _arg_fixed=_arg_fixed,
     )
     return out
 
@@ -351,7 +385,7 @@ def get_linear_call(
     batch_axes=(),
     func_can_batch=False,
     deepcopy_kwargs=True,
-    **kwargs
+    **kwargs,
 ) -> partial:
     """Create Jax functions for the provided linear operator
 
@@ -398,5 +432,5 @@ def get_linear_call(
         _func_abstract_T=func_abstract_T,
         _funcs=funcs,
         _mlin=mlin,
-        _arg_fixed=arg_fixed
+        _arg_fixed=arg_fixed,
     )
