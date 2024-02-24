@@ -13,11 +13,24 @@ from jax import numpy as jnp
 import pickle
 
 
+def mlin_call(x, y):
+    return x * y, x * y
+
+
 def mlin(out, args, kwargs_dump):
     kwargs = pickle.loads(np.ndarray.tobytes(kwargs_dump))
-    # print(kwargs)
-    out[0][()] = args[0] * args[1]
-    out[1][()] = args[0] * args[1]
+    batch_axes = kwargs.pop("batch_axes", ())
+    call = mlin_call
+    if batch_axes != () and batch_axes != ((),) * len(args):
+        assert all(
+            len(ba) in (0, 1) for ba in batch_axes
+        )  # Allow vmapping exactly once
+        call = jax.vmap(
+            mlin_call,
+            in_axes=tuple((ba[0] if len(ba) == 1 else None) for ba in batch_axes),
+        )
+    o = call(*args)
+    out[0][()], out[1][()] = o
 
 
 def mlin_T1(out, args, kwargs_dump):
@@ -32,12 +45,18 @@ def mlin_T2(out, args, kwargs_dump):
 
 def mlin_abstract(*args, **kwargs):
     # Returns `shape` and `dtype` of output as well as the added batch_axes of the `output``
-    out_axes = kwargs.pop("batch_axes", ())
-    oaxes = out_axes[0] if len(out_axes) > 0 else ()
-    assert all(oa == oaxes for oa in out_axes)
-    shp = np.broadcast_shapes(*(a.shape for a in args))
-    dtp = np.result_type(*(a.dtype for a in args))
-    return ((shp, dtp, oaxes), (shp, dtp, oaxes))
+    batch_axes = kwargs.pop("batch_axes", ())
+    call = mlin_call
+    if batch_axes != () and batch_axes != ((),) * len(args):
+        assert all(
+            len(ba) in (0, 1) for ba in batch_axes
+        )  # Allow vmapping exactly once
+        call = jax.vmap(
+            mlin_call,
+            in_axes=tuple((ba[0] if len(ba) == 1 else None) for ba in batch_axes),
+        )
+    out = jax.eval_shape(call, *args)
+    return tuple((o.shape, o.dtype, 0) for o in out)
 
 
 def mlin_abstract_T1(*args, **kwargs):
@@ -68,8 +87,8 @@ inp = (4 + jnp.zeros((2,)), 1 + jnp.zeros((2,)))
 
 mlin_jax(*inp)
 jax.vmap(mlin_jax, in_axes=(0, 0))(*inp)
-# jax.vmap(mlin_jax, in_axes=(0, None))(*inp)
-# jax.vmap(mlin_jax, in_axes=(None, 0))(*inp)
+jax.vmap(mlin_jax, in_axes=(0, None))(*inp)
+jax.vmap(mlin_jax, in_axes=(None, 0))(*inp)
 
 # %%
 check_grads(partial(mlin_jax, axes=(3, 4)), inp, order=2, modes=["fwd"], eps=1.0)
