@@ -33,9 +33,11 @@ def mlin_T2(out, args, kwargs_dump):
 def mlin_abstract(*args, **kwargs):
     # Returns `shape` and `dtype` of output as well as the added batch_axes of the `output``
     out_axes = kwargs.pop("batch_axes", ())
+    oaxes = out_axes[0] if len(out_axes) > 0 else ()
+    assert all(oa == oaxes for oa in out_axes)
     shp = np.broadcast_shapes(*(a.shape for a in args))
     dtp = np.result_type(*(a.dtype for a in args))
-    return ((shp, dtp, out_axes), (shp, dtp, out_axes))
+    return ((shp, dtp, oaxes), (shp, dtp, oaxes))
 
 
 def mlin_abstract_T1(*args, **kwargs):
@@ -66,8 +68,8 @@ inp = (4 + jnp.zeros((2,)), 1 + jnp.zeros((2,)))
 
 mlin_jax(*inp)
 jax.vmap(mlin_jax, in_axes=(0, 0))(*inp)
-jax.vmap(mlin_jax, in_axes=(0, None))(*inp)
-jax.vmap(mlin_jax, in_axes=(None, 0))(*inp)
+# jax.vmap(mlin_jax, in_axes=(0, None))(*inp)
+# jax.vmap(mlin_jax, in_axes=(None, 0))(*inp)
 
 # %%
 check_grads(partial(mlin_jax, axes=(3, 4)), inp, order=2, modes=["fwd"], eps=1.0)

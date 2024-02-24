@@ -345,35 +345,51 @@ def _batch(
         "_batch_axes": _batch_axes,
     }
 
-    if _func_can_batch:
-        print(f"{in_axes=}")
+    if not _func_can_batch:
         y = smap(
             partial(_prim.bind, **kw_batch),
             in_axes=in_axes,
         )(*args)
         out_axes = [0] * len(y)
     else:
-        (ia,) = in_axes
-        batch_axes = kw_batch.pop("batch_axes", ())
-        for b in batch_axes:
-            if ia >= b:
-                ia += 1
-        batch_axes = tuple(sorted(batch_axes + (ia,)))
+        batch_axes = kw_batch.pop("_batch_axes", ())
+        batch_axes = ((),) * len(in_axes) if batch_axes == () else batch_axes
+        new_batch_axes, inserted_axes = [], []
+        for ia, baxes in zip(in_axes, batch_axes, strict=True):
+            if ia is not None:
+                assert isinstance(ia, int)
+                for b in baxes:
+                    if ia >= b:
+                        ia += 1
+                baxes = tuple(sorted(baxes + (ia,)))
+            inserted_axes.append(ia)
+            new_batch_axes.append(baxes)
+        new_batch_axes = tuple(new_batch_axes)
 
-        call = partial(_call, _batch_axes=batch_axes, **kw_batch)
-        (x,) = args
-        y = (call(x),)  # Consistent signature with `_prim.bind`
+        args_w = [jax.ShapeDtypeStruct(el.shape, el.dtype) for el in args]
+        out_w = _func_abstract(*args_w, batch_axes=new_batch_axes, **kwargs)
+        args_wo = [
+            (
+                jax.ShapeDtypeStruct(el.shape[:ia] + el.shape[ia + 1 :], el.dtype)
+                if ia is not None
+                else jax.ShapeDtypeStruct(el.shape, el.dtype)
+            )
+            for el, ia in zip(args, inserted_axes)
+        ]
+        out_wo = _func_abstract(*args_wo, batch_axes=batch_axes, **kwargs)
+        out_axes = []
+        for (_, _, ba_wb), (_, _, ba_wob) in zip(out_w, out_wo):
+            if ba_wb == ba_wob:
+                oa = None
+            else:
+                (oa,) = set.difference(set(ba_wb), set(ba_wob))
+                for b in ba_wob[::-1]:
+                    if oa >= b:
+                        oa -= 1
+                assert oa >= 0
+            out_axes.append(oa)
 
-        _, _, ba_wob = _func_abstract(
-            x.shape[:ia] + x.shape[ia + 1 :], x.dtype, batch_axes=_batch_axes
-        )
-        _, _, ba_wb = _func_abstract(x.shape, x.dtype, batch_axes=batch_axes)
-        (oa,) = set.difference(set(ba_wb), set(ba_wob))
-        for b in ba_wob[::-1]:
-            if oa >= b:
-                oa -= 1
-        assert oa >= 0
-        out_axes = oa
+        y = _call(*args, _batch_axes=new_batch_axes, **kw_batch, **kwargs)
     return y, out_axes
 
 
