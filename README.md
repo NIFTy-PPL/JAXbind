@@ -27,6 +27,7 @@ The latest version of jax_linop can be obtained by cloning the repository via
 * Batching
 * Misc
   * Do `pickle.loads(np.ndarray.tobytes(kwargs_dump))` in C++?
+  * Feasability of supporting non-linear functions with custom JVPs?
 * Paper (JOSS?)
 
 ## Licensing terms
