@@ -224,21 +224,23 @@ def _jvp(
             _func_can_batch=_func_can_batch,
             _batch_axes=_batch_axes,
         )
-        # raise RuntimeError()
     elif _func_type == "nonlin":
-        tangents = make_zeros(tangents)
         func, func_T = _funcs_deriv
-
+        tan_in = []
+        for f, t in zip(_arg_fixed, tangents):
+            if not f:
+                tan_in += [t]
+        tan_in = make_zeros(tan_in)
         tans = _prim.bind(
             *args,
-            *tangents,
+            *tan_in,
             **kwargs,
             _func=func,
             _func_T=func_T,
             _func_abstract=_func_abstract,
             _func_abstract_T=_func_abstract_T,
             _funcs_deriv=None,
-            _func_type=_func_type,
+            _func_type='lin',
             _arg_fixed=(True,) * len(args) + (False,) * len(tangents),
             _func_can_batch=_func_can_batch,
             _batch_axes=_batch_axes,
@@ -342,32 +344,6 @@ def _transpose(
             _batch_axes=_batch_axes,
         )
         return [None] * len(inp) + res
-    elif _func_type == 'nonlin':
-        in_args = [a for a in args if not ad.is_undefined_primal(a)]
-        n_args_transposed = 0
-        for a in args:
-            if ad.is_undefined_primal(a):
-                n_args_transposed+=1
-        in_cot = make_zeros(cotangents)
-        func = _func_T
-        func_T = None
-        func_abstract = _func_abstract_T
-        func_abstract_T = None
-        res = _prim.bind(
-            *in_args,
-            *in_cot,
-            **kwargs,
-            _func=_func_T,
-            _func_T=_func,
-            _func_abstract=_func_abstract_T,
-            _func_abstract_T=_func_abstract,
-            _funcs_deriv=_funcs_deriv,
-            _func_type=_func_type,
-            _arg_fixed=_arg_fixed,
-            _func_can_batch=_func_can_batch,
-            _batch_axes=_batch_axes,
-        )
-        return [None]*n_args_transposed + res
     else:
         raise NotImplementedError(f"func_type {_func_type} not implemented.")
 

@@ -70,3 +70,75 @@ inp = (4 + jnp.zeros((1,)), 1 + jnp.zeros((1,)))
 check_grads(
     partial(nonlin_jax, axes=(3, 4)), inp, order=1, modes=["fwd", "rev"], eps=1e-3
 )
+
+
+
+################################################## test non diff args
+# (x,y) -> (xy, y**2)
+def nonlin(out, args, kwargs_dump):
+    kwargs = pickle.loads(np.ndarray.tobytes(kwargs_dump))
+    x, y = args
+    out[0][()] = x * y
+    out[1][()] = y * y
+
+
+# (x,y,dy) -> (ydx + xdy, 2 * y * dy)
+def nonlin_deriv(out, args, kwargs_dump):
+    kwargs = pickle.loads(np.ndarray.tobytes(kwargs_dump))
+    x, y, dy = args
+    out[0][()] = x * dy
+    out[1][()] = 2 * y * dy
+
+
+
+# (x, y, da, db) -> (yda, xda + 2ydb)
+def nonlin_deriv_T(out, args, kwargs_dump):
+    kwargs = pickle.loads(np.ndarray.tobytes(kwargs_dump))
+    x, y, da, db = args
+    out[0][()] = x * da + 2 * y * db
+
+
+def nonlin_abstract(*args, **kwargs):
+    # Returns `shape` and `dtype` of output as well as the added batch_axes of the `output``
+    out_axes = kwargs.pop("batch_axes", ())
+    assert args[0].shape == args[1].shape
+    return (
+        (args[0].shape, args[0].dtype, out_axes),
+        (args[0].shape, args[0].dtype, out_axes),
+    )
+
+def nonlin_abstract_T(*args, **kwargs):
+    # Returns `shape` and `dtype` of output as well as the added batch_axes of the `output``
+    out_axes = kwargs.pop("batch_axes", ())
+    assert args[0].shape == args[1].shape
+    return (
+        (args[0].shape, args[0].dtype, out_axes),
+    )
+
+# TODO: maybe give the user the possibility to provide more functions, such that
+# more transforms can be computed
+
+funcs_deriv = (nonlin_deriv, nonlin_deriv_T)
+
+nonlin_jax = jax_linop.get_linear_call(
+    nonlin,
+    None,
+    nonlin_abstract,
+    nonlin_abstract_T, # FIXME
+    funcs_deriv,
+    "nonlin",
+    arg_fixed=(True, False),
+    func_can_batch=True,
+)
+
+inp1 = 4 + jnp.zeros((1,))
+inp2 = 6 + jnp.zeros((1,))
+
+from functools import partial
+nonlin_jax_pt = partial(nonlin_jax, inp1, axes=(3,4))
+
+
+
+check_grads(
+    partial(nonlin_jax_pt, axes=(3, 4)), (inp2,), order=1, modes=["fwd", "rev"], eps=1e-3
+)
