@@ -57,7 +57,7 @@ funcs = (
     )
 
 mlin_jax = jax_linop.get_linear_call(
-    mlin, None, mlin_abstract, None, funcs, True, arg_fixed=(True, False), func_can_batch=True
+    mlin, None, mlin_abstract, None, funcs, 'mlin', arg_fixed=(True, False), func_can_batch=True
 )
 
 
