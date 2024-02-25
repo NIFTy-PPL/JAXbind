@@ -185,23 +185,24 @@ def _jvp(
     tans = None
     if _func_type == "mlin":
         for i, t in enumerate(tangents):
-            t = make_zeros(t)
-            tn = _prim.bind(
-                *args[:i],
-                t,
-                *args[i + 1 :],
-                **kwargs,
-                _func=_func,
-                _func_T=_func_T,
-                _func_abstract=_func_abstract,
-                _func_abstract_T=_func_abstract_T,
-                _funcs_deriv=_funcs_deriv,
-                _func_type=_func_type,
-                _arg_fixed=_arg_fixed,
-                _func_can_batch=_func_can_batch,
-                _batch_axes=_batch_axes,
-            )
-            tans = tn if tans is None else tuple(t + tn_i for t, tn_i in zip(tans, tn))
+            if not _arg_fixed[i]:
+                t = make_zeros(t)
+                tn = _prim.bind(
+                    *args[:i],
+                    t,
+                    *args[i + 1 :],
+                    **kwargs,
+                    _func=_func,
+                    _func_T=_func_T,
+                    _func_abstract=_func_abstract,
+                    _func_abstract_T=_func_abstract_T,
+                    _funcs_deriv=_funcs_deriv,
+                    _func_type=_func_type,
+                    _arg_fixed=_arg_fixed,
+                    _func_can_batch=_func_can_batch,
+                    _batch_axes=_batch_axes,
+                )
+                tans = tn if tans is None else tuple(t + tn_i for t, tn_i in zip(tans, tn))
     elif _func_type == "lin":
         inp = []
         for a, f, t in zip(args,_arg_fixed, tangents):
@@ -301,7 +302,7 @@ def _transpose(
         func_T = None
         func_abstract = _func_abstract_T[lin_arg]
         func_abstract_T = None
-
+        # FIXME _functions could maybe be set more clever
         res = _prim.bind(
             *a_in,
             *c_in,
