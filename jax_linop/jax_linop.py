@@ -116,6 +116,17 @@ def _lowering(
     raise ValueError("Unsupported platform; this must be either 'cpu' or 'gpu'")
 
 
+def _is_zero_type(x):
+    # FIXME can this be unified
+    return isinstance(x, (ad.Zero, jax._src.ad_util.Zero))
+
+
+def _explicify_zeros(x):
+    if isinstance(x, (tuple, list)):
+        return [ad.instantiate_zeros(t) if _is_zero_type(t) else t for t in x]
+    return ad.instantiate_zeros(x) if _is_zero_type(x) else x
+
+
 def _jvp(
     args,
     tangents,
@@ -145,17 +156,10 @@ def _jvp(
         _batch_axes=_batch_axes,
     )
 
-    # FIXME can this be unified
-    def is_zero_type(tan):
-        if type(tan) is ad.Zero or type(tan) is jax._src.ad_util.Zero:
-            return True
-        return False
-
     def zero_tans(tans):
         if isinstance(tans, (tuple, list)):
-            return [is_zero_type(t) for t in tans]
-        else:
-            return [is_zero_type(tans)]
+            return [_is_zero_type(t) for t in tans]
+        return [_is_zero_type(tans)]
 
     assert len(args) == len(tangents) == len(_arg_fixed)
 
@@ -168,25 +172,15 @@ def _jvp(
                 f"Cannot differentiate with respect to positional argument number {i}"
             )
 
-    def make_zeros(tan):
-        if isinstance(tan, (tuple, list)):
-            return [ad.instantiate_zeros(t) if is_zero_type(t) else t for t in tan]
-        else:
-            return ad.instantiate_zeros(tan) if is_zero_type(tan) else tan
-
-    def zeros_like(args):
-        return list((jax.lax.zeros_like_array(a) for a in args))
-
     if all(type(t) is ad.Zero for t in tangents):
-        # tans = (jax.lax.zeros_like_array(res), )
-        tans = zeros_like(res)
+        tans = list((jax.lax.zeros_like_array(a) for a in res))
         return (res, tans)
 
     tans = None
     if _func_type == "mlin":
         for i, t in enumerate(tangents):
             if not _arg_fixed[i]:
-                t = make_zeros(t)
+                t = _explicify_zeros(t)
                 tn = _prim.bind(
                     *args[:i],
                     t,
@@ -202,14 +196,13 @@ def _jvp(
                     _func_can_batch=_func_can_batch,
                     _batch_axes=_batch_axes,
                 )
-                tans = tn if tans is None else tuple(t + tn_i for t, tn_i in zip(tans, tn))
+                tans = (
+                    tn if tans is None else tuple(t + tn_i for t, tn_i in zip(tans, tn))
+                )
     elif _func_type == "lin":
         inp = []
-        for a, f, t in zip(args,_arg_fixed, tangents):
-            if f:
-                inp += [a]
-            else:
-                inp += make_zeros([t])
+        for a, f, t in zip(args, _arg_fixed, tangents):
+            inp.append(a if f else _explicify_zeros(t))
 
         tans = _prim.bind(
             *inp,
@@ -230,7 +223,7 @@ def _jvp(
         for f, t in zip(_arg_fixed, tangents):
             if not f:
                 tan_in += [t]
-        tan_in = make_zeros(tan_in)
+        tan_in = _explicify_zeros(tan_in)
         tans = _prim.bind(
             *args,
             *tan_in,
@@ -240,7 +233,7 @@ def _jvp(
             _func_abstract=_func_abstract,
             _func_abstract_T=_func_abstract_T,
             _funcs_deriv=None,
-            _func_type='lin',
+            _func_type="lin",
             _arg_fixed=(True,) * len(args) + (False,) * len(tangents),
             _func_can_batch=_func_can_batch,
             _batch_axes=_batch_axes,
@@ -268,19 +261,10 @@ def _transpose(
     _batch_axes,
     **kwargs,
 ):
-    def is_zero_type(tan):
-        if type(tan) is ad.Zero or type(tan) is jax._src.ad_util.Zero:
-            return True
-        return False
-
-    def make_zeros(tan):
-        if type(tan) is list:
-            return [ad.instantiate_zeros(t) if is_zero_type(t) else t for t in tan]
-        return ad.instantiate_zeros(tan) if is_zero_type(tan) else tan
     if _func_T is None:
         raise NotImplementedError(f"transpose of {_func} not implemented.")
 
-    arg_is_lin = [True if ad.is_undefined_primal(a) else False for a in args]
+    arg_is_lin = [ad.is_undefined_primal(a) for a in args]
     # assert len(_arg_fixed) == len(arg_is_lin)
 
     for i, (a, l) in enumerate(zip(_arg_fixed, arg_is_lin)):
@@ -290,7 +274,6 @@ def _transpose(
             )
 
     if _func_type == "mlin":
-        arg_is_lin = [True if ad.is_undefined_primal(a) else False for a in args]
         assert sum(arg_is_lin) == 1
         lin_arg = arg_is_lin.index(True)
         c_in = cotangents
@@ -326,9 +309,9 @@ def _transpose(
         for a, f in zip(args, _arg_fixed):
             if f:
                 assert not ad.is_undefined_primal(a)
-                inp += [a]
+                inp.append(a)
 
-        cot = make_zeros(cotangents)
+        cot = _explicify_zeros(cotangents)
         res = _prim.bind(
             *inp,
             *cot,
@@ -339,7 +322,7 @@ def _transpose(
             _func_abstract_T=_func_abstract,
             _funcs_deriv=_funcs_deriv,
             _func_type=_func_type,
-            _arg_fixed=(True,)*len(inp) + (False,)*len(cot),
+            _arg_fixed=(True,) * len(inp) + (False,) * len(cot),
             _func_can_batch=_func_can_batch,
             _batch_axes=_batch_axes,
         )
