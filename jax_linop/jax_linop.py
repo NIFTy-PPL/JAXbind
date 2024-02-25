@@ -95,6 +95,9 @@ def _lowering(
         rs_typ = mlir.ir.RankedTensorType.get(co.shape, mlir.dtype_to_ir_type(co.dtype))
         result_types += [rs_typ]
 
+    if _func_can_batch:
+        assert "batch_axes" not in kwargs
+        kwargs["batch_axes"] = _batch_axes
     kwargs = np.frombuffer(pickle.dumps(kwargs), dtype=np.uint8)
     kwargs_ir = hlo.constant(
         ir.DenseElementsAttr.get(kwargs, type=ir.IntegerType.get_unsigned(8))
@@ -380,6 +383,7 @@ def _batch(
             inserted_axes.append(ia)
             new_batch_axes.append(baxes)
         new_batch_axes = tuple(new_batch_axes)
+        kw_batch["_batch_axes"] = new_batch_axes
 
         args_w = [jax.ShapeDtypeStruct(el.shape, el.dtype) for el in args]
         out_w = _func_abstract(*args_w, batch_axes=new_batch_axes, **kwargs)
@@ -404,7 +408,7 @@ def _batch(
                 assert oa >= 0
             out_axes.append(oa)
 
-        y = _call(*args, _batch_axes=new_batch_axes, **kw_batch, **kwargs)
+        y = _call(*args, **kw_batch, **kwargs)
     return y, out_axes
 
 
