@@ -259,7 +259,7 @@ def _transpose(
     assert len(_arg_fixed) == len(arg_is_lin)
 
     for i, (a, l) in enumerate(zip(_arg_fixed, arg_is_lin)):
-        if a and not l:
+        if a and l:
             raise RuntimeError(
                 f"Cannot transpose with respect to positional argument number {i}"
             )
