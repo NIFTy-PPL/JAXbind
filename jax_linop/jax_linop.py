@@ -203,9 +203,15 @@ def _jvp(
             )
             tans = tn if tans is None else tuple(t + tn_i for t, tn_i in zip(tans, tn))
     elif _func_type == "lin":
-        tangents = make_zeros(tangents)
+        inp = []
+        for a, f, t in zip(args,_arg_fixed, tangents):
+            if f:
+                inp += [a]
+            else:
+                inp += make_zeros([t])
+
         tans = _prim.bind(
-            *tangents,
+            *inp,
             **kwargs,
             _func=_func,
             _func_T=_func_T,
@@ -217,6 +223,7 @@ def _jvp(
             _func_can_batch=_func_can_batch,
             _batch_axes=_batch_axes,
         )
+        # raise RuntimeError()
     elif _func_type == "nonlin":
         tangents = make_zeros(tangents)
         func, func_T = _funcs_deriv
@@ -271,7 +278,7 @@ def _transpose(
         raise NotImplementedError(f"transpose of {_func} not implemented.")
 
     arg_is_lin = [True if ad.is_undefined_primal(a) else False for a in args]
-    assert len(_arg_fixed) == len(arg_is_lin)
+    # assert len(_arg_fixed) == len(arg_is_lin)
 
     for i, (a, l) in enumerate(zip(_arg_fixed, arg_is_lin)):
         if a and l:
@@ -312,9 +319,16 @@ def _transpose(
         res = [None] * lin_arg + res + [None] * (len(arg_is_lin) - (lin_arg + 1))
         return res
     elif _func_type == "lin":
-        inp = make_zeros(cotangents)
+        inp = []
+        for a, f in zip(args, _arg_fixed):
+            if f:
+                assert not ad.is_undefined_primal(a)
+                inp += [a]
+
+        cot = make_zeros(cotangents)
         res = _prim.bind(
             *inp,
+            *cot,
             **kwargs,
             _func=_func_T,
             _func_T=_func,
@@ -322,11 +336,11 @@ def _transpose(
             _func_abstract_T=_func_abstract,
             _funcs_deriv=_funcs_deriv,
             _func_type=_func_type,
-            _arg_fixed=_arg_fixed,
+            _arg_fixed=(True,)*len(inp) + (False,)*len(cot),
             _func_can_batch=_func_can_batch,
             _batch_axes=_batch_axes,
         )
-        return res
+        return [None] * len(inp) + res
     elif _func_type == 'nonlin':
         in_args = [a for a in args if not ad.is_undefined_primal(a)]
         n_args_transposed = 0

@@ -57,4 +57,40 @@ check_grads(partial(lin_jax, axes=(3, 4)), inp, order=2, modes=["fwd"], eps=1.)
 check_grads(partial(lin_jax, axes=(3, 4)), inp, order=2, modes=["rev"], eps=1.)
 
 
+
+##################################### check fixing args #######################
+def lin(out, args, kwargs_dump):
+    out[0][()] = args[0] * args[1] * args[0]
+    out[1][()] = args[0] * args[1]
+
+
+def lin_T(out, args, kwargs_dump):
+    kwargs = pickle.loads(np.ndarray.tobytes(kwargs_dump))
+    out[0][()] = args[0]*args[0]*args[1] + args[0]*args[2]
+
+def lin_abstract(*args, **kwargs):
+    # Returns `shape` and `dtype` of output as well as the added batch_axes of the `output``
+    out_axes = kwargs.pop("batch_axes", ())
+    assert args[0].shape == args[1].shape
+    return ((args[0].shape, args[0].dtype, out_axes)
+    , (args[0].shape, args[0].dtype, out_axes))
+
+def lin_abstract_T(*args, **kwargs):
+    # Returns `shape` and `dtype` of output as well as the added batch_axes of the `output``
+    out_axes = kwargs.pop("batch_axes", ())
+    assert args[0].shape == args[1].shape
+    return ((args[0].shape, args[0].dtype, out_axes),)
+
+lin_jax = jax_linop.get_linear_call(
+    lin, lin_T, lin_abstract, lin_abstract_T, None, 'lin', arg_fixed=(True, False), func_can_batch=True
+)
+
+from functools import partial
+inp1 = 4 + jnp.zeros((2, 2))
+inp2 = 1 + jnp.zeros((2, 2))
+lin_jax_pt = partial(lin_jax, inp1, axes=(3,4))
+
+# check_grads(lin_jax_pt, (inp2,), order=2, modes=["fwd"], eps=1.)
+check_grads(lin_jax_pt, (inp2,), order=2, modes=["fwd", "rev"], eps=1.)
+
 # %%
