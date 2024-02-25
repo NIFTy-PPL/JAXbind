@@ -35,35 +35,38 @@ TODO
 
 # Statement of Need
 
-* Use of JAX spread in astrophysics and physics more broadly
-* JAX is used for its transformation system allowing one to compute arbitrary derivatives of functions and batch computations
-* Furthermore, JAX, can effortlessly just-in-time compile code for additional performance.
+The use of JAX [@Jax2018] is widespread in the natural sciences.
+JAX's powerful transformation system is of especially high interest.
+It enables retrieving arbitrary derivatives of functions, batch computations, and just-in-time compile code for additional performance.
+The transformation system in JAX relies on all constituents of the computation being written in JAX.
 
-* However, a huge plethora of high-performance code is not written in JAX and rewriting it in JAX is either infeasible or inefficient
-* Oftentimes, the performance critical code is linear in its input and retrieving derivatives is trivial
+A plethora of high-performance code is not written in JAX and thus not accesible from within JAX.
+Rewriting these codes is often infeasible and/or inefficient.
+Ideally, we would like to intermix existing high-performance code with new JAX code.
+However, connecting code to JAX requires knowledge of the internals of JAX and its C++ backend.
+
 <!-- TODO: if we support JVPs, we can and should generalize this! -->
-* Ideally, we would be able to continue to use the existing high-performance code and intermix it with JAX
-* So far, it has been very involved to connect existing code to JAX.
-* It required deep knowledge of the internal behavior of JAX and documentation was sparse
-
-* In this paper, we provide a simple solution for bridging any linear function to JAX
-* Interface is in plain python with no C++ necessary
-* The package registers a given the function and its transpose function as a JAX native so-called primitive
-* Derivatives and compilation rules are then automatically defined for linear-functions
+In this paper, we present `jax_linop`, a package for bridging any linear function to JAX without in-depth knowledge of JAX's transformation system.
+The interface is accessible from python with no C++ necessary.
+The package is able to register any linear function and its transpose as a JAX native call, a so-called primitive.
+Derivatives, compilation rules, and optionally batching rules are automatically registered with JAX.
 
 <!-- Mention (if applicable) a representative set of past or ongoing research projects using the software and recent scholarly publications enabled by it. -->
-We believe this `jax_linop` to be highly useful in scientific computing.
-* There are a lot of well-developed packages in JAX for optimization and sampling that can be used once existing functions are connected to JAX
-* We intend to use this package to connect the Hartley transform and the spheric harmonic transform from ducc [@ducc0] to NIFTy [@Edenhofer2023NIFTyRE]
-* We envision many future applications such as, e.g., connecting the astrophysical particle propagation code PICARD (TODO:cite) to JAX and the gridder for radio-astronomical data in @ducc0 to strong-lensing and radio-imaging codes in JAX
+We believe `jax_linop` to be highly useful in scientific computing.
+<!-- There are a lot of well-developed packages in JAX for, e.g., optimization and sampling that could be used once existing code is able to interface with JAX. -->
+We intend to use this package to connect the Hartley transform and the spherical harmonic transform from ducc [@ducc0] to NIFTy [@Edenhofer2023NIFTyRE].
+Furthermore, we intend to connect an image gridder implemented in C++ (TODO:cite resolve) for radio-astronomical data to JAX for use in radio-astronomy and strong-lensing astrophysics.
+We envision many further applications inside and outside of physics for highly specialized and well-optimized codes such as TODO.
 
 <!-- A list of key references, including to other software addressing related needs. Note that the references should include full names of venues, e.g., journals and conferences, not abbreviations only understood in the context of a specific discipline. -->
-* Some projects already connected their calls to JAX, e.g., FINUFFT (TODO:cite), TODO.
-* Furthermore, enzyme connected their AD backend for C++ to JAX with automatic derivates https://github.com/EnzymeAD/Enzyme-JAX
-* Some guidance on connecting C++ code to JAX is given in https://dfm.io/posts/extending-jax/ but to the best of our knowledge, no generic code for connecting arbitrary codes to JAX
+To the best of our knowledge there exists no code for connecting generic functions to JAX.
+The package that comes the closest is Enzyme-JAX [@Moses2024].
+Enzyme-JAX allows one to differentiate a C++ function with Enzyme [@Moses2020; @Moses2021; @Moses2022] and connect it together with its derivative to JAX.
+However, it enforces the use of Enzyme for deriving derivatives and does not allow for plugging in arbitrary codes into JAX.
 
 # Acknowledgements
 
+We would like to thank Dan Foreman-Mackey for his detailed guide (https://dfm.io/posts/extending-jax/) on connecting C++ code to JAX.
 Jakob Roth acknowledges financial support by the German Federal Ministry of Education and Research (BMBF) under grant 05A20W01 (Verbundprojekt D-MeerKAT).
 Gordian Edenhofer acknowledges support from the German Academic Scholarship Foundation in the form of a PhD scholarship ("Promotionsstipendium der Studienstiftung des Deutschen Volkes").
 
