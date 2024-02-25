@@ -57,7 +57,7 @@ funcs = (
     )
 
 mlin_jax = jax_linop.get_linear_call(
-    mlin, None, mlin_abstract, None, funcs, 'mlin', arg_fixed=(False, False), func_can_batch=True
+    mlin, None, mlin_abstract, None, funcs, None, 'mlin', arg_fixed=(False, False), func_can_batch=True
 )
 
 
@@ -98,7 +98,7 @@ inp1 = 4 + jnp.zeros((2, 2))
 inp2 = 1 + jnp.zeros((2, 2))
 
 mlin_jax = jax_linop.get_linear_call(
-    mlin, None, mlin_abstract, None, funcs, 'mlin', arg_fixed=(True, False), func_can_batch=True
+    mlin, None, mlin_abstract, None, funcs, None, 'mlin', arg_fixed=(True, False), func_can_batch=True
 )
 from functools import partial
 mlin_jax_pt = partial(mlin_jax, inp1, axes=(3,4))

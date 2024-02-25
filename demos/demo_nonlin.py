@@ -39,21 +39,6 @@ def nonlin_deriv_T(out, args, kwargs_dump):
     out[1][()] = x * da + 2 * y * db
 
 
-def nonlin_dif2(out, args, kwargs_dump):
-    kwargs = pickle.loads(np.ndarray.tobytes(kwargs_dump))
-    pass
-
-
-def nonlin_T1(out, args, kwargs_dump):
-    kwargs = pickle.loads(np.ndarray.tobytes(kwargs_dump))
-    out[0][()] = args[0] * args[1] + args[0] * args[2]
-
-
-def nonlin_T2(out, args, kwargs_dump):
-    kwargs = pickle.loads(np.ndarray.tobytes(kwargs_dump))
-    out[0][()] = args[0] * args[1] + args[0] * args[2]
-
-
 def nonlin_abstract(*args, **kwargs):
     # Returns `shape` and `dtype` of output as well as the added batch_axes of the `output``
     out_axes = kwargs.pop("batch_axes", ())
