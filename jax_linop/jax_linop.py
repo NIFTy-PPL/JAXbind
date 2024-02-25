@@ -168,11 +168,6 @@ def _jvp(
                 f"Cannot differentiate with respect to positional argument number {i}"
             )
 
-    # probably not needed any more, but not sure what the difference between
-    # jax.lax.zeros_like_array and ad.instantiate_zeros is
-    # def make_zeros_old(tan):
-    #     return jax.lax.zeros_like_array(res) if is_zero_type(tan) else tan
-
     def make_zeros(tan):
         if isinstance(tan, (tuple, list)):
             return [ad.instantiate_zeros(t) if is_zero_type(t) else t for t in tan]
@@ -235,15 +230,13 @@ def _jvp(
             _func_abstract=_func_abstract,
             _func_abstract_T=_func_abstract_T,
             _funcs_deriv=None,
-            _func_type="nonlin",
+            _func_type=_func_type,
             _arg_fixed=(True,) * len(args) + (False,) * len(tangents),
             _func_can_batch=_func_can_batch,
             _batch_axes=_batch_axes,
         )
     else:
         raise NotImplementedError(f"func_type {_func_type} not implemented.")
-
-    # raise RuntimeError()
 
     assert tans is not None
     return (res, tans)
@@ -274,6 +267,8 @@ def _transpose(
         if type(tan) is list:
             return [ad.instantiate_zeros(t) if is_zero_type(t) else t for t in tan]
         return ad.instantiate_zeros(tan) if is_zero_type(tan) else tan
+    if _func_T is None:
+        raise NotImplementedError(f"transpose of {_func} not implemented.")
 
     arg_is_lin = [True if ad.is_undefined_primal(a) else False for a in args]
     assert len(_arg_fixed) == len(arg_is_lin)
@@ -293,13 +288,12 @@ def _transpose(
         a_in1 = args[lin_arg + 1 :]
         a_in = a_in0 + a_in1
 
-        if _func_T is None:
-            raise NotImplementedError(f"transpose of {_func} not implemented.")
-        else:
-            func = _func_T[lin_arg]
-            func_T = None
-            func_abstract = _func_abstract_T[lin_arg]
-            func_abstract_T = None
+        assert isinstance(_func_T, tuple)
+        assert isinstance(_func_abstract_T, tuple)
+        func = _func_T[lin_arg]
+        func_T = None
+        func_abstract = _func_abstract_T[lin_arg]
+        func_abstract_T = None
 
         res = _prim.bind(
             *a_in,
