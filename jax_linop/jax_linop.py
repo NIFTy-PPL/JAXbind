@@ -27,6 +27,7 @@ def _exec_abstract(
     _func_abstract,
     _func_abstract_T,
     _funcs,
+    _funcs_deriv,
     _func_type,
     _arg_fixed,
     _func_can_batch,
@@ -59,6 +60,7 @@ def _lowering(
     _func_abstract,
     _func_abstract_T,
     _funcs,
+    _funcs_deriv,
     _func_type,
     _arg_fixed,
     _func_can_batch,
@@ -125,6 +127,7 @@ def _jvp(
     _func_abstract,
     _func_abstract_T,
     _funcs,
+    _funcs_deriv,
     _func_type,
     _arg_fixed,
     _func_can_batch,
@@ -139,6 +142,7 @@ def _jvp(
         _func_abstract=_func_abstract,
         _func_abstract_T=_func_abstract_T,
         _funcs=_funcs,
+        _funcs_deriv=_funcs_deriv,
         _func_type=_func_type,
         _arg_fixed=_arg_fixed,
         _func_can_batch=_func_can_batch,
@@ -188,7 +192,7 @@ def _jvp(
         return (res, tans)
 
     tans = None
-    if _func_type == 'mlin':
+    if _func_type == "mlin":
         for i, t in enumerate(tangents):
             t = make_zeros(t)
             tn = _prim.bind(
@@ -201,13 +205,14 @@ def _jvp(
                 _func_abstract=_func_abstract,
                 _func_abstract_T=_func_abstract_T,
                 _funcs=_funcs,
+                _funcs_deriv=_funcs_deriv,
                 _func_type=_func_type,
                 _arg_fixed=_arg_fixed,
                 _func_can_batch=_func_can_batch,
                 _batch_axes=_batch_axes,
             )
             tans = tn if tans is None else tuple(t + tn_i for t, tn_i in zip(tans, tn))
-    elif _func_type == 'lin':
+    elif _func_type == "lin":
         tangents = make_zeros(tangents)
         tans = _prim.bind(
             *tangents,
@@ -217,13 +222,35 @@ def _jvp(
             _func_abstract=_func_abstract,
             _func_abstract_T=_func_abstract_T,
             _funcs=_funcs,
+            _funcs_deriv=_funcs_deriv,
             _func_type=_func_type,
             _arg_fixed=_arg_fixed,
             _func_can_batch=_func_can_batch,
             _batch_axes=_batch_axes,
         )
+    elif _func_type == "nonlin":
+        tangents = make_zeros(tangents)
+        _func = _funcs_deriv[0]
+
+        tans = _prim.bind(
+            *args,
+            *tangents,
+            **kwargs,
+            _func=_func,
+            _func_T=_func_T,
+            _func_abstract=_func_abstract,
+            _func_abstract_T=None,
+            _funcs=None,
+            _funcs_deriv=None,
+            _func_type=_func_type,
+            _arg_fixed=(True,) * len(args) + (False,) * len(tangents),
+            _func_can_batch=_func_can_batch,
+            _batch_axes=_batch_axes,
+        )
     else:
-        raise NotImplementedError(f'func_type {_func_type} not implemented.')
+        raise NotImplementedError(f"func_type {_func_type} not implemented.")
+
+    # raise RuntimeError()
 
     assert tans is not None
     return (res, tans)
@@ -239,6 +266,7 @@ def _transpose(
     _func_abstract,
     _func_abstract_T,
     _funcs,
+    _funcs_deriv,
     _func_type,
     _arg_fixed,
     _func_can_batch,
@@ -264,7 +292,7 @@ def _transpose(
                 f"Cannot transpose with respect to positional argument number {i}"
             )
 
-    if _func_type == 'mlin':
+    if _func_type == "mlin":
         arg_is_lin = [True if ad.is_undefined_primal(a) else False for a in args]
         assert sum(arg_is_lin) == 1
         lin_arg = arg_is_lin.index(True)
@@ -293,6 +321,7 @@ def _transpose(
             _func_abstract=func_abstract,
             _func_abstract_T=func_abstract_T,
             _funcs=new_funcs,
+            _funcs_deriv=_funcs_deriv,
             _func_type=_func_type,
             _arg_fixed=_arg_fixed,
             _func_can_batch=_func_can_batch,
@@ -300,7 +329,7 @@ def _transpose(
         )
         res = [None] * lin_arg + res + [None] * (len(arg_is_lin) - (lin_arg + 1))
         return res
-    elif _func_type == 'lin':
+    elif _func_type == "lin":
         inp = make_zeros(cotangents)
         res = _prim.bind(
             *inp,
@@ -310,6 +339,7 @@ def _transpose(
             _func_abstract=_func_abstract_T,
             _func_abstract_T=_func_abstract,
             _funcs=_funcs,
+            _funcs_deriv=_funcs_deriv,
             _func_type=_func_type,
             _arg_fixed=_arg_fixed,
             _func_can_batch=_func_can_batch,
@@ -317,7 +347,7 @@ def _transpose(
         )
         return res
     else:
-        raise NotImplementedError(f'func_type {_func_type} not implemented.')
+        raise NotImplementedError(f"func_type {_func_type} not implemented.")
 
 
 def _batch(
@@ -329,6 +359,7 @@ def _batch(
     _func_abstract,
     _func_abstract_T,
     _funcs,
+    _funcs_deriv,
     _func_type,
     _arg_fixed,
     _func_can_batch,
@@ -343,6 +374,7 @@ def _batch(
         "_func_abstract": _func_abstract,
         "_func_abstract_T": _func_abstract_T,
         "_funcs": _funcs,
+        "_funcs_deriv": _funcs_deriv,
         "_func_type": _func_type,
         "_arg_fixed": _arg_fixed,
         "_func_can_batch": _func_can_batch,
@@ -418,6 +450,7 @@ def _call(
     _func_abstract,
     _func_abstract_T,
     _funcs,
+    _funcs_deriv,
     _func_type,
     _arg_fixed,
     _func_can_batch,
@@ -432,6 +465,7 @@ def _call(
         _func_abstract=_func_abstract,
         _func_abstract_T=_func_abstract_T,
         _funcs=_funcs,
+        _funcs_deriv=_funcs_deriv,
         _func_type=_func_type,
         _arg_fixed=_arg_fixed,
         _func_can_batch=_func_can_batch,
@@ -447,6 +481,7 @@ def get_linear_call(
     func_abstract,
     func_abstract_T,
     funcs,
+    funcs_deriv,
     func_type,
     arg_fixed=None,
     batch_axes=(),
@@ -497,6 +532,7 @@ def get_linear_call(
         _func_abstract=func_abstract,
         _func_abstract_T=func_abstract_T,
         _funcs=funcs,
+        _funcs_deriv=funcs_deriv,
         _func_type=func_type,
         _arg_fixed=arg_fixed,
         _func_can_batch=func_can_batch,
