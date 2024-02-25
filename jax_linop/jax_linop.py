@@ -26,7 +26,6 @@ def _exec_abstract(
     _func_T,
     _func_abstract,
     _func_abstract_T,
-    _funcs,
     _funcs_deriv,
     _func_type,
     _arg_fixed,
@@ -59,7 +58,6 @@ def _lowering(
     _func_T,
     _func_abstract,
     _func_abstract_T,
-    _funcs,
     _funcs_deriv,
     _func_type,
     _arg_fixed,
@@ -126,7 +124,6 @@ def _jvp(
     _func_T,
     _func_abstract,
     _func_abstract_T,
-    _funcs,
     _funcs_deriv,
     _func_type,
     _arg_fixed,
@@ -141,7 +138,6 @@ def _jvp(
         _func_T=_func_T,
         _func_abstract=_func_abstract,
         _func_abstract_T=_func_abstract_T,
-        _funcs=_funcs,
         _funcs_deriv=_funcs_deriv,
         _func_type=_func_type,
         _arg_fixed=_arg_fixed,
@@ -204,7 +200,6 @@ def _jvp(
                 _func_T=_func_T,
                 _func_abstract=_func_abstract,
                 _func_abstract_T=_func_abstract_T,
-                _funcs=_funcs,
                 _funcs_deriv=_funcs_deriv,
                 _func_type=_func_type,
                 _arg_fixed=_arg_fixed,
@@ -221,7 +216,6 @@ def _jvp(
             _func_T=_func_T,
             _func_abstract=_func_abstract,
             _func_abstract_T=_func_abstract_T,
-            _funcs=_funcs,
             _funcs_deriv=_funcs_deriv,
             _func_type=_func_type,
             _arg_fixed=_arg_fixed,
@@ -240,7 +234,6 @@ def _jvp(
             _func_T=func_T,
             _func_abstract=_func_abstract,
             _func_abstract_T=_func_abstract_T,
-            _funcs=_funcs,
             _funcs_deriv=None,
             _func_type="nonlin",
             _arg_fixed=(True,) * len(args) + (False,) * len(tangents),
@@ -265,7 +258,6 @@ def _transpose(
     _func_T,
     _func_abstract,
     _func_abstract_T,
-    _funcs,
     _funcs_deriv,
     _func_type,
     _arg_fixed,
@@ -301,16 +293,13 @@ def _transpose(
         a_in1 = args[lin_arg + 1 :]
         a_in = a_in0 + a_in1
 
-        if _funcs is None:
+        if _func_T is None:
             raise NotImplementedError(f"transpose of {_func} not implemented.")
         else:
-            # TODO: maybe give the user the possibility to provide more functions,
-            # such that more transforms can be computed
-            func = _funcs[0][lin_arg]
+            func = _func_T[lin_arg]
             func_T = None
-            func_abstract = _funcs[1][lin_arg]
+            func_abstract = _func_abstract_T[lin_arg]
             func_abstract_T = None
-            new_funcs = None
 
         res = _prim.bind(
             *a_in,
@@ -320,7 +309,6 @@ def _transpose(
             _func_T=func_T,
             _func_abstract=func_abstract,
             _func_abstract_T=func_abstract_T,
-            _funcs=new_funcs,
             _funcs_deriv=_funcs_deriv,
             _func_type=_func_type,
             _arg_fixed=_arg_fixed,
@@ -338,7 +326,6 @@ def _transpose(
             _func_T=_func,
             _func_abstract=_func_abstract_T,
             _func_abstract_T=_func_abstract,
-            _funcs=_funcs,
             _funcs_deriv=_funcs_deriv,
             _func_type=_func_type,
             _arg_fixed=_arg_fixed,
@@ -357,7 +344,6 @@ def _transpose(
         func_T = None
         func_abstract = _func_abstract_T
         func_abstract_T = None
-        new_funcs = None
         res = _prim.bind(
             *in_args,
             *in_cot,
@@ -366,7 +352,6 @@ def _transpose(
             _func_T=_func,
             _func_abstract=_func_abstract_T,
             _func_abstract_T=_func_abstract,
-            _funcs=_funcs,
             _funcs_deriv=_funcs_deriv,
             _func_type=_func_type,
             _arg_fixed=_arg_fixed,
@@ -386,7 +371,6 @@ def _batch(
     _func_T,
     _func_abstract,
     _func_abstract_T,
-    _funcs,
     _funcs_deriv,
     _func_type,
     _arg_fixed,
@@ -401,7 +385,6 @@ def _batch(
         "_func_T": _func_T,
         "_func_abstract": _func_abstract,
         "_func_abstract_T": _func_abstract_T,
-        "_funcs": _funcs,
         "_funcs_deriv": _funcs_deriv,
         "_func_type": _func_type,
         "_arg_fixed": _arg_fixed,
@@ -477,7 +460,6 @@ def _call(
     _func_T,
     _func_abstract,
     _func_abstract_T,
-    _funcs,
     _funcs_deriv,
     _func_type,
     _arg_fixed,
@@ -492,7 +474,6 @@ def _call(
         _func_T=_func_T,
         _func_abstract=_func_abstract,
         _func_abstract_T=_func_abstract_T,
-        _funcs=_funcs,
         _funcs_deriv=_funcs_deriv,
         _func_type=_func_type,
         _arg_fixed=_arg_fixed,
@@ -508,7 +489,6 @@ def get_linear_call(
     /,
     func_abstract,
     func_abstract_T,
-    funcs,
     funcs_deriv,
     func_type,
     arg_fixed=None,
@@ -559,7 +539,6 @@ def get_linear_call(
         _func_T=func_T,
         _func_abstract=func_abstract,
         _func_abstract_T=func_abstract_T,
-        _funcs=funcs,
         _funcs_deriv=funcs_deriv,
         _func_type=func_type,
         _arg_fixed=arg_fixed,

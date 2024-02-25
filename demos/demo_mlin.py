@@ -49,15 +49,12 @@ def mlin_abstract_T2(*args, **kwargs):
     return ((args[0].shape, args[0].dtype, out_axes),)
 
 
-# TODO: maybe give the user the possibility to provide more functions, such that
-# more transforms can be computed
-funcs = (
-    (mlin_T1, mlin_T2),
-    (mlin_abstract_T1, mlin_abstract_T2),
-    )
+
+func_T = (mlin_T1, mlin_T2)
+func_abstract_T = (mlin_abstract_T1, mlin_abstract_T2)
 
 mlin_jax = jax_linop.get_linear_call(
-    mlin, None, mlin_abstract, None, funcs, None, 'mlin', arg_fixed=(False, False), func_can_batch=True
+    mlin, func_T, mlin_abstract, func_abstract_T, None, 'mlin', arg_fixed=(False, False), func_can_batch=True
 )
 
 
@@ -98,7 +95,7 @@ inp1 = 4 + jnp.zeros((2, 2))
 inp2 = 1 + jnp.zeros((2, 2))
 
 mlin_jax = jax_linop.get_linear_call(
-    mlin, None, mlin_abstract, None, funcs, None, 'mlin', arg_fixed=(True, False), func_can_batch=True
+    mlin, func_T, mlin_abstract, func_abstract_T, None, 'mlin', arg_fixed=(True, False), func_can_batch=True
 )
 from functools import partial
 mlin_jax_pt = partial(mlin_jax, inp1, axes=(3,4))

@@ -33,7 +33,6 @@ def nonlin_deriv(out, args, kwargs_dump):
 # (x, y, da, db) -> (yda, xda + 2ydb)
 def nonlin_deriv_T(out, args, kwargs_dump):
     kwargs = pickle.loads(np.ndarray.tobytes(kwargs_dump))
-    print(f"{args=}")
     x, y, da, db = args
     out[0][()] = y * da
     out[1][()] = x * da + 2 * y * db
@@ -50,7 +49,6 @@ def nonlin_abstract(*args, **kwargs):
 
 # TODO: maybe give the user the possibility to provide more functions, such that
 # more transforms can be computed
-funcs = None
 
 funcs_deriv = (nonlin_deriv, nonlin_deriv_T)
 
@@ -59,7 +57,6 @@ nonlin_jax = jax_linop.get_linear_call(
     None,
     nonlin_abstract,
     nonlin_abstract, # FIXME
-    funcs,
     funcs_deriv,
     "nonlin",
     arg_fixed=(False, False),
