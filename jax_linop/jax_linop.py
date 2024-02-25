@@ -230,19 +230,19 @@ def _jvp(
         )
     elif _func_type == "nonlin":
         tangents = make_zeros(tangents)
-        _func = _funcs_deriv[0]
+        func, _ = _funcs_deriv
 
         tans = _prim.bind(
             *args,
             *tangents,
             **kwargs,
-            _func=_func,
-            _func_T=_func_T,
+            _func=func,
+            _func_T=None,
             _func_abstract=_func_abstract,
-            _func_abstract_T=None,
-            _funcs=None,
+            _func_abstract_T=_func_abstract_T,
+            _funcs=_funcs,
             _funcs_deriv=None,
-            _func_type=_func_type,
+            _func_type="mlin",
             _arg_fixed=(True,) * len(args) + (False,) * len(tangents),
             _func_can_batch=_func_can_batch,
             _batch_axes=_batch_axes,

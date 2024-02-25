@@ -17,7 +17,7 @@ import pickle
 def nonlin(out, args, kwargs_dump):
     kwargs = pickle.loads(np.ndarray.tobytes(kwargs_dump))
     x, y = args
-    out[0][()] = x**2 * y
+    out[0][()] = x * y
     out[1][()] = y * y
 
 
@@ -25,7 +25,7 @@ def nonlin(out, args, kwargs_dump):
 def nonlin_deriv(out, args, kwargs_dump):
     kwargs = pickle.loads(np.ndarray.tobytes(kwargs_dump))
     x, y, dx, dy = args
-    out[0][()] = 2 * x * y * dx + x**2 * dy
+    out[0][()] = y * dx + x * dy
     out[1][()] = 2 * y * dy
 
 
@@ -48,6 +48,7 @@ def nonlin_deriv(out, args, kwargs_dump):
 # FIXME
 def nonlin_deriv_T(out, args, kwargs_dump):
     kwargs = pickle.loads(np.ndarray.tobytes(kwargs_dump))
+    print(f"{args=}")
     out[0][()] = args[1] * args[1] * args[2] + args[0] * args[1] * args[3]
     out[1][()] = args[0] * args[1] * args[2] + args[0] * args[0] * args[3]
 
@@ -102,7 +103,7 @@ nonlin_jax = jax_linop.get_linear_call(
     nonlin,
     None,
     nonlin_abstract,
-    None,
+    nonlin_abstract,
     funcs,
     funcs_deriv,
     "nonlin",
@@ -114,7 +115,9 @@ nonlin_jax = jax_linop.get_linear_call(
 # inp = (4 + jnp.zeros((2, 2)), 1 + jnp.zeros((2, 2)))
 inp = (4 + jnp.zeros((1,)), 1 + jnp.zeros((1,)))
 
-check_grads(partial(nonlin_jax, axes=(3, 4)), inp, order=1, modes=["fwd"], eps=1e-3)
+check_grads(
+    partial(nonlin_jax, axes=(3, 4)), inp, order=1, modes=["fwd", "rev"], eps=1e-3
+)
 
 # NOTE: for this the transposed of the transposed would needed to be implemented
 # check_grads(partial(mlin_jax, axes=(3, 4)), inp, order=2, modes=["rev"], eps=1.)
