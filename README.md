@@ -22,13 +22,13 @@ The latest version of jax_linop can be obtained by cloning the repository via
 
 ## TODOs
 
-* Multi-linear (Jakob has ideas) + transpose (tuple of transpose functions?)
-* Non-diff arguments (tuple of bools?)
-* Batching
-* Misc
-  * Do `pickle.loads(np.ndarray.tobytes(kwargs_dump))` in C++?
-  * Feasability of supporting non-linear functions with custom JVPs?
-* Paper (JOSS?)
+* Interface
+* Tests
+* Reorganize internal data structure
+* Paper
+  * Briefly describe required functions
+  * Show quick example
+  * Summary
 
 ## Licensing terms
 
