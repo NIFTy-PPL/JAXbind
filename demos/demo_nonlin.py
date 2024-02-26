@@ -15,7 +15,7 @@ import pickle
 
 # (x,y) -> (xy, y**2)
 def nonlin(out, args, kwargs_dump):
-    kwargs = pickle.loads(np.ndarray.tobytes(kwargs_dump))
+    kwargs = jax_linop.load_kwargs(kwargs_dump)
     x, y = args
     out[0][()] = x * y
     out[1][()] = y * y
@@ -23,7 +23,7 @@ def nonlin(out, args, kwargs_dump):
 
 # (x,y,dx,dy) -> (ydx + xdy, 2 * y * dy)
 def nonlin_deriv(out, args, kwargs_dump):
-    kwargs = pickle.loads(np.ndarray.tobytes(kwargs_dump))
+    kwargs = jax_linop.load_kwargs(kwargs_dump)
     x, y, dx, dy = args
     out[0][()] = y * dx + x * dy
     out[1][()] = 2 * y * dy
@@ -32,7 +32,7 @@ def nonlin_deriv(out, args, kwargs_dump):
 
 # (x, y, da, db) -> (yda, xda + 2ydb)
 def nonlin_deriv_T(out, args, kwargs_dump):
-    kwargs = pickle.loads(np.ndarray.tobytes(kwargs_dump))
+    kwargs = jax_linop.load_kwargs(kwargs_dump)
     x, y, da, db = args
     out[0][()] = y * da
     out[1][()] = x * da + 2 * y * db
