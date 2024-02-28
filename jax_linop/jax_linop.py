@@ -13,6 +13,7 @@ import numpy as np
 from jax.interpreters import ad, batching, mlir
 from jax.interpreters.mlir import ir_constant as irc
 from jaxlib.hlo_helpers import custom_call
+from collections import namedtuple
 
 import _jax_linop
 
@@ -20,24 +21,28 @@ for _name, _value in _jax_linop.registrations().items():
     jax.lib.xla_client.register_custom_call_target(_name, _value, platform="cpu")
 
 
-def _exec_abstract(
-    *args,
-    _func,
-    _func_T,
-    _func_abstract,
-    _func_abstract_T,
-    _funcs_deriv,
-    _func_type,
-    _arg_fixed,
-    _func_can_batch,
-    _batch_axes,
-    **kwargs,
-):
-    if _func_can_batch:
+Function = namedtuple(
+    "Function",
+    (
+        "f",
+        "T",
+        "abstract",
+        "abstract_T",
+        "type",
+        "derivatives",
+        "args_fixed",
+        "can_batch",
+        "batch_axes",
+    ),
+)
+
+
+def _exec_abstract(*args, _func: Function, **kwargs):
+    if _func.can_batch:
         assert "batch_axes" not in kwargs
-        kwargs["batch_axes"] = _batch_axes
+        kwargs["batch_axes"] = _func.batch_axes
     return tuple(
-        jax.core.ShapedArray(s, d) for s, d, _ in _func_abstract(*args, **kwargs)
+        jax.core.ShapedArray(s, d) for s, d, _ in _func.abstract(*args, **kwargs)
     )
 
 
@@ -51,22 +56,8 @@ _dtype_dict = {
 }
 
 
-def _lowering(
-    ctx,
-    *args,
-    _func,
-    _func_T,
-    _func_abstract,
-    _func_abstract_T,
-    _funcs_deriv,
-    _func_type,
-    _arg_fixed,
-    _func_can_batch,
-    _batch_axes,
-    _platform="cpu",
-    **kwargs,
-):
-    operands = [irc(id(_func))]  # Pass the ID of the callable to C++
+def _lowering(ctx, *args, _func: Function, _platform="cpu", **kwargs):
+    operands = [irc(id(_func.f))]  # Pass the ID of the callable to C++
     operand_layouts = [()]
 
     operands += [irc(len(args))]
@@ -95,9 +86,9 @@ def _lowering(
         rs_typ = mlir.ir.RankedTensorType.get(co.shape, mlir.dtype_to_ir_type(co.dtype))
         result_types += [rs_typ]
 
-    if _func_can_batch:
+    if _func.can_batch:
         assert "batch_axes" not in kwargs
-        kwargs["batch_axes"] = _batch_axes
+        kwargs["batch_axes"] = _func.batch_axes
     kwargs = np.frombuffer(pickle.dumps(kwargs), dtype=np.uint8)
     kwargs_ir = hlo.constant(
         ir.DenseElementsAttr.get(kwargs, type=ir.IntegerType.get_unsigned(8))
@@ -130,33 +121,11 @@ def _explicify_zeros(x):
     return ad.instantiate_zeros(x) if _is_zero_type(x) else x
 
 
-def _jvp(
-    args,
-    tangents,
-    *,
-    _func,
-    _func_T,
-    _func_abstract,
-    _func_abstract_T,
-    _funcs_deriv,
-    _func_type,
-    _arg_fixed,
-    _func_can_batch,
-    _batch_axes,
-    **kwargs,
-):
+def _jvp(args, tangents, *, _func: Function, **kwargs):
     res = _prim.bind(
         *args,
         **kwargs,
         _func=_func,
-        _func_T=_func_T,
-        _func_abstract=_func_abstract,
-        _func_abstract_T=_func_abstract_T,
-        _funcs_deriv=_funcs_deriv,
-        _func_type=_func_type,
-        _arg_fixed=_arg_fixed,
-        _func_can_batch=_func_can_batch,
-        _batch_axes=_batch_axes,
     )
 
     def zero_tans(tans):
@@ -164,12 +133,12 @@ def _jvp(
             return [_is_zero_type(t) for t in tans]
         return [_is_zero_type(tans)]
 
-    assert len(args) == len(tangents) == len(_arg_fixed)
+    assert len(args) == len(tangents) == len(_func.args_fixed)
 
     tan_is_zero = zero_tans(tangents)
     assert len(args) == len(tan_is_zero)
 
-    for i, (a, t) in enumerate(zip(_arg_fixed, tan_is_zero)):
+    for i, (a, t) in enumerate(zip(_func.args_fixed, tan_is_zero)):
         if a and not t:
             raise RuntimeError(
                 f"Cannot differentiate with respect to positional argument number {i}"
@@ -180,69 +149,31 @@ def _jvp(
         return (res, tans)
 
     tans = None
-    if _func_type == "mlin":
+    if _func.type == "mlin":
         for i, t in enumerate(tangents):
-            if not _arg_fixed[i]:
+            if not _func.args_fixed[i]:
                 t = _explicify_zeros(t)
-                tn = _prim.bind(
-                    *args[:i],
-                    t,
-                    *args[i + 1 :],
-                    **kwargs,
-                    _func=_func,
-                    _func_T=_func_T,
-                    _func_abstract=_func_abstract,
-                    _func_abstract_T=_func_abstract_T,
-                    _funcs_deriv=_funcs_deriv,
-                    _func_type=_func_type,
-                    _arg_fixed=_arg_fixed,
-                    _func_can_batch=_func_can_batch,
-                    _batch_axes=_batch_axes,
-                )
+                tn = _prim.bind(*args[:i], t, *args[i + 1 :], **kwargs, _func=_func)
                 tans = (
                     tn if tans is None else tuple(t + tn_i for t, tn_i in zip(tans, tn))
                 )
-    elif _func_type == "lin":
+    elif _func.type == "lin":
         inp = []
-        for a, f, t in zip(args, _arg_fixed, tangents):
+        for a, f, t in zip(args, _func.args_fixed, tangents):
             inp.append(a if f else _explicify_zeros(t))
-
-        tans = _prim.bind(
-            *inp,
-            **kwargs,
-            _func=_func,
-            _func_T=_func_T,
-            _func_abstract=_func_abstract,
-            _func_abstract_T=_func_abstract_T,
-            _funcs_deriv=_funcs_deriv,
-            _func_type=_func_type,
-            _arg_fixed=_arg_fixed,
-            _func_can_batch=_func_can_batch,
-            _batch_axes=_batch_axes,
-        )
-    elif _func_type == "nonlin":
-        func, func_T = _funcs_deriv
+        tans = _prim.bind(*inp, **kwargs, _func=_func)
+    elif _func.type == "nonlin":
+        f, f_T = _func.derivatives
+        af = (True,) * len(args) + (False,) * len(tangents)
+        _func = _func._replace(f=f, T=f_T, derivatives=None, type="lin", args_fixed=af)
         tan_in = []
-        for f, t in zip(_arg_fixed, tangents):
+        for f, t in zip(_func.args_fixed, tangents):
             if not f:
                 tan_in += [t]
         tan_in = _explicify_zeros(tan_in)
-        tans = _prim.bind(
-            *args,
-            *tan_in,
-            **kwargs,
-            _func=func,
-            _func_T=func_T,
-            _func_abstract=_func_abstract,
-            _func_abstract_T=_func_abstract_T,
-            _funcs_deriv=None,
-            _func_type="lin",
-            _arg_fixed=(True,) * len(args) + (False,) * len(tangents),
-            _func_can_batch=_func_can_batch,
-            _batch_axes=_batch_axes,
-        )
+        tans = _prim.bind(*args, *tan_in, **kwargs, _func=_func)
     else:
-        raise NotImplementedError(f"func_type {_func_type} not implemented.")
+        raise NotImplementedError(f"func_type {_func.type} not implemented.")
 
     assert tans is not None
     return (res, tans)
@@ -250,127 +181,64 @@ def _jvp(
 
 # NOTE: for what ever reason will pass each arg separately to _transpose and not
 # as a tuple as for _jvp. Thus we need *args since we don't know the number of arguments.
-def _transpose(
-    cotangents,
-    *args,
-    _func,
-    _func_T,
-    _func_abstract,
-    _func_abstract_T,
-    _funcs_deriv,
-    _func_type,
-    _arg_fixed,
-    _func_can_batch,
-    _batch_axes,
-    **kwargs,
-):
-    if _func_T is None:
+def _transpose(cotangents, *args, _func: Function, **kwargs):
+    if _func.T is None:
         raise NotImplementedError(f"transpose of {_func} not implemented.")
 
     arg_is_lin = [ad.is_undefined_primal(a) for a in args]
     # assert len(_arg_fixed) == len(arg_is_lin)
 
-    for i, (a, l) in enumerate(zip(_arg_fixed, arg_is_lin)):
+    for i, (a, l) in enumerate(zip(_func.args_fixed, arg_is_lin)):
         if a and l:
             raise RuntimeError(
                 f"Cannot transpose with respect to positional argument number {i}"
             )
 
-    if _func_type == "mlin":
+    if _func.type == "mlin":
         assert sum(arg_is_lin) == 1
         lin_arg = arg_is_lin.index(True)
         c_in = cotangents
-        a_in0 = args[:lin_arg]
-        a_in1 = args[lin_arg + 1 :]
-        a_in = a_in0 + a_in1
+        a_in = args[:lin_arg] + args[lin_arg + 1 :]
 
-        assert isinstance(_func_T, tuple)
-        assert isinstance(_func_abstract_T, tuple)
-        func = _func_T[lin_arg]
-        func_T = None
-        func_abstract = _func_abstract_T[lin_arg]
-        func_abstract_T = None
-        # FIXME _functions could maybe be set more clever
-        res = _prim.bind(
-            *a_in,
-            *c_in,
-            **kwargs,
-            _func=func,
-            _func_T=func_T,
-            _func_abstract=func_abstract,
-            _func_abstract_T=func_abstract_T,
-            _funcs_deriv=_funcs_deriv,
-            _func_type=_func_type,
-            _arg_fixed=_arg_fixed,
-            _func_can_batch=_func_can_batch,
-            _batch_axes=_batch_axes,
+        assert isinstance(_func.T, tuple)
+        assert isinstance(_func.abstract_T, tuple)
+        _func = _func._replace(
+            f=_func.T[lin_arg],
+            T=None,
+            abstract=_func.abstract_T[lin_arg],
+            abstract_T=None,
         )
+        res = _prim.bind(*a_in, *c_in, **kwargs, _func=_func)
         res = [None] * lin_arg + res + [None] * (len(arg_is_lin) - (lin_arg + 1))
-        return res
-    elif _func_type == "lin":
+    elif _func.type == "lin":
         inp = []
-        for a, f in zip(args, _arg_fixed):
+        for a, f in zip(args, _func.args_fixed):
             if f:
                 assert not ad.is_undefined_primal(a)
                 inp.append(a)
-
         cot = _explicify_zeros(cotangents)
-        res = _prim.bind(
-            *inp,
-            *cot,
-            **kwargs,
-            _func=_func_T,
-            _func_T=_func,
-            _func_abstract=_func_abstract_T,
-            _func_abstract_T=_func_abstract,
-            _funcs_deriv=_funcs_deriv,
-            _func_type=_func_type,
-            _arg_fixed=(True,) * len(inp) + (False,) * len(cot),
-            _func_can_batch=_func_can_batch,
-            _batch_axes=_batch_axes,
+        _func = _func._replace(
+            f=_func.T,
+            T=_func.f,
+            abstract=_func.abstract_T,
+            abstract_T=_func.abstract,
+            args_fixed=(True,) * len(inp) + (False,) * len(cot),
         )
-        return [None] * len(inp) + res
+        res = _prim.bind(*inp, *cot, **kwargs, _func=_func)
+        res = [None] * len(inp) + res
     else:
-        raise NotImplementedError(f"func_type {_func_type} not implemented.")
+        raise NotImplementedError(f"func_type {_func.type} not implemented.")
+    return res
 
 
-def _batch(
-    args,
-    in_axes,
-    *,
-    _func,
-    _func_T,
-    _func_abstract,
-    _func_abstract_T,
-    _funcs_deriv,
-    _func_type,
-    _arg_fixed,
-    _func_can_batch,
-    _batch_axes,
-    **kwargs,
-):
+def _batch(args, in_axes, *, _func: Function, **kwargs):
     from .custom_map import smap
 
-    kw_batch = {
-        "_func": _func,
-        "_func_T": _func_T,
-        "_func_abstract": _func_abstract,
-        "_func_abstract_T": _func_abstract_T,
-        "_funcs_deriv": _funcs_deriv,
-        "_func_type": _func_type,
-        "_arg_fixed": _arg_fixed,
-        "_func_can_batch": _func_can_batch,
-        "_batch_axes": _batch_axes,
-    }
-
-    if not _func_can_batch:
-        y = smap(
-            partial(_prim.bind, **kw_batch),
-            in_axes=in_axes,
-        )(*args)
+    if not _func.can_batch:
+        y = smap(partial(_prim.bind, _func=_func), in_axes=in_axes)(*args)
         out_axes = [0] * len(y)
     else:
-        batch_axes = kw_batch.pop("_batch_axes", ())
+        batch_axes = _func.batch_axes if _func.batch_axes is not None else ()
         batch_axes = ((),) * len(in_axes) if batch_axes == () else batch_axes
         new_batch_axes, inserted_axes = [], []
         for ia, baxes in zip(in_axes, batch_axes, strict=True):
@@ -383,10 +251,10 @@ def _batch(
             inserted_axes.append(ia)
             new_batch_axes.append(baxes)
         new_batch_axes = tuple(new_batch_axes)
-        kw_batch["_batch_axes"] = new_batch_axes
+        _func = _func._replace(batch_axes=new_batch_axes)
 
         args_w = [jax.ShapeDtypeStruct(el.shape, el.dtype) for el in args]
-        out_w = _func_abstract(*args_w, batch_axes=new_batch_axes, **kwargs)
+        out_w = _func.abstract(*args_w, batch_axes=new_batch_axes, **kwargs)
         args_wo = [
             (
                 jax.ShapeDtypeStruct(el.shape[:ia] + el.shape[ia + 1 :], el.dtype)
@@ -395,7 +263,7 @@ def _batch(
             )
             for el, ia in zip(args, inserted_axes)
         ]
-        out_wo = _func_abstract(*args_wo, batch_axes=batch_axes, **kwargs)
+        out_wo = _func.abstract(*args_wo, batch_axes=batch_axes, **kwargs)
         out_axes = []
         for (_, _, ba_wb), (_, _, ba_wob) in zip(out_w, out_wo):
             if ba_wb == ba_wob:
@@ -408,7 +276,7 @@ def _batch(
                 assert oa >= 0
             out_axes.append(oa)
 
-        y = _call(*args, **kw_batch, **kwargs)
+        y = _call(*args, _func=_func, **kwargs)
     return y, out_axes
 
 
@@ -426,33 +294,8 @@ for platform in ["cpu", "gpu"]:
     batching.primitive_batchers[_prim] = _batch
 
 
-def _call(
-    *args,
-    _func,
-    _func_T,
-    _func_abstract,
-    _func_abstract_T,
-    _funcs_deriv,
-    _func_type,
-    _arg_fixed,
-    _func_can_batch,
-    _batch_axes,
-    **kwargs,
-):
-    out = _prim.bind(
-        *args,
-        **kwargs,
-        _func=_func,
-        _func_T=_func_T,
-        _func_abstract=_func_abstract,
-        _func_abstract_T=_func_abstract_T,
-        _funcs_deriv=_funcs_deriv,
-        _func_type=_func_type,
-        _arg_fixed=_arg_fixed,
-        _func_can_batch=_func_can_batch,
-        _batch_axes=_batch_axes,
-    )
-    return out
+def _call(*args, _func, **kwargs):
+    return _prim.bind(*args, **kwargs, _func=_func)
 
 
 def get_linear_call(
@@ -505,15 +348,15 @@ def get_linear_call(
     # TODO: register all func* in global scope such that the user does not need
     # keep a reference. Ideally this reference is cheap but just to be sure,
     # also implemenet a clear cache function
-    return partial(
-        _call,
-        _func=func,
-        _func_T=func_T,
-        _func_abstract=func_abstract,
-        _func_abstract_T=func_abstract_T,
-        _funcs_deriv=funcs_deriv,
-        _func_type=func_type,
-        _arg_fixed=arg_fixed,
-        _func_can_batch=func_can_batch,
-        _batch_axes=batch_axes,
+    _func = Function(
+        f=func,
+        T=func_T,
+        abstract=func_abstract,
+        abstract_T=func_abstract_T,
+        derivatives=funcs_deriv,
+        type=func_type,
+        args_fixed=arg_fixed,
+        can_batch=func_can_batch,
+        batch_axes=batch_axes,
     )
+    return partial(_call, _func=_func)
