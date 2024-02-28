@@ -4,7 +4,9 @@
 # Copyright(C) 2023, 2024 Max-Planck-Society
 
 import pickle
+from collections import namedtuple
 from functools import partial
+from typing import Union
 
 import jax
 import jaxlib.mlir.dialects.stablehlo as hlo
@@ -13,7 +15,6 @@ import numpy as np
 from jax.interpreters import ad, batching, mlir
 from jax.interpreters.mlir import ir_constant as irc
 from jaxlib.hlo_helpers import custom_call
-from collections import namedtuple
 
 import _jax_linop
 
@@ -21,23 +22,18 @@ for _name, _value in _jax_linop.registrations().items():
     jax.lib.xla_client.register_custom_call_target(_name, _value, platform="cpu")
 
 
-Function = namedtuple(
-    "Function",
-    (
-        "f",
-        "T",
-        "abstract",
-        "abstract_T",
-        "type",
-        "derivatives",
-        "args_fixed",
-        "can_batch",
-        "batch_axes",
-    ),
+# Hack to avoid classes and having to register a PyTree
+_shared_args_names = ("abstract", "abstract_T", "args_fixed", "can_batch", "batch_axes")
+LinearFunction = namedtuple("LinearFunction", ("f", "T") + _shared_args_names)
+MultiLinearFunction = namedtuple("MultiLinearFunction", ("f", "T") + _shared_args_names)
+NonLinearFunction = namedtuple(
+    "NonLinearFunction", ("f", "derivatives") + _shared_args_names
 )
 
+FunctionType = Union[LinearFunction, MultiLinearFunction, NonLinearFunction]
 
-def _exec_abstract(*args, _func: Function, **kwargs):
+
+def _exec_abstract(*args, _func: FunctionType, **kwargs):
     if _func.can_batch:
         assert "batch_axes" not in kwargs
         kwargs["batch_axes"] = _func.batch_axes
@@ -56,7 +52,7 @@ _dtype_dict = {
 }
 
 
-def _lowering(ctx, *args, _func: Function, _platform="cpu", **kwargs):
+def _lowering(ctx, *args, _func: FunctionType, _platform="cpu", **kwargs):
     operands = [irc(id(_func.f))]  # Pass the ID of the callable to C++
     operand_layouts = [()]
 
@@ -121,12 +117,8 @@ def _explicify_zeros(x):
     return ad.instantiate_zeros(x) if _is_zero_type(x) else x
 
 
-def _jvp(args, tangents, *, _func: Function, **kwargs):
-    res = _prim.bind(
-        *args,
-        **kwargs,
-        _func=_func,
-    )
+def _jvp(args, tangents, *, _func: FunctionType, **kwargs):
+    res = _prim.bind(*args, **kwargs, _func=_func)
 
     def zero_tans(tans):
         if isinstance(tans, (tuple, list)):
@@ -140,16 +132,14 @@ def _jvp(args, tangents, *, _func: Function, **kwargs):
 
     for i, (a, t) in enumerate(zip(_func.args_fixed, tan_is_zero)):
         if a and not t:
-            raise RuntimeError(
-                f"Cannot differentiate with respect to positional argument number {i}"
-            )
+            raise RuntimeError(f"{i}th poisiton argument not differentiable")
 
     if all(type(t) is ad.Zero for t in tangents):
         tans = list((jax.lax.zeros_like_array(a) for a in res))
         return (res, tans)
 
     tans = None
-    if _func.type == "mlin":
+    if isinstance(_func, MultiLinearFunction):
         for i, t in enumerate(tangents):
             if not _func.args_fixed[i]:
                 t = _explicify_zeros(t)
@@ -157,23 +147,27 @@ def _jvp(args, tangents, *, _func: Function, **kwargs):
                 tans = (
                     tn if tans is None else tuple(t + tn_i for t, tn_i in zip(tans, tn))
                 )
-    elif _func.type == "lin":
+    elif isinstance(_func, LinearFunction):
         inp = []
         for a, f, t in zip(args, _func.args_fixed, tangents):
             inp.append(a if f else _explicify_zeros(t))
         tans = _prim.bind(*inp, **kwargs, _func=_func)
-    elif _func.type == "nonlin":
+    elif isinstance(_func, NonLinearFunction):
         f, f_T = _func.derivatives
-        af = (True,) * len(args) + (False,) * len(tangents)
-        _func = _func._replace(f=f, T=f_T, derivatives=None, type="lin", args_fixed=af)
-        tan_in = []
-        for f, t in zip(_func.args_fixed, tangents):
-            if not f:
-                tan_in += [t]
+        tan_in = [t for f, t in zip(_func.args_fixed, tangents) if not f]
         tan_in = _explicify_zeros(tan_in)
+        _func = LinearFunction(
+            f=f,
+            T=f_T,
+            abstract=_func.abstract,
+            abstract_T=_func.abstract_T,
+            args_fixed=(True,) * len(args) + (False,) * len(tangents),
+            can_batch=_func.can_batch,
+            batch_axes=_func.batch_axes,
+        )
         tans = _prim.bind(*args, *tan_in, **kwargs, _func=_func)
     else:
-        raise NotImplementedError(f"func_type {_func.type} not implemented.")
+        raise TypeError(f"JVP for {type(_func)} not implemented")
 
     assert tans is not None
     return (res, tans)
@@ -181,20 +175,21 @@ def _jvp(args, tangents, *, _func: Function, **kwargs):
 
 # NOTE: for what ever reason will pass each arg separately to _transpose and not
 # as a tuple as for _jvp. Thus we need *args since we don't know the number of arguments.
-def _transpose(cotangents, *args, _func: Function, **kwargs):
+def _transpose(cotangents, *args, _func: FunctionType, **kwargs):
+    assert isinstance(_func, (LinearFunction, MultiLinearFunction))
     if _func.T is None:
-        raise NotImplementedError(f"transpose of {_func} not implemented.")
+        raise NotImplementedError(f"transpose of {_func} not implemented")
 
     arg_is_lin = [ad.is_undefined_primal(a) for a in args]
     # assert len(_arg_fixed) == len(arg_is_lin)
 
-    for i, (a, l) in enumerate(zip(_func.args_fixed, arg_is_lin)):
-        if a and l:
+    for i, (a, is_lin) in enumerate(zip(_func.args_fixed, arg_is_lin)):
+        if a and is_lin:
             raise RuntimeError(
                 f"Cannot transpose with respect to positional argument number {i}"
             )
 
-    if _func.type == "mlin":
+    if isinstance(_func, MultiLinearFunction):
         assert sum(arg_is_lin) == 1
         lin_arg = arg_is_lin.index(True)
         c_in = cotangents
@@ -202,6 +197,7 @@ def _transpose(cotangents, *args, _func: Function, **kwargs):
 
         assert isinstance(_func.T, tuple)
         assert isinstance(_func.abstract_T, tuple)
+        # TODO(edh): I think this should be a LinearFunction
         _func = _func._replace(
             f=_func.T[lin_arg],
             T=None,
@@ -210,7 +206,7 @@ def _transpose(cotangents, *args, _func: Function, **kwargs):
         )
         res = _prim.bind(*a_in, *c_in, **kwargs, _func=_func)
         res = [None] * lin_arg + res + [None] * (len(arg_is_lin) - (lin_arg + 1))
-    elif _func.type == "lin":
+    elif isinstance(_func, LinearFunction):
         inp = []
         for a, f in zip(args, _func.args_fixed):
             if f:
@@ -227,11 +223,11 @@ def _transpose(cotangents, *args, _func: Function, **kwargs):
         res = _prim.bind(*inp, *cot, **kwargs, _func=_func)
         res = [None] * len(inp) + res
     else:
-        raise NotImplementedError(f"func_type {_func.type} not implemented.")
+        raise TypeError(f"transpose for {type(_func)} not implemented")
     return res
 
 
-def _batch(args, in_axes, *, _func: Function, **kwargs):
+def _batch(args, in_axes, *, _func: FunctionType, **kwargs):
     from .custom_map import smap
 
     if not _func.can_batch:
@@ -294,7 +290,7 @@ for platform in ["cpu", "gpu"]:
     batching.primitive_batchers[_prim] = _batch
 
 
-def _call(*args, _func, **kwargs):
+def _call(*args, _func: FunctionType, **kwargs):
     return _prim.bind(*args, **kwargs, _func=_func)
 
 
@@ -304,8 +300,8 @@ def get_linear_call(
     /,
     func_abstract,
     func_abstract_T,
-    funcs_deriv,
-    func_type,
+    funcs_deriv=None,
+    func_type="",
     arg_fixed=None,
     batch_axes=(),
     func_can_batch=False,
@@ -348,15 +344,20 @@ def get_linear_call(
     # TODO: register all func* in global scope such that the user does not need
     # keep a reference. Ideally this reference is cheap but just to be sure,
     # also implemenet a clear cache function
-    _func = Function(
+    kw = dict(
         f=func,
         T=func_T,
         abstract=func_abstract,
         abstract_T=func_abstract_T,
-        derivatives=funcs_deriv,
-        type=func_type,
         args_fixed=arg_fixed,
-        can_batch=func_can_batch,
         batch_axes=batch_axes,
+        can_batch=func_can_batch,
     )
+    if funcs_deriv is not None:
+        assert kw.pop("T", None) is None
+        _func = NonLinearFunction(derivatives=funcs_deriv, **kw)
+    elif isinstance(func_T, (tuple, list)):
+        _func = MultiLinearFunction(**kw)
+    else:
+        _func = LinearFunction(**kw)
     return partial(_call, _func=_func)
