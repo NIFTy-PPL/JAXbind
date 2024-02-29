@@ -106,15 +106,10 @@ def _lowering(ctx, *args, _func: FunctionType, _platform="cpu", **kwargs):
     raise ValueError("Unsupported platform; this must be either 'cpu' or 'gpu'")
 
 
-def _is_zero_type(x):
-    # FIXME can this be unified
-    return isinstance(x, (ad.Zero, jax._src.ad_util.Zero))
-
-
 def _explicify_zeros(x):
     if isinstance(x, (tuple, list)):
-        return [ad.instantiate_zeros(t) if _is_zero_type(t) else t for t in x]
-    return ad.instantiate_zeros(x) if _is_zero_type(x) else x
+        return [ad.instantiate_zeros(t) if isinstance(t, ad.Zero) else t for t in x]
+    return ad.instantiate_zeros(x) if isinstance(x, ad.Zero) else x
 
 
 def _jvp(args, tangents, *, _func: FunctionType, **kwargs):
@@ -122,8 +117,8 @@ def _jvp(args, tangents, *, _func: FunctionType, **kwargs):
 
     def zero_tans(tans):
         if isinstance(tans, (tuple, list)):
-            return [_is_zero_type(t) for t in tans]
-        return [_is_zero_type(tans)]
+            return [isinstance(t, ad.Zero) for t in tans]
+        return [isinstance(tans, ad.Zero)]
 
     assert len(args) == len(tangents) == len(_func.args_fixed)
 
