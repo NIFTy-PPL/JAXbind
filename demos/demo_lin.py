@@ -25,9 +25,9 @@ def lin(out, args, kwargs_dump):
 
 
 def lin_T(out, args, kwargs_dump):
-    x, y = args
-    out[0][()] = x + y
-    out[1][()] = x + y
+    a, b = args
+    out[0][()] = a + b
+    out[1][()] = a + b
 
 
 def lin_abstract(*args, **kwargs):
@@ -39,9 +39,9 @@ def lin_abstract(*args, **kwargs):
 
 def lin_abstract_T(*args, **kwargs):
     # Returns `shape` and `dtype` of output as well as the added batch_axes of the `output``
-    x, y = args
-    assert x.shape == y.shape
-    return ((x.shape, x.dtype), (x.shape, x.dtype))
+    a, b = args
+    assert a.shape == b.shape
+    return ((a.shape, a.dtype), (a.shape, a.dtype))
 
 
 lin_jax = jax_linop.get_linear_call(
@@ -50,8 +50,7 @@ lin_jax = jax_linop.get_linear_call(
 inp = (4 + jnp.zeros((2, 2)), 1 + jnp.zeros((2, 2)))
 lin_jax(*inp, axes=(3, 4))
 
-check_grads(partial(lin_jax, axes=(3, 4)), inp, order=2, modes=["fwd"], eps=1.0)
-check_grads(partial(lin_jax, axes=(3, 4)), inp, order=2, modes=["rev"], eps=1.0)
+check_grads(partial(lin_jax, axes=(3, 4)), inp, order=2, modes=["fwd", "rev"], eps=1.0)
 
 
 ##################################### check fixing args #######################
@@ -62,8 +61,8 @@ def lin(out, args, kwargs_dump):
 
 
 def lin_T(out, args, kwargs_dump):
-    x, y, dy = args
-    out[0][()] = x * x * y + x * dy
+    x, y, b = args
+    out[0][()] = x * x * y + x * b
 
 
 def lin_abstract(*args, **kwargs):
@@ -75,7 +74,7 @@ def lin_abstract(*args, **kwargs):
 
 def lin_abstract_T(*args, **kwargs):
     # Returns `shape` and `dtype` of output as well as the added batch_axes of the `output``
-    x, y, dy = args
+    x, y, b = args
     assert x.shape == y.shape
     return ((x.shape, x.dtype),)
 
