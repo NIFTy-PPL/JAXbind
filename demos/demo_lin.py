@@ -19,32 +19,29 @@ def lin(out, args, kwargs_dump):
     # # 582 ns ± 1.12 ns per loop (mean ± std. dev. of 7 runs, 1,000,000 loops each)
     # ```
     kwargs = jax_linop.load_kwargs(kwargs_dump)
-    out[0][()] = args[0] + args[1]
-    out[1][()] = args[0] + args[1]
+    x, y = args
+    out[0][()] = x + y
+    out[1][()] = x + y
 
 
 def lin_T(out, args, kwargs_dump):
-    kwargs = jax_linop.load_kwargs(kwargs_dump)
-    out[0][()] = args[0] + args[1]
-    out[1][()] = args[0] + args[1]
+    x, y = args
+    out[0][()] = x + y
+    out[1][()] = x + y
 
 
 def lin_abstract(*args, **kwargs):
     # Returns `shape` and `dtype` of output as well as the added batch_axes of the `output``
-    assert args[0].shape == args[1].shape
-    return (
-        (args[0].shape, args[0].dtype, None),
-        (args[0].shape, args[0].dtype, None),
-    )
+    x, y = args
+    assert x.shape == y.shape
+    return ((x.shape, x.dtype, None), (x.shape, x.dtype, None))
 
 
 def lin_abstract_T(*args, **kwargs):
     # Returns `shape` and `dtype` of output as well as the added batch_axes of the `output``
-    assert args[0].shape == args[1].shape
-    return (
-        (args[0].shape, args[0].dtype, None),
-        (args[0].shape, args[0].dtype, None),
-    )
+    x, y = args
+    assert x.shape == y.shape
+    return ((x.shape, x.dtype, None), (x.shape, x.dtype, None))
 
 
 lin_jax = jax_linop.get_linear_call(
@@ -59,28 +56,28 @@ check_grads(partial(lin_jax, axes=(3, 4)), inp, order=2, modes=["rev"], eps=1.0)
 
 ##################################### check fixing args #######################
 def lin(out, args, kwargs_dump):
-    out[0][()] = args[0] * args[1] * args[0]
-    out[1][()] = args[0] * args[1]
+    x, y = args
+    out[0][()] = x * x * y
+    out[1][()] = x * y
 
 
 def lin_T(out, args, kwargs_dump):
-    kwargs = jax_linop.load_kwargs(kwargs_dump)
-    out[0][()] = args[0] * args[0] * args[1] + args[0] * args[2]
+    x, y, dy = args
+    out[0][()] = x * x * y + x * dy
 
 
 def lin_abstract(*args, **kwargs):
     # Returns `shape` and `dtype` of output as well as the added batch_axes of the `output``
-    assert args[0].shape == args[1].shape
-    return (
-        (args[0].shape, args[0].dtype, None),
-        (args[0].shape, args[0].dtype, None),
-    )
+    x, y = args
+    assert x.shape == y.shape
+    return ((x.shape, x.dtype, None), (x.shape, x.dtype, None))
 
 
 def lin_abstract_T(*args, **kwargs):
     # Returns `shape` and `dtype` of output as well as the added batch_axes of the `output``
-    assert args[0].shape == args[1].shape
-    return ((args[0].shape, args[0].dtype, None),)
+    x, y, dy = args
+    assert x.shape == y.shape
+    return ((x.shape, x.dtype, None),)
 
 
 lin_jax = jax_linop.get_linear_call(
