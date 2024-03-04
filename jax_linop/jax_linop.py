@@ -37,8 +37,9 @@ def _exec_abstract(*args, _func: FunctionType, **kwargs):
     if _func.can_batch:
         assert "batch_axes" not in kwargs
         kwargs["batch_axes"] = _func.batch_axes
+    # NOTE, do not attempt to unpack the batch axes b/c it might not be there
     return tuple(
-        jax.core.ShapedArray(s, d) for s, d, _ in _func.abstract(*args, **kwargs)
+        jax.core.ShapedArray(*sdb[:2]) for sdb in _func.abstract(*args, **kwargs)
     )
 
 
