@@ -1,16 +1,14 @@
 # %%
-import jax
 from functools import partial
+
+import jax
 import numpy as np
-import scipy.fft
+from jax import numpy as jnp
 from jax.test_util import check_grads
 
 import jax_linop
 
 jax.config.update("jax_enable_x64", True)
-
-from jax import numpy as jnp
-import pickle
 
 
 def mlin_call(x, y):
@@ -18,7 +16,7 @@ def mlin_call(x, y):
 
 
 def mlin(out, args, kwargs_dump):
-    kwargs = pickle.loads(np.ndarray.tobytes(kwargs_dump))
+    kwargs = jax_linop.load_kwargs(kwargs_dump)
     batch_axes = kwargs.pop("batch_axes", ())
     call = mlin_call
     if batch_axes != () and batch_axes != ((),) * len(args):
@@ -34,12 +32,10 @@ def mlin(out, args, kwargs_dump):
 
 
 def mlin_T1(out, args, kwargs_dump):
-    kwargs = pickle.loads(np.ndarray.tobytes(kwargs_dump))
     out[0][()] = args[0] * args[1] + args[0] * args[2]
 
 
 def mlin_T2(out, args, kwargs_dump):
-    kwargs = pickle.loads(np.ndarray.tobytes(kwargs_dump))
     out[0][()] = args[0] * args[1] + args[0] * args[2]
 
 
@@ -60,28 +56,23 @@ def mlin_abstract(*args, **kwargs):
 
 
 def mlin_abstract_T1(*args, **kwargs):
-    out_axes = kwargs.pop("batch_axes", ())
     assert args[0].shape == args[1].shape
-    return ((args[0].shape, args[0].dtype, out_axes),)
+    return ((args[0].shape, args[0].dtype, None),)
 
 
 def mlin_abstract_T2(*args, **kwargs):
-    out_axes = kwargs.pop("batch_axes", ())
     assert args[0].shape == args[1].shape
-    return ((args[0].shape, args[0].dtype, out_axes),)
+    return ((args[0].shape, args[0].dtype, None),)
 
 
 func_T = (mlin_T1, mlin_T2)
 func_abstract_T = (mlin_abstract_T1, mlin_abstract_T2)
-
 mlin_jax = jax_linop.get_linear_call(
     mlin,
     func_T,
     mlin_abstract,
     func_abstract_T,
-    None,
-    "mlin",
-    arg_fixed=(False, False),
+    args_fixed=(False, False),
     func_can_batch=True,
 )
 
@@ -118,6 +109,3 @@ res_jvp_jax = jax.jvp(mlin_purejax, inp2, inp3)
 
 np.testing.assert_allclose(res_vjp, res_vjp_jax)
 np.testing.assert_allclose(res_jvp, res_jvp_jax)
-
-
-# %%

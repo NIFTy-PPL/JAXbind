@@ -290,17 +290,15 @@ def _call(*args, _func: FunctionType, **kwargs):
 
 
 def get_linear_call(
-    func,
-    func_T,
+    f,
+    f_T,
     /,
-    func_abstract,
-    func_abstract_T,
-    funcs_deriv=None,
-    func_type="",
-    arg_fixed=None,
-    batch_axes=(),
+    abstract,
+    abstract_T,
+    *,
+    args_fixed=None,
     func_can_batch=False,
-    **kwargs,
+    batch_axes=(),
 ) -> partial:
     """Create Jax functions for the provided linear operator
 
@@ -340,19 +338,39 @@ def get_linear_call(
     # keep a reference. Ideally this reference is cheap but just to be sure,
     # also implemenet a clear cache function
     kw = dict(
-        f=func,
-        T=func_T,
-        abstract=func_abstract,
-        abstract_T=func_abstract_T,
-        args_fixed=arg_fixed,
+        f=f,
+        T=f_T,
+        abstract=abstract,
+        abstract_T=abstract_T,
+        args_fixed=args_fixed,
         batch_axes=batch_axes,
         can_batch=func_can_batch,
     )
-    if funcs_deriv is not None:
-        assert kw.pop("T", None) is None
-        _func = NonLinearFunction(derivatives=funcs_deriv, **kw)
-    elif isinstance(func_T, (tuple, list)):
+    if isinstance(f_T, (tuple, list)):
         _func = MultiLinearFunction(**kw)
     else:
         _func = LinearFunction(**kw)
+    return partial(_call, _func=_func)
+
+
+def get_nonlinear_call(
+    f,
+    f_derivative,
+    /,
+    abstract,
+    abstract_reverse,
+    *,
+    args_fixed=None,
+    func_can_batch=False,
+    batch_axes=(),
+) -> partial:
+    _func = NonLinearFunction(
+        f=f,
+        abstract=abstract,
+        abstract_T=abstract_reverse,
+        args_fixed=args_fixed,
+        batch_axes=batch_axes,
+        can_batch=func_can_batch,
+        derivatives=f_derivative,
+    )
     return partial(_call, _func=_func)
