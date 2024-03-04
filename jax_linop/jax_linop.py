@@ -121,12 +121,14 @@ def _jvp(args, tangents, *, _func: FunctionType, **kwargs):
             return [isinstance(t, ad.Zero) for t in tans]
         return [isinstance(tans, ad.Zero)]
 
-    assert len(args) == len(tangents) == len(_func.args_fixed)
+    args_fixed = (False,) * len(args)
+    args_fixed = _func.args_fixed if _func.args_fixed is not None else args_fixed
+    assert len(args) == len(tangents) == len(args_fixed)
 
     tan_is_zero = zero_tans(tangents)
     assert len(args) == len(tan_is_zero)
 
-    for i, (a, t) in enumerate(zip(_func.args_fixed, tan_is_zero)):
+    for i, (a, t) in enumerate(zip(args_fixed, tan_is_zero)):
         if a and not t:
             raise RuntimeError(f"{i}th poisiton argument not differentiable")
 
@@ -137,7 +139,7 @@ def _jvp(args, tangents, *, _func: FunctionType, **kwargs):
     tans = None
     if isinstance(_func, MultiLinearFunction):
         for i, t in enumerate(tangents):
-            if not _func.args_fixed[i]:
+            if not args_fixed[i]:
                 t = _explicify_zeros(t)
                 tn = _prim.bind(*args[:i], t, *args[i + 1 :], **kwargs, _func=_func)
                 tans = (
@@ -145,12 +147,12 @@ def _jvp(args, tangents, *, _func: FunctionType, **kwargs):
                 )
     elif isinstance(_func, LinearFunction):
         inp = []
-        for a, f, t in zip(args, _func.args_fixed, tangents):
+        for a, f, t in zip(args, args_fixed, tangents):
             inp.append(a if f else _explicify_zeros(t))
         tans = _prim.bind(*inp, **kwargs, _func=_func)
     elif isinstance(_func, NonLinearFunction):
         f, f_T = _func.derivatives
-        tan_in = [t for f, t in zip(_func.args_fixed, tangents) if not f]
+        tan_in = [t for f, t in zip(args_fixed, tangents) if not f]
         tan_in = _explicify_zeros(tan_in)
         _func = LinearFunction(
             f=f,
@@ -176,10 +178,12 @@ def _transpose(cotangents, *args, _func: FunctionType, **kwargs):
     if _func.T is None:
         raise NotImplementedError(f"transpose of {_func} not implemented")
 
+    args_fixed = (False,) * len(args)
+    args_fixed = _func.args_fixed if _func.args_fixed is not None else args_fixed
     arg_is_lin = [ad.is_undefined_primal(a) for a in args]
-    # assert len(_arg_fixed) == len(arg_is_lin)
+    assert len(args_fixed) >= len(arg_is_lin)
 
-    for i, (a, is_lin) in enumerate(zip(_func.args_fixed, arg_is_lin)):
+    for i, (a, is_lin) in enumerate(zip(args_fixed, arg_is_lin)):
         if a and is_lin:
             raise RuntimeError(
                 f"Cannot transpose with respect to positional argument number {i}"
@@ -204,7 +208,7 @@ def _transpose(cotangents, *args, _func: FunctionType, **kwargs):
         res = [None] * lin_arg + res + [None] * (len(arg_is_lin) - (lin_arg + 1))
     elif isinstance(_func, LinearFunction):
         inp = []
-        for a, f in zip(args, _func.args_fixed):
+        for a, f in zip(args, args_fixed):
             if f:
                 assert not ad.is_undefined_primal(a)
                 inp.append(a)

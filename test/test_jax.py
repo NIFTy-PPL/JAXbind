@@ -1,3 +1,5 @@
+from functools import partial
+
 import ducc0
 import jax
 import numpy as np
@@ -30,49 +32,29 @@ def complextype(dtype):
     return r2cdict[np.dtype(dtype)]
 
 
-def fht_operator(axes, nthreads):
-    def fhtfunc(inp, out, state):
-        # This function must _not_ keep any reference to 'inp' or 'out'!
-        # Also, it must not change 'inp' or 'state'.
-        ducc0.fft.genuine_fht(
-            inp, out=out, axes=state["axes"], nthreads=state["nthreads"]
-        )
-
-    def fhtfunc_abstract(shape, dtype, state):
-        return shape, dtype
-
-    return jax_linop.get_linear_call(
-        fhtfunc,
-        fhtfunc,
-        fhtfunc_abstract,
-        fhtfunc_abstract,
-        axes=tuple(axes),
-        nthreads=int(nthreads),
-    )
+def fhtfunc(out, args, kwargs_dump):
+    kwargs = jax_linop.load_kwargs(kwargs_dump)
+    # This function must _not_ keep any reference to 'inp' or 'out'!
+    # Also, it must not change 'inp' or 'state'.
+    ducc0.fft.genuine_fht(*args, out=out[0], **kwargs)
 
 
-def c2c_operator(axes, forward, nthreads):
-    def c2cfunc(inp, out, state):
-        ducc0.fft.c2c(
-            inp,
-            out=out,
-            axes=state["axes"],
-            nthreads=state["nthreads"],
-            forward=state["forward"],
-        )
+def fhtfunc_abstract(*args, **kwargs):
+    (x,) = args
+    return ((x.shape, x.dtype),)
 
-    def c2cfunc_abstract(shape, dtype, state):
-        return shape, dtype
 
-    return jax_linop.get_linear_call(
-        c2cfunc,
-        c2cfunc,  # The C2C FFT matrix is symmetric!
-        c2cfunc_abstract,
-        c2cfunc_abstract,
-        axes=tuple(axes),
-        forward=bool(forward),
-        nthreads=int(nthreads),
-    )
+def c2cfunc(out, args, kwargs_dump):
+    kwargs = jax_linop.load_kwargs(kwargs_dump)
+    print(f"{len(out)=}")
+    print(f"{len(args)=}")
+    (x,) = args
+    ducc0.fft.c2c(x, out=out[0], **kwargs)
+
+
+def c2cfunc_abstract(*args, **kwargs):
+    (x,) = args
+    return ((x.shape, x.dtype),)
 
 
 def alm2realalm(alm, lmax, dtype, out=None):
@@ -212,14 +194,20 @@ def _assert_close(a, b, epsilon):
 def test_fht(shape, axes, dtype, nthreads):
     rng = np.random.default_rng(42)
 
-    op = fht_operator(axes=axes, nthreads=nthreads)
+    fht = jax_linop.get_linear_call(
+        fhtfunc, fhtfunc, fhtfunc_abstract, fhtfunc_abstract
+    )
+    kw = dict(axes=axes, nthreads=nthreads)
+
     a = (rng.random(shape) - 0.5).astype(dtype)
-    b1 = np.array(op(a)[0])
-    b2 = ducc0.fft.genuine_fht(a, axes=axes, nthreads=nthreads)
+    b1 = np.array(fht(a, **kw)[0])
+    b2 = ducc0.fft.genuine_fht(a, **kw)
     _assert_close(b1, b2, epsilon=1e-6 if dtype == np.float32 else 1e-14)
 
     max_order = 2
-    check_grads(op, (a,), order=max_order, modes=("fwd", "rev"), eps=1.0)
+    check_grads(
+        partial(fht, **kw), (a,), order=max_order, modes=("fwd", "rev"), eps=1.0
+    )
 
 
 @pmp("shape,axes", (((100,), (0,)), ((10, 17), (0, 1)), ((10, 17, 3), (1,))))
@@ -229,16 +217,26 @@ def test_fht(shape, axes, dtype, nthreads):
 def test_c2c(shape, axes, forward, dtype, nthreads):
     rng = np.random.default_rng(42)
 
-    op = c2c_operator(axes=axes, forward=forward, nthreads=nthreads)
+    # The C2C FFT matrix is symmetric!
+    c2c = jax_linop.get_linear_call(
+        c2cfunc, c2cfunc, c2cfunc_abstract, c2cfunc_abstract
+    )
+    kw = dict(axes=axes, forward=forward, nthreads=nthreads)
+
     a = (rng.random(shape) - 0.5).astype(dtype) + (
         1j * (rng.random(shape) - 0.5)
     ).astype(dtype)
-    b1 = np.array(op(a)[0])
-    b2 = ducc0.fft.c2c(a, axes=axes, forward=forward, nthreads=nthreads)
+    b1 = np.array(c2c(a, **kw)[0])
+    print(f"{b1.shape=}")
+    b2 = ducc0.fft.c2c(a, **kw)
+    print(f"pre {b1.shape=}, {b2.shape=}")
     _assert_close(b1, b2, epsilon=1e-6 if dtype == np.complex64 else 1e-14)
+    print(f"post {b1.shape=}, {b2.shape=}")
 
     max_order = 2
-    check_grads(op, (a,), order=max_order, modes=("fwd", "rev"), eps=1.0)
+    check_grads(
+        partial(c2c, **kw), (a,), order=max_order, modes=("fwd", "rev"), eps=1.0
+    )
 
 
 def nalm(lmax, mmax):
