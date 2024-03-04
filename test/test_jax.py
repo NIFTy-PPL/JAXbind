@@ -13,12 +13,12 @@ pmp = pytest.mark.parametrize
 
 r2cdict = {
     np.dtype(np.float32): np.dtype(np.complex64),
-    np.dtype(np.float64): np.dtype(np.complex128)
+    np.dtype(np.float64): np.dtype(np.complex128),
 }
 
 c2rdict = {
     np.dtype(np.complex64): np.dtype(np.float32),
-    np.dtype(np.complex128): np.dtype(np.float64)
+    np.dtype(np.complex128): np.dtype(np.float64),
 }
 
 
@@ -47,7 +47,7 @@ def fht_operator(axes, nthreads):
         fhtfunc_abstract,
         fhtfunc_abstract,
         axes=tuple(axes),
-        nthreads=int(nthreads)
+        nthreads=int(nthreads),
     )
 
 
@@ -58,7 +58,7 @@ def c2c_operator(axes, forward, nthreads):
             out=out,
             axes=state["axes"],
             nthreads=state["nthreads"],
-            forward=state["forward"]
+            forward=state["forward"],
         )
 
     def c2cfunc_abstract(shape, dtype, state):
@@ -71,25 +71,25 @@ def c2c_operator(axes, forward, nthreads):
         c2cfunc_abstract,
         axes=tuple(axes),
         forward=bool(forward),
-        nthreads=int(nthreads)
+        nthreads=int(nthreads),
     )
 
 
 def alm2realalm(alm, lmax, dtype, out=None):
     if out is None:
         out = np.empty((alm.shape[0], alm.shape[1] * 2 - lmax - 1), dtype=dtype)
-    out[:, 0:lmax + 1] = alm[:, 0:lmax + 1].real
-    out[:, lmax + 1:] = alm[:, lmax + 1:].view(dtype)
-    out[:, lmax + 1:] *= np.sqrt(2.)
+    out[:, 0 : lmax + 1] = alm[:, 0 : lmax + 1].real
+    out[:, lmax + 1 :] = alm[:, lmax + 1 :].view(dtype)
+    out[:, lmax + 1 :] *= np.sqrt(2.0)
     return out
 
 
 def realalm2alm(alm, lmax, dtype, out=None):
     if out is None:
         out = np.empty((alm.shape[0], (alm.shape[1] + lmax + 1) // 2), dtype=dtype)
-    out[:, 0:lmax + 1] = alm[:, 0:lmax + 1]
-    out[:, lmax + 1:] = alm[:, lmax + 1:].view(dtype)
-    out[:, lmax + 1:] *= np.sqrt(2.) / 2
+    out[:, 0 : lmax + 1] = alm[:, 0 : lmax + 1]
+    out[:, lmax + 1 :] = alm[:, lmax + 1 :].view(dtype)
+    out[:, lmax + 1 :] *= np.sqrt(2.0) / 2
     return out
 
 
@@ -103,7 +103,7 @@ def sht2d_operator(lmax, mmax, ntheta, nphi, geometry, spin, nthreads):
             map=out,
             alm=tmp,
             nthreads=state["nthreads"],
-            geometry=state["geometry"]
+            geometry=state["geometry"],
         )
 
     def sht2dfunc_T(inp, out, state):
@@ -113,7 +113,7 @@ def sht2d_operator(lmax, mmax, ntheta, nphi, geometry, spin, nthreads):
             spin=state["spin"],
             map=inp,
             nthreads=state["nthreads"],
-            geometry=state["geometry"]
+            geometry=state["geometry"],
         )
         alm2realalm(tmp, state["lmax"], inp.dtype, out)
 
@@ -143,8 +143,9 @@ def sht2d_operator(lmax, mmax, ntheta, nphi, geometry, spin, nthreads):
         ntheta=int(ntheta),
         nphi=int(nphi),
         geometry=str(geometry),
-        nthreads=int(nthreads)
+        nthreads=int(nthreads),
     )
+
 
 def healpix_operator(lmax, mmax, nside, spin, nthreads):
     def healpixfunc(inp, out, state):
@@ -156,7 +157,7 @@ def healpix_operator(lmax, mmax, nside, spin, nthreads):
             map=out,
             alm=tmp,
             nthreads=state["nthreads"],
-            **state["hpxparam"]
+            **state["hpxparam"],
         )
 
     def healpixfunc_T(inp, out, state):
@@ -166,14 +167,14 @@ def healpix_operator(lmax, mmax, nside, spin, nthreads):
             spin=state["spin"],
             map=inp,
             nthreads=state["nthreads"],
-            **state["hpxparam"]
+            **state["hpxparam"],
         )
         alm2realalm(tmp, state["lmax"], inp.dtype, out)
 
     def healpixfunc_abstract(shape_in, dtype_in, state):
         spin = state["spin"]
         ncomp = 1 if spin == 0 else 2
-        shape_out = (ncomp, 12*state["nside"]**2)
+        shape_out = (ncomp, 12 * state["nside"] ** 2)
         return shape_out, dtype_in
 
     def healpixfunc_abstract_T(shape_in, dtype_in, state):
@@ -197,7 +198,7 @@ def healpix_operator(lmax, mmax, nside, spin, nthreads):
         spin=int(spin),
         nthreads=int(nthreads),
         nside=nside,
-        hpxparam=base.sht_info()
+        hpxparam=base.sht_info(),
     )
 
 
@@ -205,7 +206,7 @@ def _assert_close(a, b, epsilon):
     assert_allclose(ducc0.misc.l2error(a, b), 0, atol=epsilon)
 
 
-@pmp("shape,axes", (((100, ), (0, )), ((10, 17), (0, 1)), ((10, 17, 3), (1, ))))
+@pmp("shape,axes", (((100,), (0,)), ((10, 17), (0, 1)), ((10, 17, 3), (1,))))
 @pmp("dtype", (np.float32, np.float64))
 @pmp("nthreads", (1, 2))
 def test_fht(shape, axes, dtype, nthreads):
@@ -218,10 +219,10 @@ def test_fht(shape, axes, dtype, nthreads):
     _assert_close(b1, b2, epsilon=1e-6 if dtype == np.float32 else 1e-14)
 
     max_order = 2
-    check_grads(op, (a, ), order=max_order, modes=("fwd", "rev"), eps=1.)
+    check_grads(op, (a,), order=max_order, modes=("fwd", "rev"), eps=1.0)
 
 
-@pmp("shape,axes", (((100, ), (0, )), ((10, 17), (0, 1)), ((10, 17, 3), (1, ))))
+@pmp("shape,axes", (((100,), (0,)), ((10, 17), (0, 1)), ((10, 17, 3), (1,))))
 @pmp("forward", (False, True))
 @pmp("dtype", (np.complex64, np.complex128))
 @pmp("nthreads", (1, 2))
@@ -229,14 +230,15 @@ def test_c2c(shape, axes, forward, dtype, nthreads):
     rng = np.random.default_rng(42)
 
     op = c2c_operator(axes=axes, forward=forward, nthreads=nthreads)
-    a = (rng.random(shape) -
-         0.5).astype(dtype) + (1j * (rng.random(shape) - 0.5)).astype(dtype)
+    a = (rng.random(shape) - 0.5).astype(dtype) + (
+        1j * (rng.random(shape) - 0.5)
+    ).astype(dtype)
     b1 = np.array(op(a)[0])
     b2 = ducc0.fft.c2c(a, axes=axes, forward=forward, nthreads=nthreads)
     _assert_close(b1, b2, epsilon=1e-6 if dtype == np.complex64 else 1e-14)
 
     max_order = 2
-    check_grads(op, (a, ), order=max_order, modes=("fwd", "rev"), eps=1.)
+    check_grads(op, (a,), order=max_order, modes=("fwd", "rev"), eps=1.0)
 
 
 def nalm(lmax, mmax):
@@ -244,21 +246,22 @@ def nalm(lmax, mmax):
 
 
 def random_alm(lmax, mmax, spin, ncomp, rng):
-    res = rng.uniform(-1., 1., (ncomp, nalm(lmax, mmax))) \
-     + 1j*rng.uniform(-1., 1., (ncomp, nalm(lmax, mmax)))
+    res = rng.uniform(-1.0, 1.0, (ncomp, nalm(lmax, mmax))) + 1j * rng.uniform(
+        -1.0, 1.0, (ncomp, nalm(lmax, mmax))
+    )
     # make a_lm with m==0 real-valued
-    res[:, 0:lmax + 1].imag = 0.
+    res[:, 0 : lmax + 1].imag = 0.0
     ofs = 0
     for s in range(spin):
-        res[:, ofs:ofs + spin - s] = 0.
+        res[:, ofs : ofs + spin - s] = 0.0
         ofs += lmax + 1 - s
     return res
 
 
 @pmp("lmmax", ((10, 10), (20, 5)))
 @pmp("geometry", ("GL", "F1", "F2", "CC", "DH", "MW", "MWflip"))
-@pmp("ntheta", (20, ))
-@pmp("nphi", (30, ))
+@pmp("ntheta", (20,))
+@pmp("nphi", (30,))
 @pmp("spin", (0, 2))
 @pmp("dtype", (np.float32, np.float64))
 @pmp("nthreads", (1, 2))
@@ -277,10 +280,11 @@ def test_sht2d(lmmax, geometry, ntheta, nphi, spin, dtype, nthreads):
         nphi=nphi,
         geometry=geometry,
         spin=spin,
-        nthreads=nthreads
+        nthreads=nthreads,
     )
-    op_adj = lambda x: jax.linear_transpose(lambda y: op(y)[0], alm0r
-                                           )(x.conj())[0].conj()
+    op_adj = lambda x: jax.linear_transpose(lambda y: op(y)[0], alm0r)(x.conj())[
+        0
+    ].conj()
 
     map1 = np.array(op(alm0r)[0])
     map2 = ducc0.sht.synthesis_2d(
@@ -291,7 +295,7 @@ def test_sht2d(lmmax, geometry, ntheta, nphi, spin, dtype, nthreads):
         geometry=geometry,
         ntheta=ntheta,
         nphi=nphi,
-        nthreads=nthreads
+        nthreads=nthreads,
     )
     _assert_close(map1, map2, epsilon=1e-6 if dtype == np.float32 else 1e-14)
 
@@ -299,18 +303,14 @@ def test_sht2d(lmmax, geometry, ntheta, nphi, spin, dtype, nthreads):
     alm1r = np.array(op_adj(map0))
     alm1 = realalm2alm(alm1r, lmax, complextype(dtype))
     alm2 = ducc0.sht.adjoint_synthesis_2d(
-        map=map0,
-        lmax=lmax,
-        mmax=mmax,
-        spin=spin,
-        geometry=geometry,
-        nthreads=nthreads
+        map=map0, lmax=lmax, mmax=mmax, spin=spin, geometry=geometry, nthreads=nthreads
     )
     _assert_close(alm1, alm2, epsilon=1e-6 if dtype == np.float32 else 1e-14)
 
     max_order = 2
-    check_grads(op, (alm0r, ), order=max_order, modes=("fwd", "rev"), eps=1.)
-    check_grads(op_adj, (map0, ), order=max_order, modes=("fwd", "rev"), eps=1.)
+    check_grads(op, (alm0r,), order=max_order, modes=("fwd", "rev"), eps=1.0)
+    check_grads(op_adj, (map0,), order=max_order, modes=("fwd", "rev"), eps=1.0)
+
 
 @pmp("lmmax", ((10, 10), (20, 5)))
 @pmp("nside", (16, 2))
@@ -328,39 +328,26 @@ def test_healpix(lmmax, nside, spin, dtype, nthreads):
     hpxparam = base.sht_info()
 
     op = healpix_operator(
-        lmax=lmax,
-        mmax=mmax,
-        nside=nside,
-        spin=spin,
-        nthreads=nthreads
+        lmax=lmax, mmax=mmax, nside=nside, spin=spin, nthreads=nthreads
     )
-    op_adj = lambda x: jax.linear_transpose(lambda y: op(y)[0], alm0r
-                                           )(x.conj())[0].conj()
+    op_adj = lambda x: jax.linear_transpose(lambda y: op(y)[0], alm0r)(x.conj())[
+        0
+    ].conj()
 
     map1 = np.array(op(alm0r)[0])
     map2 = ducc0.sht.synthesis(
-        alm=alm0,
-        lmax=lmax,
-        mmax=mmax,
-        spin=spin,
-        nthreads=nthreads,
-        **hpxparam
+        alm=alm0, lmax=lmax, mmax=mmax, spin=spin, nthreads=nthreads, **hpxparam
     )
     _assert_close(map1, map2, epsilon=1e-6 if dtype == np.float32 else 1e-14)
 
-    map0 = (rng.random((ncomp, 12*nside**2)) - 0.5).astype(dtype)
+    map0 = (rng.random((ncomp, 12 * nside**2)) - 0.5).astype(dtype)
     alm1r = np.array(op_adj(map0))
     alm1 = realalm2alm(alm1r, lmax, complextype(dtype))
     alm2 = ducc0.sht.adjoint_synthesis(
-        map=map0,
-        lmax=lmax,
-        mmax=mmax,
-        spin=spin,
-        nthreads=nthreads,
-        **hpxparam
+        map=map0, lmax=lmax, mmax=mmax, spin=spin, nthreads=nthreads, **hpxparam
     )
     _assert_close(alm1, alm2, epsilon=1e-6 if dtype == np.float32 else 1e-14)
 
     max_order = 2
-    check_grads(op, (alm0r, ), order=max_order, modes=("fwd", "rev"), eps=1.)
-    check_grads(op_adj, (map0, ), order=max_order, modes=("fwd", "rev"), eps=1.)
+    check_grads(op, (alm0r,), order=max_order, modes=("fwd", "rev"), eps=1.0)
+    check_grads(op_adj, (map0,), order=max_order, modes=("fwd", "rev"), eps=1.0)
