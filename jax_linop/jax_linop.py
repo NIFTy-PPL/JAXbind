@@ -222,7 +222,7 @@ def _transpose(cotangents, *args, _func: FunctionType, **kwargs):
             args_fixed=(True,) * len(inp) + (False,) * len(cot),
         )
         res = _prim.bind(*inp, *cot, **kwargs, _func=_func)
-        res = [None] * len(inp) + res
+        res = [None if f else res.pop(0) for f in args_fixed]
     else:
         raise TypeError(f"transpose for {type(_func)} not implemented")
     return res
