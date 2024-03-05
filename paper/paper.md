@@ -34,7 +34,7 @@ JAX is widely used in machine learning and scientific computing.
 Scientific computing relies on existing high-performance code which we would ideally like to use in JAX.
 Reimplementing the existing code in JAX is often impractical and the existing interface in JAX for connecting custom code requires deep knowledge of JAX and its C++ backend.
 The aim of `jax_op` is to drastically lower the burden of connecting custom functions implemented in other programming languages to JAX.
-Specifically, `jax_op` provides an easy-to-use Python interface for defining custom, so- called, JAX primitives supporting any JAX transformations.
+Specifically, `jax_op` provides an easy-to-use Python interface for defining custom, so-called, JAX primitives supporting any JAX transformations.
 
 
 # Statement of Need
