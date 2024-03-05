@@ -30,8 +30,13 @@ bibliography: paper.bib
 
 # Summary
 
-* USP: easy-of-use and feature-completeness
-TODO
+Jax is widely used in machine learning and scientific computing.
+Especially in scientific computing, high-performance implementations of special transformations are often required, which cannot easily be natively reimplemented in Jax.
+Therefore, it is essential for many applications to extend Jax with custom functions.
+The existing interface in Jax for connecting custom functions requires deep knowledge of Jax and relies on error-prone C++ pointer logic to transfer the custom functions' input and output.
+The aim of `jax_op` is to drastically lower the burden of connecting custom functions implemented in other programming languages to Jax.
+Specifically, `jax_op` provides an easy-to-use Python interface for defining custom Jax primitives that support Jax transformations.
+
 
 # Statement of Need
 
