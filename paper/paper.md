@@ -30,12 +30,12 @@ bibliography: paper.bib
 
 # Summary
 
-Jax is widely used in machine learning and scientific computing.
-Especially in scientific computing, high-performance implementations of special transformations are often required, which cannot easily be reimplemented natively in Jax.
-Therefore, it is essential for many applications to extend Jax with custom functions.
-The existing interface in Jax for connecting custom functions requires deep knowledge of Jax and relies on error-prone C++ pointer logic for transferring the custom functions' input and output.
-The aim of `jax_op` is to drastically lower the burden of connecting custom functions implemented in other programming languages to Jax.
-Specifically, `jax_op` provides an easy-to-use Python interface for defining custom Jax primitives supporting Jax transformations.
+JAX is widely used in machine learning and scientific computing.
+Especially in scientific computing, high-performance implementations of special transformations are often required, which cannot easily be reimplemented natively in JAX.
+Therefore, it is essential for many applications to extend JAX with custom functions.
+The existing interface in JAX for connecting custom functions requires deep knowledge of JAX and relies on error-prone C++ pointer logic for transferring the custom functions' input and output.
+The aim of `jax_op` is to drastically lower the burden of connecting custom functions implemented in other programming languages to JAX.
+Specifically, `jax_op` provides an easy-to-use Python interface for defining custom JAX primitives supporting JAX transformations.
 
 
 # Statement of Need
@@ -70,13 +70,15 @@ Enzyme-JAX allows one to differentiate a C++ function with Enzyme [@Moses2020; @
 However, it enforces the use of Enzyme for deriving derivatives and does not allow for connecting arbitrary code to JAX.
 
 # Automatic Differentiation and Code Example
-Automatic differentiation is a core feature of Jax and often a main reason for using Jax.
-Therefore, it is essential that also custom Jax primitives registered by the user support automatic differentiation.
-In the following, we will outline which functions Jax and our `jax_op` package require to enable automatic differentiation for the custom primitive.
 
-Assume we want to expose the function $f:X \mapsto Y$ as a Jax primitive.
-In most applications of the `jax_op` package, some high-performance code, such as a spherical harmonic transformation or a non-uniform FFT, will be wrapped as a Jax primitive.
+Automatic differentiation is a core feature of JAX and often a main reason for using JAX.
+Therefore, it is essential that also custom JAX primitives registered by the user support automatic differentiation.
+In the following, we will outline which functions JAX and our `jax_op` package require to enable automatic differentiation for the custom primitive.
+
+Assume we want to expose the function $f:X \mapsto Y$ as a JAX primitive.
+In most applications of the `jax_op` package, some high-performance code, such as a spherical harmonic transformation or a non-uniform FFT, will be wrapped as a JAX primitive.
 Nevertheless, for simplicity, we choose $f(x_1,x_2) = x_1x_2^2$ as an example.
+
 ```python
 import jax
 import jax.numpy as jnp
@@ -89,22 +91,25 @@ def f(out, args, kwargs_dump):
     out[0][()] = x1 * x2**2
 ```
 
-Additionally to evaluating $f$, Jax can compute Jacobian-vector products `jvp` and vector-Jacobian products `vjp` of $f$, also referred to as forward and reverse mode differentiation.
-The Jacobian-vector product in Jax is a function applying the Jacobian of $f$ at a position $x$ to tangent vectors.
+Additionally to evaluating $f$, JAX can compute Jacobian-vector products `jvp` and vector-Jacobian products `vjp` of $f$, also referred to as forward and reverse mode differentiation.
+The Jacobian-vector product in JAX is a function applying the Jacobian of $f$ at a position $x$ to tangent vectors.
 Mathematically, this operation is called pushforward of $f$ and can be denoted as $\partial f(x): T_x X \mapsto T_{f(x)} Y$, with $T_x X$ and $T_{f(x)} Y$ being the tangent spaces of $X$ and $Y$ at the positions $x$ and $f(x)$.
-As the implementation of $f$ is not Jax native, Jax cannot automatically compute the `jvp`.
-Instead, an implementation of the pushforward has to be provided, which `jax_op` will register as the `jvp` of the Jax primitive of $f$.
+As the implementation of $f$ is not JAX native, JAX cannot automatically compute the `jvp`.
+Instead, an implementation of the pushforward has to be provided, which `jax_op` will register as the `jvp` of the JAX primitive of $f$.
 For our example $f$ this Jacobian-vector-product function is given by $\partial f(x_1,x_2)(dx_1,dx_2) = x_2^2dx_1 + 2x_1x_2dx_2$.
+
 ```python
 def f_jvp(out, args, kwargs_dump):
     kwargs = jax_linop.load_kwargs(kwargs_dump)
     x1, x2, dx1, dx2 = args
     out[0][()] = x2**2 * dx1 + 2 * x1 * x2 * dx2
 ```
-The vector-Jacobian product `vjp` in Jax is the linear transposed of the Jacobian-vector product.
+
+The vector-Jacobian product `vjp` in JAX is the linear transposed of the Jacobian-vector product.
 In mathematical nomenclature this is the pullback $(\partial f(x))^{T}: T_{f(x)}Y \mapsto T_x X$ of $f$.
-In analogy to `jvp`, the user has to implement this function as Jax cannot automatically construct it.
+In analogy to `jvp`, the user has to implement this function as JAX cannot automatically construct it.
 For the example function, the vector-Jacobian product is $(\partial f(x_1,x_2))^{T}(dy) = (x_2^2dy, 2x_1x_2dy)$.
+
 ```python
 def f_vjp(out, args, kwargs_dump):
     kwargs = jax_linop.load_kwargs(kwargs_dump)
@@ -112,7 +117,8 @@ def f_vjp(out, args, kwargs_dump):
     out[0][()] = x2**2 * dy
     out[1][()] = 2 * x1 * x2 * dy
 ```
-For just-in-time compilation, Jax needs to trace the code, meaning that Jax needs to evaluate the output shape of a function given the shape of the input.
+
+For just-in-time compilation, JAX needs to trace the code, meaning that JAX needs to evaluate the output shape of a function given the shape of the input.
 Therefore, we have to provide these functions returning the output shape and dtype given an input shape and dtype for `f` as well as the `vjp` applications.
 The output shape of the `jvp` is identical to the output shape of `f` itself and does not need to be specified again.
 ```python
@@ -126,15 +132,18 @@ def f_abstract_T(*args, **kwargs):
         (args[0].shape, args[0].dtype),
     )
 ```
-We have defined all ingredients necessary to register a Jax primitive for our function $f$ using the `jax_op` package.
+We have defined all ingredients necessary to register a JAX primitive for our function $f$ using the `jax_op` package.
+
 ```python
 f_jax = jax_linop.get_nonlinear_call(
     f, (f_jvp, f_vjp), f_abstract, f_abstract_T
 )
 ```
-`f_jax` is a Jax primitive registered via the `jax_op` package supporting all Jax transformations.
-For example, we can compute the `jvp` and `vjp` of the new Jax primitive and even jit-compile it.
+
+`f_jax` is a JAX primitive registered via the `jax_op` package supporting all JAX transformations.
+For example, we can compute the `jvp` and `vjp` of the new JAX primitive and even jit-compile it.
 Also, the `vmap` transformation of `f_jax` is possible.
+
 ```python
 inp = (jnp.full((4,3), 4.), jnp.full((4,3), 2.))
 tan = (jnp.full((4,3), 1.), jnp.full((4,3), 1.))
@@ -149,10 +158,11 @@ res = f_jax_jit(*inp)
 ```
 
 # Higher Order Derivatives and Linear Functions
-Jax supports higher order derivatives and thus can differentiate a `jvp` or `vjp` with respect to the position at which the Jacobian was taken.
-Similar to first derivatives, there is no way for Jax to automatically compute higher derivatives of a general function $f$ that is not natively implemented in Jax.
+
+JAX supports higher order derivatives and thus can differentiate a `jvp` or `vjp` with respect to the position at which the Jacobian was taken.
+Similar to first derivatives, there is no way for JAX to automatically compute higher derivatives of a general function $f$ that is not natively implemented in JAX.
 Higher order derivatives would again need to be provided by the user.
-Nevertheless, for many algorithms, first derivatives are sufficient, and higher order derivatives are often not implemented by the high-performance codes, which could be exposed to Jax.
+Nevertheless, for many algorithms, first derivatives are sufficient, and higher order derivatives are often not implemented by the high-performance codes, which could be exposed to JAX.
 Therefore, the current interface of `jax_op` is, for simplicity, restricted to first derivatives.
 In the future, the interface could be expanded if specific use cases require higher order derivatives.
 
