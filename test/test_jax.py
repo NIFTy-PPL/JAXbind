@@ -140,7 +140,8 @@ def healpixfunc(out, args, kwargs_dump):
         phi0=phi0,
         nphi=nphi,
         ringstart=ringstart,
-        **kwargs,
+        spin=kwargs["spin"],
+        lmax=kwargs["lmax"], mmax=kwargs["mmax"], nthreads=kwargs["nthreads"],
     )
 
 
@@ -148,7 +149,9 @@ def healpixfunc_T(out, args, kwargs_dump):
     kwargs = jax_linop.load_kwargs(kwargs_dump).copy()
     theta, phi0, nphi, ringstart, x = args
     tmp = ducc0.sht.adjoint_synthesis(
-        map=x, theta=theta, phi0=phi0, nphi=nphi, ringstart=ringstart, **kwargs
+        map=x, theta=theta, phi0=phi0, nphi=nphi, ringstart=ringstart,
+        spin=kwargs["spin"],
+        lmax=kwargs["lmax"], mmax=kwargs["mmax"], nthreads=kwargs["nthreads"],
     )
     alm2realalm(tmp, kwargs["lmax"], x.dtype, out[0])
 
@@ -157,7 +160,7 @@ def healpixfunc_abstract(*args, **kwargs):
     spin = kwargs["spin"]
     ncomp = 1 if spin == 0 else 2
     shape_out = (ncomp, 12 * kwargs["nside"] ** 2)
-    return ((shape_out, args[0].dtype),)
+    return ((shape_out, args[4].dtype),)
 
 
 def healpixfunc_abstract_T(*args, **kwargs):
@@ -167,7 +170,7 @@ def healpixfunc_abstract_T(*args, **kwargs):
     nalm = ((mmax + 1) * (mmax + 2)) // 2 + (mmax + 1) * (lmax - mmax)
     nalm = nalm * 2 - lmax - 1
     shape_out = (ncomp, nalm)
-    return ((shape_out, args[0].dtype),)
+    return ((shape_out, args[4].dtype),)
 
 
 def _assert_close(a, b, epsilon):
