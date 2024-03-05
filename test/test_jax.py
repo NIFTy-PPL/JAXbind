@@ -275,9 +275,12 @@ def test_sht2d(lmmax, geometry, ntheta, nphi, spin, dtype, nthreads):
         spin=spin,
         nthreads=nthreads,
     )
-    op_adj = lambda x: jax.linear_transpose(lambda y: op(y)[0], alm0r)(x.conj())[
-        0
-    ].conj()
+    # The conjugations are only necessary if the input or output data types
+    # are complex. Leaving them out makes things (surprisingly) faster.
+#    op_adj = lambda x: jax.linear_transpose(lambda y: op(y)[0], alm0r)(x.conj())[
+#        0
+#    ].conj()
+    op_adj = lambda x: jax.linear_transpose(lambda y: op(y)[0], alm0r)(x)[0]
 
     map1 = np.array(op(alm0r)[0])
     map2 = ducc0.sht.synthesis_2d(
@@ -340,9 +343,12 @@ def test_healpix(lmmax, nside, spin, dtype, nthreads):
         nside=nside,
     )
 
-    hp_adj = lambda x: jax.linear_transpose(lambda y: hp(y)[0], alm0r)(x.conj())[
-        0
-    ].conj()
+    # The conjugations are only necessary if the input or output data types
+    # are complex. Leaving them out makes things (surprisingly) faster.
+#    hp_adj = lambda x: jax.linear_transpose(lambda y: hp(y)[0], alm0r)(x.conj())[
+#        0
+#    ].conj()
+    hp_adj = lambda x: jax.linear_transpose(lambda y: hp(y)[0], alm0r)(x)[0]
 
     map1 = np.array(hp(alm0r)[0])
     map2 = ducc0.sht.synthesis(
