@@ -76,7 +76,9 @@ def realalm2alm(alm, lmax, dtype, out=None):
 
 
 def sht2d_operator(lmax, mmax, ntheta, nphi, geometry, spin, nthreads):
-    def sht2dfunc(inp, out, state):
+    def sht2dfunc(out, args, kwargs_dump):
+        inp = args[0]
+        state = jax_linop.load_kwargs(kwargs_dump)
         tmp = realalm2alm(inp, state["lmax"], complextype(inp.dtype))
         ducc0.sht.synthesis_2d(
             lmax=state["lmax"],
@@ -88,7 +90,9 @@ def sht2d_operator(lmax, mmax, ntheta, nphi, geometry, spin, nthreads):
             geometry=state["geometry"],
         )
 
-    def sht2dfunc_T(inp, out, state):
+    def sht2dfunc_T(out, args, kwargs_dump):
+        inp = args[0]
+        state = jax_linop.load_kwargs(kwargs_dump)
         tmp = ducc0.sht.adjoint_synthesis_2d(
             lmax=state["lmax"],
             mmax=state["mmax"],
@@ -99,33 +103,38 @@ def sht2d_operator(lmax, mmax, ntheta, nphi, geometry, spin, nthreads):
         )
         alm2realalm(tmp, state["lmax"], inp.dtype, out)
 
-    def sht2dfunc_abstract(shape_in, dtype_in, state):
-        spin = state["spin"]
+    def sht2dfunc_abstract(*args, **kwargs):
+        spin = kwargs["spin"]
         ncomp = 1 if spin == 0 else 2
-        shape_out = (ncomp, state["ntheta"], state["nphi"])
-        return shape_out, dtype_in
+        shape_out = (ncomp, kwargs["ntheta"], kwargs["nphi"])
+        return shape_out, args[0].dtype
 
-    def sht2dfunc_abstract_T(shape_in, dtype_in, state):
-        spin = state["spin"]
+    def sht2dfunc_abstract_T(*args, **kwargs):
+        spin = kwargs["spin"]
         ncomp = 1 if spin == 0 else 2
-        lmax, mmax = state["lmax"], state["mmax"]
+        lmax, mmax = kwargs["lmax"], kwargs["mmax"]
         nalm = ((mmax + 1) * (mmax + 2)) // 2 + (mmax + 1) * (lmax - mmax)
         nalm = nalm * 2 - lmax - 1
         shape_out = (ncomp, nalm)
-        return shape_out, dtype_in
+        return shape_out, args[0].dtype
 
-    return jax_linop.get_linear_call(
+    func = jax_linop.get_linear_call(
         sht2dfunc,
         sht2dfunc_T,
         sht2dfunc_abstract,
         sht2dfunc_abstract_T,
-        lmax=int(lmax),
-        mmax=int(mmax),
-        spin=int(spin),
-        ntheta=int(ntheta),
-        nphi=int(nphi),
-        geometry=str(geometry),
-        nthreads=int(nthreads),
+        args_fixed=(False,),
+    )
+
+    return partial(
+        func,
+        geometry=geometry,
+        ntheta=ntheta,
+        nphi=nphi,
+        lmax=lmax,
+        mmax=mmax,
+        spin=spin,
+        nthreads=nthreads,
     )
 
 
