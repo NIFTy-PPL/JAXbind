@@ -70,14 +70,12 @@ However, it enforces the use of Enzyme for deriving derivatives and does not all
 # Automatic Differentiation and Code Example
 
 Automatic differentiation is a core feature of JAX and often one of the main reasons for using it.
-Therefore, it is essential that custom functions registered with JAX by the user support automatic differentiation.
-To the following, we will outline which functions JAX respectively our package requires to enable automatic differentiation for the custom primitive.
-For simplicity, we pretend that we want to connect the simple function $f(x_1,x_2) = x_1x_2^2$ to JAX.
+Thus, it is essential that custom functions registered with JAX support automatic differentiation.
+In the following, we will outline which functions our package respectively JAX requires to enable automatic differentiation.
+For simplicity, we assume that we want to connect the nonlinear function $f(x_1,x_2) = x_1x_2^2$ to JAX.
+FIXME: description of function taking three arguments, out, args, and kwargs_dump is needed
 
 ```python
-import jax
-import jax.numpy as jnp
-
 import jax_linop #FIXME
 
 def f(out, args, kwargs_dump):
@@ -86,7 +84,7 @@ def f(out, args, kwargs_dump):
     out[0][()] = x1 * x2**2
 ```
 
-JAX's automatic differentation engine computes the Jacobian-vector products `jvp` and vector-Jacobian products `vjp` of $f$.
+JAX's automatic differentiation engine computes the Jacobian-vector product `jvp` and vector-Jacobian product `vjp` of $f$.
 The Jacobian-vector product in JAX is a function applying the Jacobian of $f$ at a position $x$ to a tangent vector.
 In mathematical nomenclature this operation is called the pushforward of $f$ and can be denoted as $\partial f(x): T_x X \mapsto T_{f(x)} Y$, with $T_x X$ and $T_{f(x)} Y$ being the tangent spaces of $X$ and $Y$ at the positions $x$ and $f(x)$.
 As the implementation of $f$ is not JAX native, JAX cannot automatically compute the `jvp`.
@@ -100,9 +98,9 @@ def f_jvp(out, args, kwargs_dump):
     out[0][()] = x2**2 * dx1 + 2 * x1 * x2 * dx2
 ```
 
-The vector-Jacobian product `vjp` in JAX is the linear transposed of the Jacobian-vector product.
+The vector-Jacobian product `vjp` in JAX is the linear transpose of the Jacobian-vector product.
 In mathematical nomenclature this is the pullback $(\partial f(x))^{T}: T_{f(x)}Y \mapsto T_x X$ of $f$.
-Analogously to `jvp`, the user has to implement this function as JAX cannot automatically construct it.
+Analogously to the `jvp`, the user has to implement this function as JAX cannot automatically construct it.
 For our example function, the vector-Jacobian product is $(\partial f(x_1,x_2))^{T}(dy) = (x_2^2dy, 2x_1x_2dy)$.
 
 ```python
@@ -113,7 +111,7 @@ def f_vjp(out, args, kwargs_dump):
     out[1][()] = 2 * x1 * x2 * dy
 ```
 
-To just-in-time compile the function, JAX needs to trace the code, meaning that JAX needs to be able to evaluate know the shape and dtype of the output of the custom function given only the shape and dtype of its input.
+To just-in-time compile the function, JAX needs to abstractly evaluate the code, i.e., JAX needs to be able to know the shape and dtype of the output of the custom function given only the shape and dtype of the input.
 We have to provide these abstract evaluation functions returning the output shape and dtype given an input shape and dtype for `f` as well as the `vjp` applications.
 The output shape of the `jvp` is identical to the output shape of `f` itself and does not need to be specified again.
 
@@ -138,14 +136,17 @@ f_jax = jax_linop.get_nonlinear_call(
 ```
 
 `f_jax` is a JAX primitive registered via the `jax_op` package supporting all JAX transformations.
-We can now compute the `jvp` and `vjp` of the new JAX primitive and even jit-compile and batch.
+We can now compute the `jvp` and `vjp` of the new JAX primitive and even jit-compile and batch it.
 
 ```python
+import jax
+import jax.numpy as jnp
+
 inp = (jnp.full((4,3), 4.), jnp.full((4,3), 2.))
 tan = (jnp.full((4,3), 1.), jnp.full((4,3), 1.))
 res, res_tan = jax.jvp(f_jax, inp, tan)
 
-cotan = [jnp.full((4,3), 6.),]
+cotan = (jnp.full((4,3), 6.),)
 res, f_vjp = jax.vjp(f_jax, *inp)
 res_cotan = f_vjp(cotan)
 
@@ -162,9 +163,9 @@ For many algorithms, first derivatives are sufficient, and higher order derivati
 Therefore, the current interface of `jax_op` is, for simplicity, restricted to first derivatives.
 In the future, the interface could be easily expanded if specific use cases require higher order derivatives.
 
-In scientific computing, linear functions such as spherical harmonic transformations are widespread.
-If the function $f$ is linear, differentiation becomes much simpler.
-Specifically for a linear $f$, the pushforward respectively the `jvp` of $f$ is identical to $f$ itself and independent of the position at which it is computed.
+In scientific computing, linear functions such as, e.g., spherical harmonic transformations are widespread.
+If the function $f$ is linear, differentiation becomes trivial.
+Specifically for a linear function $f$, the pushforward respectively the `jvp` of $f$ is identical to $f$ itself and independent of the position at which it is computed.
 Expressed in formulas $\partial f(x)(dx) = f(dx)$ if $f$ is linear in $x$.
 Analogously, the pullback respectively the `vjp` becomes independent of the initial position and is given by the linear transposed of $f$, thus $(\partial f(x))^{T}(dy) = f^T(dy)$.
 Also, all higher order derivatives can be expressed in terms of $f$ and its transpose.
