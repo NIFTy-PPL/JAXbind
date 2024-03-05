@@ -43,7 +43,7 @@ def _exec_abstract(*args, _func: FunctionType, **kwargs):
     )
 
 
-# the values are explained in src/duc0/bindings/typecode.h
+# the values are explained in src/ducc0/bindings/typecode.h
 _dtype_dict = {
     np.dtype(np.float32): 3,
     np.dtype(np.float64): 7,
@@ -169,7 +169,7 @@ def _jvp(args, tangents, *, _func: FunctionType, **kwargs):
     return (res, tans)
 
 
-# NOTE: for what ever reason will pass each arg separately to _transpose and not
+# NOTE: for whatever reason JAX will pass each arg separately to _transpose and not
 # as a tuple as for _jvp. Thus we need *args since we don't know the number of arguments.
 def _transpose(cotangents, *args, _func: FunctionType, **kwargs):
     assert isinstance(_func, (LinearFunction, MultiLinearFunction))
@@ -337,7 +337,7 @@ def get_linear_call(
     """
     # TODO: register all func* in global scope such that the user does not need
     # keep a reference. Ideally this reference is cheap but just to be sure,
-    # also implemenet a clear cache function
+    # also implement a clear cache function
     kw = dict(
         f=f,
         T=f_T,
