@@ -49,6 +49,7 @@ void pycall(void *out_raw, void **in)
     { 3, py::dtype::of<float>()},
     { 7, py::dtype::of<double>()},
     {32, py::dtype::of<uint8_t>()},
+    {39, py::dtype::of<uint64_t>()},
     {67, py::dtype::of<complex<float>>()},
     {71, py::dtype::of<complex<double>>()}};
 

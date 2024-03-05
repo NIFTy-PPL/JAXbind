@@ -48,6 +48,7 @@ _dtype_dict = {
     np.dtype(np.float32): 3,
     np.dtype(np.float64): 7,
     np.dtype(np.uint8): 32,
+    np.dtype(np.uint64): 39,
     np.dtype(np.complex64): 67,
     np.dtype(np.complex128): 71,
 }
