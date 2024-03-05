@@ -84,10 +84,12 @@ def sht2d_operator(lmax, mmax, ntheta, nphi, geometry, spin, nthreads):
             lmax=state["lmax"],
             mmax=state["mmax"],
             spin=state["spin"],
-            map=out,
+            map=out[0],
             alm=tmp,
             nthreads=state["nthreads"],
             geometry=state["geometry"],
+            ntheta=state["ntheta"],
+            nphi=state["nphi"],
         )
 
     def sht2dfunc_T(out, args, kwargs_dump):
@@ -101,7 +103,7 @@ def sht2d_operator(lmax, mmax, ntheta, nphi, geometry, spin, nthreads):
             nthreads=state["nthreads"],
             geometry=state["geometry"],
         )
-        alm2realalm(tmp, state["lmax"], inp.dtype, out)
+        alm2realalm(tmp, state["lmax"], inp.dtype, out[0])
 
     def sht2dfunc_abstract(*args, **kwargs):
         spin = kwargs["spin"]
