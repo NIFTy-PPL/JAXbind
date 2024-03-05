@@ -34,8 +34,8 @@ def complextype(dtype):
 
 def fhtfunc(out, args, kwargs_dump):
     kwargs = jax_linop.load_kwargs(kwargs_dump)
-    # This function must _not_ keep any reference to 'inp' or 'out'!
-    # Also, it must not change 'inp' or 'state'.
+    # This function must _not_ keep any reference to 'inp' or 'args'!
+    # Also, it must not change 'args'.
     ducc0.fft.genuine_fht(*args, out=out[0], **kwargs)
 
 
@@ -46,8 +46,6 @@ def fhtfunc_abstract(*args, **kwargs):
 
 def c2cfunc(out, args, kwargs_dump):
     kwargs = jax_linop.load_kwargs(kwargs_dump)
-    print(f"{len(out)=}")
-    print(f"{len(args)=}")
     (x,) = args
     ducc0.fft.c2c(x, out=out[0], **kwargs)
 
@@ -227,11 +225,8 @@ def test_c2c(shape, axes, forward, dtype, nthreads):
         1j * (rng.random(shape) - 0.5)
     ).astype(dtype)
     b1 = np.array(c2c(a, **kw)[0])
-    print(f"{b1.shape=}")
     b2 = ducc0.fft.c2c(a, **kw)
-    print(f"pre {b1.shape=}, {b2.shape=}")
     _assert_close(b1, b2, epsilon=1e-6 if dtype == np.complex64 else 1e-14)
-    print(f"post {b1.shape=}, {b2.shape=}")
 
     max_order = 2
     check_grads(
