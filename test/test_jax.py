@@ -140,7 +140,7 @@ def sht2d_operator(lmax, mmax, ntheta, nphi, geometry, spin, nthreads):
 
 def healpixfunc(out, args, kwargs_dump):
     kwargs = jax_linop.load_kwargs(kwargs_dump).copy()
-    theta, phi0, nphi, ringstart, x = args
+    x, theta, phi0, nphi, ringstart = args
     tmp = realalm2alm(x, kwargs["lmax"], complextype(x.dtype))
     ducc0.sht.synthesis(
         map=out[0],
@@ -158,7 +158,7 @@ def healpixfunc(out, args, kwargs_dump):
 
 def healpixfunc_T(out, args, kwargs_dump):
     kwargs = jax_linop.load_kwargs(kwargs_dump).copy()
-    theta, phi0, nphi, ringstart, x = args
+    x, theta, phi0, nphi, ringstart = args
     tmp = ducc0.sht.adjoint_synthesis(
         map=x,
         theta=theta,
@@ -174,7 +174,7 @@ def healpixfunc_T(out, args, kwargs_dump):
 
 
 def healpixfunc_abstract(*args, **kwargs):
-    _, _, _, _, x = args
+    x, _, _, _, _ = args
     spin = kwargs["spin"]
     ncomp = 1 if spin == 0 else 2
     shape_out = (ncomp, 12 * kwargs["nside"] ** 2)
@@ -182,7 +182,7 @@ def healpixfunc_abstract(*args, **kwargs):
 
 
 def healpixfunc_abstract_T(*args, **kwargs):
-    _, _, _, _, x = args
+    x, _, _, _, _ = args
     spin = kwargs["spin"]
     ncomp = 1 if spin == 0 else 2
     lmax, mmax = kwargs["lmax"], kwargs["mmax"]
@@ -338,17 +338,17 @@ def test_healpix(lmmax, nside, spin, dtype, nthreads):
         healpixfunc_T,
         healpixfunc_abstract,
         healpixfunc_abstract_T,
-        args_fixed=(True,) * 4 + (False,),
+        args_fixed=(False,) + (True,) * 4,
     )
 
     def hpp(x):
         # Partial insert where the first parameter is not inserted
         return hp(
+            x,
             hpxparam["theta"],
             hpxparam["phi0"],
             hpxparam["nphi"],
             hpxparam["ringstart"],
-            x,
             lmax=lmax,
             mmax=mmax,
             spin=spin,
