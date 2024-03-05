@@ -67,11 +67,11 @@ However, it enforces the use of Enzyme for deriving derivatives and does not all
 # Automatic Differentiation and Code Example
 Automatic differentiation is a core feature of Jax and often a main reason for using Jax.
 Therefore, it is essential that also custom Jax primitives registered by the user support automatic differentiation.
-In the following we will outline which functions Jax and our `jax_op` package require to enable automatic differentiation for the custom primitive.
+In the following, we will outline which functions Jax and our `jax_op` package require to enable automatic differentiation for the custom primitive.
 
 Assume we want to expose the function $f:X \mapsto Y$ as a Jax primitive.
-In most application of the `jax_op` package some high performance code such as a spherical harmonic transformation or a non uniform FFT will be wrapped as a jax primitive.
-Nevertheless, for simplicity we choose $f(x_1,x_2) = x_1x_2^2$ as an example.
+In most applications of the `jax_op` package, some high-performance code, such as a spherical harmonic transformation or a non-uniform FFT, will be wrapped as a Jax primitive.
+Nevertheless, for simplicity, we choose $f(x_1,x_2) = x_1x_2^2$ as an example.
 ```python
 import jax
 import jax.numpy as jnp
@@ -89,26 +89,27 @@ The Jacobian-vector product in Jax is a function applying the Jacobian of $f$ at
 Mathematically, this operation is called pushforward of $f$ and can be denoted as $\partial f(x): T_x X \mapsto T_{f(x)} Y$, with $T_x X$ and $T_{f(x)} Y$ being the tangent spaces of $X$ and $Y$ at the positions $x$ and $f(x)$.
 As the implementation of $f$ is not Jax native, Jax cannot automatically compute the `jvp`.
 Instead, an implementation of the pushforward has to be provided, which `jax_op` will register as the `jvp` of jax primitive of $f$.
-More precisely, `jax_op` requires a function taking as an input a position $x\in X$ and a tangent $dx \in T_x$ and computing the corresponding cotangent $\partial f(x)(dx)$.
-For our example $f$ this Jacobian function is given by $\partial f(x_1,x_2)(dx_1,dx_2) = x_2^2dx_1 + 2x_1x_2dx_2$.
+For our example $f$ this jacobian-vector-product function is given by $\partial f(x_1,x_2)(dx_1,dx_2) = x_2^2dx_1 + 2x_1x_2dx_2$.
 ```python
-def f_jacobian(out, args, kwargs_dump):
+def f_jvp(out, args, kwargs_dump):
     kwargs = jax_linop.load_kwargs(kwargs_dump)
     x1, x2, dx1, dx2 = args
     out[0][()] = x2**2 * dx1 + 2 * x1 * x2 * dx2
 ```
-The vector-Jacobian product in Jax is the linear transposed of the Jacobian-vector product.
+The vector-Jacobian product `vjp` in Jax is the linear transposed of the Jacobian-vector product.
 In mathematical nomenclature this is the pullback $(\partial f(x))^{T}: T_{f(x)}Y \mapsto T_x X$ of $f$.
 In analogy to `jvp`, the user has to implement this function as Jax cannot automatically construct it.
-Specifically, the user has to provide a function computing the tangent vector $(\partial f(x))^{T}(c)$ for a given position $x \in X$ and cotangent $dy \in T_{f(x)}Y$. For the example function the transposed jacobian application is $(\partial f(x_1,x_2))^{T}(dy) = (x_2^2dy, 2x_1x_2dy)$.
+For the example function, the vector-jacobian product is $(\partial f(x_1,x_2))^{T}(dy) = (x_2^2dy, 2x_1x_2dy)$.
 ```python
-def f_jacobian_T(out, args, kwargs_dump):
+def f_vjp(out, args, kwargs_dump):
     kwargs = jax_linop.load_kwargs(kwargs_dump)
     x1, x2, dy = args
     out[0][()] = x2**2 * dy
     out[1][()] = 2 * x1 * x2 * dy
 ```
-For just-in-time compilation Jax needs to trace the code, meaning that Jax needs to evaluate the output shapes of a function given the shape of the input. Therefore we have to provide these functions returning the output shape and dtype given an input shape and dtype for `f` as well as the Jacobian and Jacobian transposed applications.
+For just-in-time compilation, Jax needs to trace the code, meaning that Jax needs to evaluate the output shapes of a function given the shape of the input.
+Therefore, we have to provide these functions returning the output shape and dtype given an input shape and dtype for `f` as well as the `vjp` applications.
+The output shape of the `jvp` is identical to the output shape of $f$ itself and does not need to be specified again.
 ```python
 def f_abstract(*args, **kwargs):
     assert args[0].shape == args[1].shape
@@ -120,13 +121,15 @@ def f_abstract_T(*args, **kwargs):
         (args[0].shape, args[0].dtype),
     )
 ```
-Now we have defined all ingredients necessary to register a jax primitive for our function $f$ using the `jax_op` package.
+We have defined all ingredients necessary to register a Jax primitive for our function $f$ using the `jax_op` package.
 ```python
 f_jax = jax_linop.get_nonlinear_call(
-    f, (f_jacobian, f_jacobian_T), f_abstract, f_abstract_T
+    f, (f_jvp, f_vjp), f_abstract, f_abstract_T
 )
 ```
-We can compute the `jvp` and `vjp` of the new jax primitive and even jit-compile it.
+`f_jax` is a Jax primitive registered via the `jax_op` package supporting all Jax transformations.
+For example, we can compute the `jvp` and `vjp` of the new jax primitive and even jit-compile it.
+Also, the `vmap` transformation of `f_jax` is possible.
 ```python
 inp = (jnp.full((4,3), 4.), jnp.full((4,3), 2.))
 tan = (jnp.full((4,3), 1.), jnp.full((4,3), 1.))
@@ -148,12 +151,13 @@ Nevertheless, for many algorithms, first derivatives are sufficient, and higher 
 Therefore, the current interface of `jax_op` is, for simplicity, restricted to first derivatives.
 In the future, the interface could be expanded if specific use cases require higher order derivatives.
 
-In scientific computing, linear functions such as spherical harmonic transformations are a frequently encountered special type.
+In scientific computing, linear functions such as spherical harmonic transformations are frequently encountered.
 If the function $f$ is linear, differentiation becomes much simpler.
 Specifically for a linear $f$, the jacobian or the pushforward/ `jvp` of $f$ are identical to $f$ itself and are independent from the position at which they were computed.
-Analogously, the pullback/ `vjp` becomes independent of the initial position and is just given by the linear transposed of $f$.
+Expressed in formulas $\partial f(x)(dx) = f(dx)$ if $f$ is linear.
+Analogously, the pullback/ `vjp` becomes independent of the initial position and is just given by the linear transposed of $f$, thus  $(\partial f(x))^{T}(dy) = f^T(dy)$.
 Also, all higher order derivatives can be expressed in terms of $f$ and its transpose.
-To make use of these simplifications, `jax_op` provides a special interface, supporting higher order derivatives for linear functions, which only requires an implementation of the function and linear transposed function.
+To make use of these simplifications, `jax_op` provides a special interface for linear functions, supporting higher order derivatives, which only requires an implementation of the function and its transposed.
 
 
 
