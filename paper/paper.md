@@ -31,11 +31,11 @@ bibliography: paper.bib
 # Summary
 
 Jax is widely used in machine learning and scientific computing.
-Especially in scientific computing, high-performance implementations of special transformations are often required, which cannot easily be natively reimplemented in Jax.
+Especially in scientific computing, high-performance implementations of special transformations are often required, which cannot easily be reimplemented natively in Jax.
 Therefore, it is essential for many applications to extend Jax with custom functions.
-The existing interface in Jax for connecting custom functions requires deep knowledge of Jax and relies on error-prone C++ pointer logic to transfer the custom functions' input and output.
+The existing interface in Jax for connecting custom functions requires deep knowledge of Jax and relies on error-prone C++ pointer logic for transferring the custom functions' input and output.
 The aim of `jax_op` is to drastically lower the burden of connecting custom functions implemented in other programming languages to Jax.
-Specifically, `jax_op` provides an easy-to-use Python interface for defining custom Jax primitives that support Jax transformations.
+Specifically, `jax_op` provides an easy-to-use Python interface for defining custom Jax primitives supporting Jax transformations.
 
 
 # Statement of Need
@@ -59,8 +59,8 @@ Derivatives, compilation rules, and batching rules are automatically registered 
 <!-- Mention (if applicable) a representative set of past or ongoing research projects using the software and recent scholarly publications enabled by it. -->
 We believe `jax_op` to be highly useful in scientific computing.
 <!-- There are a lot of well-developed packages in JAX for, e.g., optimization and sampling that could be used once existing code is able to interface with JAX. -->
-We intend to use this package to connect the Hartley transform and the spherical harmonic transform from ducc [@ducc0] to NIFTy [@Edenhofer2023NIFTyRE].
-Furthermore, we intend to connect an image gridder implemented in C++ (TODO:cite resolve) for radio-astronomical data to JAX for use in radio-astronomy and strong-lensing astrophysics.
+We intend to use this package to connect the Hartley transform and the spherical harmonic transform from ducc [@ducc0] to NIFTy [@Edenhofer2023NIFTyRE] as well as the radio interferometry response from ducc with \texttt{resolve} [@resolve2024] for radio astronomy.
+Furthermore, we intend to connect the non-uniform FFT from ducc with Jax for applications in strong-lensing astrophysics.
 We envision many further applications within and outside of astrophysics, e.g., for highly specialized and well-optimized codes such as TODO.
 
 <!-- A list of key references, including to other software addressing related needs. Note that the references should include full names of venues, e.g., journals and conferences, not abbreviations only understood in the context of a specific discipline. -->
@@ -89,12 +89,12 @@ def f(out, args, kwargs_dump):
     out[0][()] = x1 * x2**2
 ```
 
-Additionally to evaluating $f$, Jax can compute jacobian-vector products `jvp` and vector-jacobian products `vjp` of $f$, also referred to as forward and reverse mode differentiation.
+Additionally to evaluating $f$, Jax can compute Jacobian-vector products `jvp` and vector-Jacobian products `vjp` of $f$, also referred to as forward and reverse mode differentiation.
 The Jacobian-vector product in Jax is a function applying the Jacobian of $f$ at a position $x$ to tangent vectors.
 Mathematically, this operation is called pushforward of $f$ and can be denoted as $\partial f(x): T_x X \mapsto T_{f(x)} Y$, with $T_x X$ and $T_{f(x)} Y$ being the tangent spaces of $X$ and $Y$ at the positions $x$ and $f(x)$.
 As the implementation of $f$ is not Jax native, Jax cannot automatically compute the `jvp`.
-Instead, an implementation of the pushforward has to be provided, which `jax_op` will register as the `jvp` of jax primitive of $f$.
-For our example $f$ this jacobian-vector-product function is given by $\partial f(x_1,x_2)(dx_1,dx_2) = x_2^2dx_1 + 2x_1x_2dx_2$.
+Instead, an implementation of the pushforward has to be provided, which `jax_op` will register as the `jvp` of the Jax primitive of $f$.
+For our example $f$ this Jacobian-vector-product function is given by $\partial f(x_1,x_2)(dx_1,dx_2) = x_2^2dx_1 + 2x_1x_2dx_2$.
 ```python
 def f_jvp(out, args, kwargs_dump):
     kwargs = jax_linop.load_kwargs(kwargs_dump)
@@ -104,7 +104,7 @@ def f_jvp(out, args, kwargs_dump):
 The vector-Jacobian product `vjp` in Jax is the linear transposed of the Jacobian-vector product.
 In mathematical nomenclature this is the pullback $(\partial f(x))^{T}: T_{f(x)}Y \mapsto T_x X$ of $f$.
 In analogy to `jvp`, the user has to implement this function as Jax cannot automatically construct it.
-For the example function, the vector-jacobian product is $(\partial f(x_1,x_2))^{T}(dy) = (x_2^2dy, 2x_1x_2dy)$.
+For the example function, the vector-Jacobian product is $(\partial f(x_1,x_2))^{T}(dy) = (x_2^2dy, 2x_1x_2dy)$.
 ```python
 def f_vjp(out, args, kwargs_dump):
     kwargs = jax_linop.load_kwargs(kwargs_dump)
@@ -112,9 +112,9 @@ def f_vjp(out, args, kwargs_dump):
     out[0][()] = x2**2 * dy
     out[1][()] = 2 * x1 * x2 * dy
 ```
-For just-in-time compilation, Jax needs to trace the code, meaning that Jax needs to evaluate the output shapes of a function given the shape of the input.
+For just-in-time compilation, Jax needs to trace the code, meaning that Jax needs to evaluate the output shape of a function given the shape of the input.
 Therefore, we have to provide these functions returning the output shape and dtype given an input shape and dtype for `f` as well as the `vjp` applications.
-The output shape of the `jvp` is identical to the output shape of $f$ itself and does not need to be specified again.
+The output shape of the `jvp` is identical to the output shape of `f` itself and does not need to be specified again.
 ```python
 def f_abstract(*args, **kwargs):
     assert args[0].shape == args[1].shape
@@ -133,7 +133,7 @@ f_jax = jax_linop.get_nonlinear_call(
 )
 ```
 `f_jax` is a Jax primitive registered via the `jax_op` package supporting all Jax transformations.
-For example, we can compute the `jvp` and `vjp` of the new jax primitive and even jit-compile it.
+For example, we can compute the `jvp` and `vjp` of the new Jax primitive and even jit-compile it.
 Also, the `vmap` transformation of `f_jax` is possible.
 ```python
 inp = (jnp.full((4,3), 4.), jnp.full((4,3), 2.))
@@ -158,11 +158,11 @@ In the future, the interface could be expanded if specific use cases require hig
 
 In scientific computing, linear functions such as spherical harmonic transformations are frequently encountered.
 If the function $f$ is linear, differentiation becomes much simpler.
-Specifically for a linear $f$, the jacobian or the pushforward/ `jvp` of $f$ are identical to $f$ itself and are independent from the position at which they were computed.
+Specifically for a linear $f$, the Jacobian or the pushforward/ `jvp` of $f$ are identical to $f$ itself and are independent from the position at which they were computed.
 Expressed in formulas $\partial f(x)(dx) = f(dx)$ if $f$ is linear.
 Analogously, the pullback/ `vjp` becomes independent of the initial position and is just given by the linear transposed of $f$, thus  $(\partial f(x))^{T}(dy) = f^T(dy)$.
 Also, all higher order derivatives can be expressed in terms of $f$ and its transpose.
-To make use of these simplifications, `jax_op` provides a special interface for linear functions, supporting higher order derivatives, which only requires an implementation of the function and its transposed.
+To make use of these simplifications, `jax_op` provides a special interface for linear functions, supporting higher order derivatives, only requiring an implementation of the function and its transposed.
 
 
 
