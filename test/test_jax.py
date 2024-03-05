@@ -150,7 +150,9 @@ def healpixfunc(out, args, kwargs_dump):
         nphi=nphi,
         ringstart=ringstart,
         spin=kwargs["spin"],
-        lmax=kwargs["lmax"], mmax=kwargs["mmax"], nthreads=kwargs["nthreads"],
+        lmax=kwargs["lmax"],
+        mmax=kwargs["mmax"],
+        nthreads=kwargs["nthreads"],
     )
 
 
@@ -158,28 +160,36 @@ def healpixfunc_T(out, args, kwargs_dump):
     kwargs = jax_linop.load_kwargs(kwargs_dump).copy()
     theta, phi0, nphi, ringstart, x = args
     tmp = ducc0.sht.adjoint_synthesis(
-        map=x, theta=theta, phi0=phi0, nphi=nphi, ringstart=ringstart,
+        map=x,
+        theta=theta,
+        phi0=phi0,
+        nphi=nphi,
+        ringstart=ringstart,
         spin=kwargs["spin"],
-        lmax=kwargs["lmax"], mmax=kwargs["mmax"], nthreads=kwargs["nthreads"],
+        lmax=kwargs["lmax"],
+        mmax=kwargs["mmax"],
+        nthreads=kwargs["nthreads"],
     )
     alm2realalm(tmp, kwargs["lmax"], x.dtype, out[0])
 
 
 def healpixfunc_abstract(*args, **kwargs):
+    _, _, _, _, x = args
     spin = kwargs["spin"]
     ncomp = 1 if spin == 0 else 2
     shape_out = (ncomp, 12 * kwargs["nside"] ** 2)
-    return ((shape_out, args[4].dtype),)
+    return ((shape_out, x.dtype),)
 
 
 def healpixfunc_abstract_T(*args, **kwargs):
+    _, _, _, _, x = args
     spin = kwargs["spin"]
     ncomp = 1 if spin == 0 else 2
     lmax, mmax = kwargs["lmax"], kwargs["mmax"]
     nalm = ((mmax + 1) * (mmax + 2)) // 2 + (mmax + 1) * (lmax - mmax)
     nalm = nalm * 2 - lmax - 1
     shape_out = (ncomp, nalm)
-    return ((shape_out, args[4].dtype),)
+    return ((shape_out, x.dtype),)
 
 
 def _assert_close(a, b, epsilon):
@@ -277,9 +287,9 @@ def test_sht2d(lmmax, geometry, ntheta, nphi, spin, dtype, nthreads):
     )
     # The conjugations are only necessary if the input or output data types
     # are complex. Leaving them out makes things (surprisingly) faster.
-#    op_adj = lambda x: jax.linear_transpose(lambda y: op(y)[0], alm0r)(x.conj())[
-#        0
-#    ].conj()
+    #    op_adj = lambda x: jax.linear_transpose(lambda y: op(y)[0], alm0r)(x.conj())[
+    #        0
+    #    ].conj()
     op_adj = lambda x: jax.linear_transpose(lambda y: op(y)[0], alm0r)(x)[0]
 
     map1 = np.array(op(alm0r)[0])
@@ -330,34 +340,37 @@ def test_healpix(lmmax, nside, spin, dtype, nthreads):
         healpixfunc_abstract_T,
         args_fixed=(True,) * 4 + (False,),
     )
-    hp = partial(
-        hp,
-        hpxparam["theta"],
-        hpxparam["phi0"],
-        hpxparam["nphi"],
-        hpxparam["ringstart"],
-        lmax=lmax,
-        mmax=mmax,
-        spin=spin,
-        nthreads=nthreads,
-        nside=nside,
-    )
+
+    def hpp(x):
+        # Partial insert where the first parameter is not inserted
+        return hp(
+            hpxparam["theta"],
+            hpxparam["phi0"],
+            hpxparam["nphi"],
+            hpxparam["ringstart"],
+            x,
+            lmax=lmax,
+            mmax=mmax,
+            spin=spin,
+            nthreads=nthreads,
+            nside=nside,
+        )
 
     # The conjugations are only necessary if the input or output data types
     # are complex. Leaving them out makes things (surprisingly) faster.
-#    hp_adj = lambda x: jax.linear_transpose(lambda y: hp(y)[0], alm0r)(x.conj())[
-#        0
-#    ].conj()
-    hp_adj = lambda x: jax.linear_transpose(lambda y: hp(y)[0], alm0r)(x)[0]
+    #    hp_adj = lambda x: jax.linear_transpose(lambda y: hp(y)[0], alm0r)(x.conj())[
+    #        0
+    #    ].conj()
+    hpp_adj = lambda x: jax.linear_transpose(lambda y: hpp(y)[0], alm0r)(x)[0]
 
-    map1 = np.array(hp(alm0r)[0])
+    map1 = np.array(hpp(alm0r)[0])
     map2 = ducc0.sht.synthesis(
         alm=alm0, lmax=lmax, mmax=mmax, spin=spin, nthreads=nthreads, **hpxparam
     )
     _assert_close(map1, map2, epsilon=1e-6 if dtype == np.float32 else 1e-14)
 
     map0 = (rng.random((ncomp, 12 * nside**2)) - 0.5).astype(dtype)
-    alm1r = np.array(hp_adj(map0))
+    alm1r = np.array(hpp_adj(map0))
     alm1 = realalm2alm(alm1r, lmax, complextype(dtype))
     alm2 = ducc0.sht.adjoint_synthesis(
         map=map0, lmax=lmax, mmax=mmax, spin=spin, nthreads=nthreads, **hpxparam
@@ -365,5 +378,5 @@ def test_healpix(lmmax, nside, spin, dtype, nthreads):
     _assert_close(alm1, alm2, epsilon=1e-6 if dtype == np.float32 else 1e-14)
 
     max_order = 2
-    check_grads(hp, (alm0r,), order=max_order, modes=("fwd", "rev"), eps=1.0)
-    check_grads(hp_adj, (map0,), order=max_order, modes=("fwd", "rev"), eps=1.0)
+    check_grads(hpp, (alm0r,), order=max_order, modes=("fwd", "rev"), eps=1.0)
+    check_grads(hpp_adj, (map0,), order=max_order, modes=("fwd", "rev"), eps=1.0)
