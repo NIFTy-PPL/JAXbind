@@ -107,7 +107,7 @@ def sht2d_operator(lmax, mmax, ntheta, nphi, geometry, spin, nthreads):
         spin = kwargs["spin"]
         ncomp = 1 if spin == 0 else 2
         shape_out = (ncomp, kwargs["ntheta"], kwargs["nphi"])
-        return shape_out, args[0].dtype
+        return ((shape_out, args[0].dtype),)
 
     def sht2dfunc_abstract_T(*args, **kwargs):
         spin = kwargs["spin"]
@@ -116,7 +116,7 @@ def sht2d_operator(lmax, mmax, ntheta, nphi, geometry, spin, nthreads):
         nalm = ((mmax + 1) * (mmax + 2)) // 2 + (mmax + 1) * (lmax - mmax)
         nalm = nalm * 2 - lmax - 1
         shape_out = (ncomp, nalm)
-        return shape_out, args[0].dtype
+        return ((shape_out, args[0].dtype),)
 
     func = jax_linop.get_linear_call(
         sht2dfunc,
