@@ -22,14 +22,14 @@ The latest version of jax_linop can be obtained by cloning the repository via
 
 ## TODOs
 
-* Interface
+* Interface:
+  * dockstrings
 * Tests
 * Reorganize internal data structure
 * Check if reference to function can get lost
 * Paper
-  * Briefly describe required functions
-  * Show quick example
-  * Summary
+  * final editing
+  * martin orcid id
 
 ## Licensing terms
 
