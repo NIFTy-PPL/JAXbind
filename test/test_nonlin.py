@@ -109,22 +109,6 @@ def f_vjp_fix_x(out, args, kwargs_dump, batch_version=False):
     out[0][()] = call(*args)
 
 
-def mlin_abstract(*args, **kwargs):
-    # Returns `shape` and `dtype` of output as well as the added batch_axes of the `output``
-    batch_axes = kwargs.pop("batch_axes", ())
-    call = mlin_call
-    if batch_axes != () and batch_axes != ((),) * len(args):
-        assert all(
-            len(ba) in (0, 1) for ba in batch_axes
-        )  # Allow vmapping exactly once
-        call = jax.vmap(
-            mlin_call,
-            in_axes=tuple((ba[0] if len(ba) == 1 else None) for ba in batch_axes),
-        )
-    out = jax.eval_shape(call, *args)
-    return tuple((o.shape, o.dtype, 0) for o in out)
-
-
 def f_abstract(*args, **kwargs):
     out = jax.eval_shape(f_call, *args[0:2])
     return tuple((o.shape, o.dtype, 0) for o in out)
@@ -132,9 +116,7 @@ def f_abstract(*args, **kwargs):
 
 def f_abstract_vjp_fix_x(*args, **kwargs):
     out = jax.eval_shape(f_vjp_fix_x_call, *args[0:4])
-    # return tuple((o.shape, o.dtype, 0) for o in out)
-    o = out
-    return ((o.shape, o.dtype, ()),)
+    return ((out.shape, out.dtype, ()),)
 
 
 @pmp("first_n_args_fixed", (0, 1))
