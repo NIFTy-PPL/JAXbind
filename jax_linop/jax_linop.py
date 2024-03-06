@@ -23,7 +23,7 @@ for _name, _value in _jax_linop.registrations().items():
 
 
 # Hack to avoid classes and having to register a PyTree
-_shared_args_names = ("abstract", "abstract_T", "args_fixed", "can_batch", "batch_axes")
+_shared_args_names = ("abstract", "abstract_T", "first_n_args_fixed", "can_batch", "batch_axes")
 LinearFunction = namedtuple("LinearFunction", ("f", "T") + _shared_args_names)
 MultiLinearFunction = namedtuple("MultiLinearFunction", ("f", "T") + _shared_args_names)
 NonLinearFunction = namedtuple(
@@ -121,9 +121,10 @@ def _jvp(args, tangents, *, _func: FunctionType, **kwargs):
         if isinstance(tans, (tuple, list)):
             return [isinstance(t, ad.Zero) for t in tans]
         return [isinstance(tans, ad.Zero)]
-
-    args_fixed = (False,) * len(args)
-    args_fixed = _func.args_fixed if _func.args_fixed is not None else args_fixed
+    n_args = len(args)
+    n_f_args = _func.first_n_args_fixed
+    assert(n_args > n_f_args)
+    args_fixed = n_f_args * (True,) + (n_args - n_f_args) * (False, )
     assert len(args) == len(tangents) == len(args_fixed)
 
     tan_is_zero = zero_tans(tangents)
@@ -131,7 +132,7 @@ def _jvp(args, tangents, *, _func: FunctionType, **kwargs):
 
     for i, (a, t) in enumerate(zip(args_fixed, tan_is_zero)):
         if a and not t:
-            raise RuntimeError(f"{i}th poisiton argument not differentiable")
+            raise RuntimeError(f"{i}th positional argument not differentiable")
 
     if all(type(t) is ad.Zero for t in tangents):
         tans = list((jax.lax.zeros_like_array(a) for a in res))
@@ -160,7 +161,7 @@ def _jvp(args, tangents, *, _func: FunctionType, **kwargs):
             T=f_T,
             abstract=_func.abstract,
             abstract_T=_func.abstract_T,
-            args_fixed=(True,) * len(args) + (False,) * len(tangents),
+            first_n_args_fixed=len(args),
             can_batch=_func.can_batch,
             batch_axes=_func.batch_axes,
         )
@@ -178,9 +179,10 @@ def _transpose(cotangents, *args, _func: FunctionType, **kwargs):
     assert isinstance(_func, (LinearFunction, MultiLinearFunction))
     if _func.T is None:
         raise NotImplementedError(f"transpose of {_func} not implemented")
-
-    args_fixed = (False,) * len(args)
-    args_fixed = _func.args_fixed if _func.args_fixed is not None else args_fixed
+    n_args = len(args)
+    n_f_args = _func.first_n_args_fixed
+    assert(n_args > n_f_args)
+    args_fixed = n_f_args * (True,) + (n_args - n_f_args) * (False, )
     arg_is_lin = [ad.is_undefined_primal(a) for a in args]
     assert len(args_fixed) >= len(arg_is_lin)
 
@@ -219,10 +221,10 @@ def _transpose(cotangents, *args, _func: FunctionType, **kwargs):
             T=_func.f,
             abstract=_func.abstract_T,
             abstract_T=_func.abstract,
-            args_fixed=(True,) * len(inp) + (False,) * len(cot),
+            first_n_args_fixed=len(inp),
         )
         res = _prim.bind(*inp, *cot, **kwargs, _func=_func)
-        res = [None if f else res.pop(0) for f in args_fixed]
+        res = n_f_args * [None, ] + res
     else:
         raise TypeError(f"transpose for {type(_func)} not implemented")
     return res
@@ -302,7 +304,7 @@ def get_linear_call(
     abstract,
     abstract_T,
     *,
-    args_fixed=None,
+    first_n_args_fixed=0,
     func_can_batch=False,
 ) -> partial:
     """Create a JAX primitive for the provided linear function
@@ -325,7 +327,12 @@ def get_linear_call(
         potential keyword arguments are passed to the function. The function
         must return a tuple containing tuples of (shape_out, dtype_out) for each
         output argument of `f` respectively `f_T`.
-    args_fixed : FIXME
+    first_n_args_fixed : int
+        If the function cannot be differentiated with respect to some of the
+        arguments, these can be passed as the first arguments to the function.
+        fist_n_args_fixed indicates the number of non-differential arguments.
+        Note: The function does not need to be linear with respect to these
+        arguments. Default 0 (all arguments are differentiable).
     func_can_batch : bool
         Indicator whether the function natively supports batching. If true, the
         function will receive one additional argument called `batch_axes`. The
@@ -355,7 +362,7 @@ def get_linear_call(
         T=f_T,
         abstract=abstract,
         abstract_T=abstract_T,
-        args_fixed=args_fixed,
+        first_n_args_fixed=first_n_args_fixed,
         batch_axes=None,
         can_batch=func_can_batch,
     )
@@ -373,7 +380,7 @@ def get_nonlinear_call(
     abstract,
     abstract_reverse,
     *,
-    args_fixed=None,
+    first_n_args_fixed=0,
     func_can_batch=False,
 ) -> partial:
     """Create a JAX primitive for the provided (nonlinear) function
@@ -401,7 +408,11 @@ def get_nonlinear_call(
         tuples of (shape_out, dtype_out). abstract should compute the output
         shapes of f and jvp. abstract_reverse should compute the output shape of
         vjp.
-    args_fixed : FIXME
+    first_n_args_fixed : int
+        If the function cannot be differentiated with respect to some of the
+        arguments, these can be passed as the first arguments to the function.
+        fist_n_args_fixed indicates the number of non-differential arguments.
+        Default 0 (all arguments are differentiable).
     func_can_batch : bool
         Indicator whether the function natively supports batching. If true, the
         function will receive one additional argument called `batch_axes`. The
@@ -426,7 +437,7 @@ def get_nonlinear_call(
         f=f,
         abstract=abstract,
         abstract_T=abstract_reverse,
-        args_fixed=args_fixed,
+        first_n_args_fixed=first_n_args_fixed,
         batch_axes=None,
         can_batch=func_can_batch,
         derivatives=f_derivative,
