@@ -9,8 +9,8 @@ authors:
     orcid: 0000-0002-8873-8215
     equal-contrib: true
     affiliation: "1, 2, 3"
-  - name: Martin Reinecke (TODO check orcid)
-    orcid: 0000-0001-6966-5658
+  - name: Martin Reinecke
+    orcid:
     equal-contrib: true
     affiliation: "1"
   - name: Gordian Edenhofer
