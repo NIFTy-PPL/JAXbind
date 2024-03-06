@@ -142,7 +142,8 @@ def f_abstract_vjp_fix_x(*args, **kwargs):
 @pmp("dtype", (np.float32, np.float64, np.complex64, np.complex128))
 @pmp("shape", ((2,), (3, 4)))
 @pmp("seed", (42,))
-def test_derivatives(first_n_args_fixed, can_batch, dtype, shape, seed):
+@pmp("jit", (False, True))
+def test_derivatives(first_n_args_fixed, can_batch, dtype, shape, seed, jit):
     if first_n_args_fixed == 0:
         funcs_deriv = (
             partial(f_jvp, batch_version=can_batch),
@@ -163,6 +164,8 @@ def test_derivatives(first_n_args_fixed, can_batch, dtype, shape, seed):
         absr_T,
         first_n_args_fixed=first_n_args_fixed,
     )
+    if jit:
+        f_jax = jax.jit(f_jax)
     key = random.PRNGKey(seed)
     key, subkey = random.split(key)
     inp1 = jax.random.uniform(
@@ -198,7 +201,8 @@ def test_derivatives(first_n_args_fixed, can_batch, dtype, shape, seed):
 @pmp("dtype", (np.float32, np.float64, np.complex64, np.complex128))
 @pmp("shape", ((2,), (3, 4)))
 @pmp("seed", (42,))
-def test_vmap(in_axes, can_batch, dtype, shape, seed):
+@pmp("jit", (False, True))
+def test_vmap(in_axes, can_batch, dtype, shape, seed, jit):
     funcs_deriv = (
         partial(f_jvp, batch_version=can_batch),
         partial(f_vjp, batch_version=can_batch),
@@ -211,6 +215,8 @@ def test_vmap(in_axes, can_batch, dtype, shape, seed):
         partial(f_abstract, batch_version=can_batch),
         absr_T,
     )
+    if jit:
+        f_jax = jax.jit(f_jax)
     key = random.PRNGKey(seed)
 
     key, subkey = random.split(key)
@@ -273,6 +279,10 @@ def test_vmap(in_axes, can_batch, dtype, shape, seed):
 
     f_jax_vmap = jax.vmap(f_jax, in_axes=in_axes)
     f_call_vmap = jax.vmap(f_call, in_axes=in_axes)
+
+    if jit:
+        f_jax_vmap = jax.jit(f_jax_vmap)
+        f_call_vmap = jax.jit(f_call_vmap)
 
     # test consistency against JAX native function with vmap
     res1 = f_jax_vmap(*inp)
