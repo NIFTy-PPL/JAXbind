@@ -235,8 +235,8 @@ def _batch(args, in_axes, *, _func: FunctionType, **kwargs):
         y = smap(partial(_prim.bind, _func=_func), in_axes=in_axes)(*args)
         out_axes = [0] * len(y)
     else:
-        batch_axes = _func.batch_axes if _func.batch_axes is not None else ()
-        batch_axes = ((),) * len(in_axes) if batch_axes == () else batch_axes
+        batch_axes = _func.batch_axes
+        batch_axes = ((),) * len(in_axes) if batch_axes is None else batch_axes
         new_batch_axes, inserted_axes = [], []
         for ia, baxes in zip(in_axes, batch_axes, strict=True):
             if ia is not None:
@@ -304,7 +304,6 @@ def get_linear_call(
     *,
     args_fixed=None,
     func_can_batch=False,
-    batch_axes=(),
 ) -> partial:
     """Create Jax primitive for the provided linear function
 
@@ -352,7 +351,7 @@ def get_linear_call(
         abstract=abstract,
         abstract_T=abstract_T,
         args_fixed=args_fixed,
-        batch_axes=batch_axes,
+        batch_axes=None,
         can_batch=func_can_batch,
     )
     if isinstance(f_T, (tuple, list)):
@@ -371,7 +370,6 @@ def get_nonlinear_call(
     *,
     args_fixed=None,
     func_can_batch=False,
-    batch_axes=(),
 ) -> partial:
     """Create Jax primitive for the provided (nonlinear) function
 
@@ -420,7 +418,7 @@ def get_nonlinear_call(
         abstract=abstract,
         abstract_T=abstract_reverse,
         args_fixed=args_fixed,
-        batch_axes=batch_axes,
+        batch_axes=None,
         can_batch=func_can_batch,
         derivatives=f_derivative,
     )
