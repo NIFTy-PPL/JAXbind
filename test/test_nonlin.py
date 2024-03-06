@@ -196,6 +196,7 @@ def test_vmap(in_axes, can_batch, dtype, shape, seed, jit):
         funcs_deriv,
         partial(f_abstract, batch_version=can_batch),
         absr_T,
+        func_can_batch=can_batch
     )
     if jit:
         f_jax = jax.jit(f_jax)
@@ -273,3 +274,7 @@ def test_vmap(in_axes, can_batch, dtype, shape, seed, jit):
 
     # test derivatives of vmap function
     check_grads(f_jax_vmap, inp, order=1, modes=["fwd", "rev"], eps=1e-3)
+
+
+if __name__ == "__main__":
+    test_vmap((0, 0), True, np.float64, (2,1), 42, False)
