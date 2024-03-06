@@ -23,7 +23,13 @@ for _name, _value in _jax_linop.registrations().items():
 
 
 # Hack to avoid classes and having to register a PyTree
-_shared_args_names = ("abstract", "abstract_T", "first_n_args_fixed", "can_batch", "batch_axes")
+_shared_args_names = (
+    "abstract",
+    "abstract_T",
+    "first_n_args_fixed",
+    "can_batch",
+    "batch_axes",
+)
 LinearFunction = namedtuple("LinearFunction", ("f", "T") + _shared_args_names)
 MultiLinearFunction = namedtuple("MultiLinearFunction", ("f", "T") + _shared_args_names)
 NonLinearFunction = namedtuple(
@@ -37,10 +43,9 @@ def _exec_abstract(*args, _func: FunctionType, **kwargs):
     if _func.can_batch:
         assert "batch_axes" not in kwargs
         kwargs["batch_axes"] = _func.batch_axes
+    ae = _func.abstract(*args, **kwargs)
     # NOTE, do not attempt to unpack the batch axes b/c it might not be there
-    return tuple(
-        jax.core.ShapedArray(*sdb[:2]) for sdb in _func.abstract(*args, **kwargs)
-    )
+    return tuple(jax.core.ShapedArray(*sdb[:2]) for sdb in ae)
 
 
 # the values are explained in src/ducc0/bindings/typecode.h
@@ -121,10 +126,11 @@ def _jvp(args, tangents, *, _func: FunctionType, **kwargs):
         if isinstance(tans, (tuple, list)):
             return [isinstance(t, ad.Zero) for t in tans]
         return [isinstance(tans, ad.Zero)]
+
     n_args = len(args)
     n_f_args = _func.first_n_args_fixed
-    assert(n_args > n_f_args)
-    args_fixed = n_f_args * (True,) + (n_args - n_f_args) * (False, )
+    assert n_args > n_f_args
+    args_fixed = n_f_args * (True,) + (n_args - n_f_args) * (False,)
     assert len(args) == len(tangents) == len(args_fixed)
 
     tan_is_zero = zero_tans(tangents)
@@ -181,8 +187,8 @@ def _transpose(cotangents, *args, _func: FunctionType, **kwargs):
         raise NotImplementedError(f"transpose of {_func} not implemented")
     n_args = len(args)
     n_f_args = _func.first_n_args_fixed
-    assert(n_args > n_f_args)
-    args_fixed = n_f_args * (True,) + (n_args - n_f_args) * (False, )
+    assert n_args > n_f_args
+    args_fixed = n_f_args * (True,) + (n_args - n_f_args) * (False,)
     arg_is_lin = [ad.is_undefined_primal(a) for a in args]
     assert len(args_fixed) >= len(arg_is_lin)
 
@@ -224,7 +230,7 @@ def _transpose(cotangents, *args, _func: FunctionType, **kwargs):
             first_n_args_fixed=len(inp),
         )
         res = _prim.bind(*inp, *cot, **kwargs, _func=_func)
-        res = n_f_args * [None, ] + res
+        res = n_f_args * [None] + res
     else:
         raise TypeError(f"transpose for {type(_func)} not implemented")
     return res
