@@ -341,10 +341,10 @@ def get_linear_call(
     Notes
     -----
     - `f` and 'f_T' must not return anything; the result of the computation must be
-      written into `out`.
+      written into the member arrays of `out`.
     - the contents of `args` must not be modified.
-    - no references to `args` or `out` may be stored beyond the execution
-      time of `func`.
+    - no reference to the contents of `args` or `out` may be stored beyond
+      the execution time of `f` or `f_T`.
     """
     # TODO: register all func* in global scope such that the user does not need
     # keep a reference. Ideally this reference is cheap but just to be sure,
@@ -416,11 +416,11 @@ def get_nonlinear_call(
 
     Notes
     -----
-    - `f` and 'f_T' must not return anything; the result of the computation must be
-      written into `out`.
+    - `f` and members of 'f_derivative' must not return anything; the result
+      of the computation must be written into the member arrays `out`.
     - the contents of `args` must not be modified.
-    - no references to `args` or `out` may be stored beyond the execution
-      time of `func`.
+    - no references to the contents of `args` or `out` may be stored beyond
+      the execution time of `f` or `f_derivative`.
     """
     _func = NonLinearFunction(
         f=f,
