@@ -34,15 +34,15 @@ JAX is widely used in machine learning and scientific computing.
 Scientific computing relies on existing high-performance code which we would ideally like to use in JAX.
 Reimplementing the existing code in JAX is often impractical and the existing interface in JAX for connecting custom code requires deep knowledge of JAX and its C++ backend.
 The aim of `jax_op` is to drastically lower the burden of connecting custom functions implemented in other programming languages to JAX.
-Specifically, `jax_op` provides an easy-to-use Python interface for defining custom, so-called, JAX primitives supporting any JAX transformations.
+Specifically, `jax_op` provides an easy-to-use Python interface for defining custom, so-called JAX primitives supporting any JAX transformations.
 
 
 # Statement of Need
 
 The use of JAX [@Jax2018] is widespread in the natural sciences.
 JAX's powerful transformation system is of especially high interest.
-It enables retrieving arbitrary derivatives of functions, batch computations, and just-in-time compile code for additional performance.
-The transformation system in JAX relies on all constituents of the computation being written in JAX.
+It enables retrieving arbitrary derivatives of functions, batch computations, and just-in-time code compilation for additional performance.
+Its transformation system relies on all constituents of the computation being written in JAX.
 
 A plethora of high-performance code is not written in JAX and thus not accessible from within JAX.
 Rewriting these is often infeasible and/or inefficient.
@@ -50,7 +50,7 @@ Ideally, we would like to intermix existing high-performance code with JAX code.
 However, connecting code to JAX requires knowledge of the internals of JAX and its C++ backend.
 
 In this paper, we present `jax_op`, a package for bridging any function to JAX without in-depth knowledge of JAX's transformation system.
-The interface is accessible from Python with no C++ necessary.
+The interface is accessible from Python without requiring any development in C++.
 The package is able to register any function, its partial derivatives and their transpose functions as a JAX native call, a so-called primitive.
 Derivatives, compilation rules, and batching rules are automatically registered with JAX.
 
@@ -62,7 +62,7 @@ Furthermore, we intend to connect the non-uniform FFT from ducc with JAX for app
 We envision many further applications within and outside of astrophysics.
 
 <!-- A list of key references, including to other software addressing related needs. Note that the references should include full names of venues, e.g., journals and conferences, not abbreviations only understood in the context of a specific discipline. -->
-To the best of our knowledge there exists no code for connecting generic functions to JAX.
+To the best of our knowledge no other code currently exists for connecting generic functions to JAX.
 The package that comes the closest is Enzyme-JAX [@Moses2024].
 Enzyme-JAX allows one to differentiate a C++ function with Enzyme [@Moses2020; @Moses2021; @Moses2022] and connect it together with its derivative to JAX.
 However, it enforces the use of Enzyme for deriving derivatives and does not allow for connecting arbitrary code to JAX.
@@ -85,7 +85,7 @@ def f(out, args, kwargs_dump):
     out[0][()] = x1 * x2**2
 ```
 
-JAX's automatic differentiation engine can computes the Jacobian-vector product `jvp` and vector-Jacobian product `vjp` of JAX primitives.
+JAX's automatic differentiation engine can compute the Jacobian-vector product `jvp` and vector-Jacobian product `vjp` of JAX primitives.
 The Jacobian-vector product in JAX is a function applying the Jacobian of $f$ at a position $x$ to a tangent vector.
 In mathematical nomenclature this operation is called the pushforward of $f$ and can be denoted as $\partial f(x): T_x X \mapsto T_{f(x)} Y$, with $T_x X$ and $T_{f(x)} Y$ being the tangent spaces of $X$ and $Y$ at the positions $x$ and $f(x)$.
 As the implementation of $f$ is not JAX native, JAX cannot automatically compute the `jvp`.
@@ -112,9 +112,10 @@ def f_vjp(out, args, kwargs_dump):
     out[1][()] = 2 * x1 * x2 * dy
 ```
 
-To just-in-time compile the function, JAX needs to abstractly evaluate the code, i.e., JAX needs to be able to know the shape and dtype of the output of the custom function given only the shape and dtype of the input.
-We have to provide these abstract evaluation functions returning the output shape and dtype given an input shape and dtype for `f` as well as the `vjp` applications.
+To just-in-time compile the function, JAX needs to abstractly evaluate the code, i.e. it needs to be able to know the shape and dtype of the output of the custom function given only the shape and dtype of the input.
+We have to provide these abstract evaluation functions returning the output shape and dtype given an input shape and dtype for `f` as well as for the `vjp` application.
 The output shape of the `jvp` is identical to the output shape of `f` itself and does not need to be specified again.
+<!-- Should we point out specifically that the abstract functions take "traditional" args and kwargs? -->
 
 ```python
 def f_abstract(*args, **kwargs):
@@ -128,7 +129,7 @@ def f_abstract_T(*args, **kwargs):
     )
 ```
 
-We have defined all ingredients necessary to register a JAX primitive for our function $f$ using the `jax_op` package.
+We have now defined all ingredients necessary to register a JAX primitive for our function $f$ using the `jax_op` package.
 
 ```python
 import jax_linop #FIXME
@@ -166,13 +167,13 @@ For many algorithms, first derivatives are sufficient, and higher order derivati
 Therefore, the current interface of `jax_op` is, for simplicity, restricted to first derivatives.
 In the future, the interface could be easily expanded if specific use cases require higher order derivatives.
 
-In scientific computing, linear functions such as, e.g., spherical harmonic transformations are widespread.
+In scientific computing, linear functions such as, e.g., spherical harmonic transforms are widespread.
 If the function $f$ is linear, differentiation becomes trivial.
 Specifically for a linear function $f$, the pushforward respectively the `jvp` of $f$ is identical to $f$ itself and independent of the position at which it is computed.
-Expressed in formulas $\partial f(x)(dx) = f(dx)$ if $f$ is linear in $x$.
-Analogously, the pullback respectively the `vjp` becomes independent of the initial position and is given by the linear transposed of $f$, thus $(\partial f(x))^{T}(dy) = f^T(dy)$.
+Expressed in formulas, $\partial f(x)(dx) = f(dx)$ if $f$ is linear in $x$.
+Analogously, the pullback respectively the `vjp` becomes independent of the initial position and is given by the linear transpose of $f$, thus $(\partial f(x))^{T}(dy) = f^T(dy)$.
 Also, all higher order derivatives can be expressed in terms of $f$ and its transpose.
-To make use of these simplifications, `jax_op` provides a special interface for linear functions, supporting higher order derivatives, only requiring an implementation of the function and its transposed.
+To make use of these simplifications, `jax_op` provides a special interface for linear functions, supporting higher order derivatives, only requiring an implementation of the function and its transpose.
 
 # Acknowledgements
 
