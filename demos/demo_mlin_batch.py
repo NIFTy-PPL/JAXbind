@@ -17,18 +17,16 @@ def mlin_call(x, y):
 
 def mlin(out, args, kwargs_dump):
     kwargs = jax_linop.load_kwargs(kwargs_dump)
-    batch_axes = kwargs.pop("batch_axes", ())
+    batch_axes = kwargs.pop("batch_axes", None)
     call = mlin_call
-    if batch_axes != () and batch_axes != ((),) * len(args):
-        assert all(
-            len(ba) in (0, 1) for ba in batch_axes
-        )  # Allow vmapping exactly once
-        call = jax.vmap(
-            mlin_call,
-            in_axes=tuple((ba[0] if len(ba) == 1 else None) for ba in batch_axes),
-        )
+    if batch_axes is not None and batch_axes != ((),) * len(args):
+        # Allow vmapping exactly once
+        assert all(len(ba) in (0, 1) for ba in batch_axes)
+        in_axes = tuple((ba[0] if len(ba) == 1 else None) for ba in batch_axes)
+        call = jax.vmap(mlin_call, in_axes=in_axes)
     o = call(*args)
-    out[0][()], out[1][()] = o
+    out[0][()] = o[0]
+    out[1][()] = o[1]
 
 
 def mlin_T1(out, args, kwargs_dump):
@@ -41,18 +39,16 @@ def mlin_T2(out, args, kwargs_dump):
 
 def mlin_abstract(*args, **kwargs):
     # Returns `shape` and `dtype` of output as well as the added batch_axes of the `output``
-    batch_axes = kwargs.pop("batch_axes", ())
+    batch_axes = kwargs.pop("batch_axes", None)
     call = mlin_call
-    if batch_axes != () and batch_axes != ((),) * len(args):
-        assert all(
-            len(ba) in (0, 1) for ba in batch_axes
-        )  # Allow vmapping exactly once
-        call = jax.vmap(
-            mlin_call,
-            in_axes=tuple((ba[0] if len(ba) == 1 else None) for ba in batch_axes),
-        )
+    if batch_axes is not None and batch_axes != ((),) * len(args):
+        # Allow vmapping exactly once
+        assert all(len(ba) in (0, 1) for ba in batch_axes)
+        in_axes = tuple((ba[0] if len(ba) == 1 else None) for ba in batch_axes)
+        call = jax.vmap(mlin_call, in_axes=in_axes)
+    out_axes = [tuple(range(len(ba))) for ba in batch_axes]
     out = jax.eval_shape(call, *args)
-    return tuple((o.shape, o.dtype, 0) for o in out)
+    return tuple((o.shape, o.dtype, oa) for o, oa in zip(out, out_axes))
 
 
 def mlin_abstract_T1(*args, **kwargs):
@@ -76,12 +72,12 @@ mlin_jax = jax_linop.get_linear_call(
 )
 
 
-inp = (4 + jnp.zeros((2,)), 1 + jnp.zeros((2,)))\
+inp = (4 + jnp.zeros((2,)), 1 + jnp.zeros((2,)))
 
 vm = jax.vmap(mlin_jax, in_axes=(0, 0))
 vmj = jax.vmap(mlin_call, in_axes=(0, 0))
 
-r1 = vm(*inp)
-r2 = vmj(*inp)
+r = vm(*inp)
+rj = vmj(*inp)
 
-assert(r1[0].shape == r2[0].shape)
+assert r[0].shape == rj[0].shape
