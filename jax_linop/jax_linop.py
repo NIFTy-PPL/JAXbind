@@ -327,7 +327,12 @@ def get_linear_call(
         potential keyword arguments are passed to the function. The function
         must return a tuple containing tuples of (shape_out, dtype_out) for each
         output argument of `f` respectively `f_T`.
-    first_n_args_fixed : bool, default 0
+    first_n_args_fixed : int
+        If the function cannot be differentiated with respect to some of the
+        arguments, these can be passed as the first arguments to the function.
+        fist_n_args_fixed indicates the number of non-differential arguments.
+        Note: The function does not need to be linear with respect to these
+        arguments. Default 0 (all arguments are differentiable).
     func_can_batch : bool
         Indicator whether the function natively supports batching. If true, the
         function will receive one additional argument called `batch_axes`. The
@@ -403,7 +408,11 @@ def get_nonlinear_call(
         tuples of (shape_out, dtype_out). abstract should compute the output
         shapes of f and jvp. abstract_reverse should compute the output shape of
         vjp.
-    first_n_args_fixed : bool, default 0
+    first_n_args_fixed : int
+        If the function cannot be differentiated with respect to some of the
+        arguments, these can be passed as the first arguments to the function.
+        fist_n_args_fixed indicates the number of non-differential arguments.
+        Default 0 (all arguments are differentiable).
     func_can_batch : bool
         Indicator whether the function natively supports batching. If true, the
         function will receive one additional argument called `batch_axes`. The
