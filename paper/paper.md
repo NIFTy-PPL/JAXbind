@@ -18,11 +18,11 @@ authors:
     orcid: 0000-0003-3122-4894
     affiliation: "1, 2"  # Multiple affiliations must be quoted
 affiliations:
-  - name: Max Planck Institute for Astrophysics, Karl-Schwarzschild-Straße 1, 85748 Garching bei München, Germany
+  - name: Max Planck Institute for Astrophysics, Karl-Schwarzschild-Str. 1, 85748 Garching, Germany
     index: 1
-  - name: Ludwig Maximilian University of Munich, Geschwister-Scholl-Platz 1, 80539 München, Germany
+  - name: Ludwig Maximilian University of Munich, Geschwister-Scholl-Platz 1, 80539 Munich, Germany
     index: 2
-  - name: Technical University of Munich, Arcisstr. 21, 80333 München, Germany
+  - name: Technical University of Munich, Boltzmannstr. 3, 85748 Garching, Germany
     index: 3
 date: 22 February 2024
 bibliography: paper.bib
