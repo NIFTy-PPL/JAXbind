@@ -306,43 +306,46 @@ def get_linear_call(
     func_can_batch=False,
     batch_axes=(),
 ) -> partial:
-    """Create Jax functions for the provided linear operator
+    """Create Jax primitive for the provided linear function
 
     Parameters
     ----------
-    func, func_T : linear function respectively its transpose
-        The function signature must be (inp, out, state), where
-        inp and out are numpy.ndarrays of float[32/64] or complex[64/128] type,
-        and state is a dictionary containing additional information that the
-        operator might need.
-    func_abstract, func_abstract_T : function respectively its tranpose
-        computing the shape and dtype of the operator's output from shape and dtype of its input
-        Its signature must be (shape, dtype, state), where `state` is analogous
-        to the one from `func`, `shape` is a tuple of integers, and dtype is a
-        numpy data type (float[32/64] or complex[64/128]). The function must
-        return the tuple (shape_out, dtype_out).
-    **kwargs : optional arguments that will be provided in `state` when calling
-        `func` and `func_abstract`.
+    f, f_T : linear function respectively its transpose
+        The function signature must be (out, args, kwargs_dump), where
+        out and args are tuples. The results of the functions should be written as
+        numpy.ndarrays of float[32/64] or complex[64/128] type into the out tuple.
+        The args tuple contains the input for the function. In kwargs_dump,
+        potential keyword arguments are contained in serialized form. The
+        keyword arguments can be deserialized via
+        `jax_linop.load_kwargs(kwargs_dump)`.
+    abstract, abstract_T : function respectively its transpose
+        Computing the shape and dtype of the operator's output from shape and
+        dtype of its input. Its signature must be (*args, **kwargs). *args will
+        be a tuple containing abstract tracer arrays with shape and dtype for
+        each input argument of f. Via **kwargs, potential keyword arguments are
+        passed to the function. The function must return the tuple containing a
+        tuples of (shape_out, dtype_out) for each output argument of f/f_T.
+    args_fixed : FIXME
+    func_can_batch : bool
+        Indicating if the function natively supports batching.
+    batch_axis : FIXME
 
     Returns
     -------
-    op : function of the operator for use in Jax computations
+    op : Jax primitive corresponding to the function f.
 
     Notes
     -----
-    - `func` must not return anything; the result of the computation must be
+    - `f` and 'f_T' must not return anything; the result of the computation must be
       written into `out`.
-    - the contents of `inp` must not be modified.
-    - no references to `inp` or `out` may be stored beyond the execution
+    - the contents of `args` must not be modified.
+    - no references to `args` or `out` may be stored beyond the execution
       time of `func`
-    - `state` must not be modified
-    - when calling `func`* or `func_abstract`*, `state` may contain some entries
-      that the user did not supply in `**kwargs`; these will have names starting
-      with an underscore.
     """
     # TODO: register all func* in global scope such that the user does not need
     # keep a reference. Ideally this reference is cheap but just to be sure,
     # also implement a clear cache function
+    # TODO check if above is actually needed
     kw = dict(
         f=f,
         T=f_T,
@@ -370,6 +373,48 @@ def get_nonlinear_call(
     func_can_batch=False,
     batch_axes=(),
 ) -> partial:
+    """Create Jax primitive for the provided (nonlinear) function
+
+    Parameters
+    ----------
+    f : function
+        The function signature must be (out, args, kwargs_dump), where
+        out and args are tuples. The results of the functions should be written as
+        numpy.ndarrays of float[32/64] or complex[64/128] type into the out tuple.
+        The args tuple contains the input for the function. In kwargs_dump,
+        potential keyword arguments are contained in serialized form. The
+        keyword arguments can be deserialized via
+        `jax_linop.load_kwargs(kwargs_dump)`.
+    f_derivative: tuple of functions
+        Tuple containing functions for evaluating jvp and vjp of f. The fist entry
+        in the function should evaluate jvp, the second vjp. The signature of the
+        jvp and vjp functions should be (out, args, kwargs_dump) analogous to f.
+    abstract, abstract_reverse : functions
+        Computing the shape and dtype of the operator's output from shape and
+        dtype of its input. Its signature must be (*args, **kwargs). *args will
+        be a tuple containing abstract tracer arrays with shape and dtype for
+        each input argument of f. Via **kwargs, potential keyword arguments are
+        passed to the function. The function must return the tuple containing a
+        tuples of (shape_out, dtype_out). abstract should compute the output
+        shapes of f and jvp. abstract_reverse should compute the output shape of
+        vjp.
+    args_fixed : FIXME
+    func_can_batch : bool
+        Indicating if the function natively supports batching.
+    batch_axis : FIXME
+
+    Returns
+    -------
+    op : Jax primitive corresponding to the function f.
+
+    Notes
+    -----
+    - `f` and 'f_T' must not return anything; the result of the computation must be
+      written into `out`.
+    - the contents of `args` must not be modified.
+    - no references to `args` or `out` may be stored beyond the execution
+      time of `func`
+    """
     _func = NonLinearFunction(
         f=f,
         abstract=abstract,
