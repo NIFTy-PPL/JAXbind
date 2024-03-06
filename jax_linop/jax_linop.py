@@ -305,7 +305,7 @@ def get_linear_call(
     args_fixed=None,
     func_can_batch=False,
 ) -> partial:
-    """Create Jax primitive for the provided linear function
+    """Create a JAX primitive for the provided linear function
 
     Parameters
     ----------
@@ -319,15 +319,20 @@ def get_linear_call(
         `jax_linop.load_kwargs(kwargs_dump)`.
     abstract, abstract_T : function respectively its transpose
         Computing the shape and dtype of the operator's output from shape and
-        dtype of its input. Its signature must be (*args, **kwargs). *args will
-        be a tuple containing abstract tracer arrays with shape and dtype for
-        each input argument of f. Via **kwargs, potential keyword arguments are
-        passed to the function. The function must return the tuple containing a
-        tuples of (shape_out, dtype_out) for each output argument of f/f_T.
+        dtype of its input. Its signature must be `(*args, **kwargs)`. `args`
+        will be a tuple containing abstract tracer arrays with shape and dtype
+        for each input argument of `f` respectively `f_T`. Via `**kwargs`,
+        potential keyword arguments are passed to the function. The function
+        must return a tuple containing tuples of (shape_out, dtype_out) for each
+        output argument of `f` respectively `f_T`.
     args_fixed : FIXME
     func_can_batch : bool
-        Indicating if the function natively supports batching.
-    batch_axis : FIXME
+        Indicator whether the function natively supports batching. If true, the
+        function will receive one additional argument called `batch_axes`. The
+        parameter will be a tuple of tuples, or None if no batching is currently
+        performed. The tuple will be of length of the input and for each input
+        will contain a tuple of integer indices along which the computation
+        shall be batched.
 
     Returns
     -------
@@ -339,7 +344,7 @@ def get_linear_call(
       written into `out`.
     - the contents of `args` must not be modified.
     - no references to `args` or `out` may be stored beyond the execution
-      time of `func`
+      time of `func`.
     """
     # TODO: register all func* in global scope such that the user does not need
     # keep a reference. Ideally this reference is cheap but just to be sure,
@@ -371,7 +376,7 @@ def get_nonlinear_call(
     args_fixed=None,
     func_can_batch=False,
 ) -> partial:
-    """Create Jax primitive for the provided (nonlinear) function
+    """Create a JAX primitive for the provided (nonlinear) function
 
     Parameters
     ----------
@@ -398,8 +403,12 @@ def get_nonlinear_call(
         vjp.
     args_fixed : FIXME
     func_can_batch : bool
-        Indicating if the function natively supports batching.
-    batch_axis : FIXME
+        Indicator whether the function natively supports batching. If true, the
+        function will receive one additional argument called `batch_axes`. The
+        parameter will be a tuple of tuples, or None if no batching is currently
+        performed. The tuple will be of length of the input and for each input
+        will contain a tuple of integer indices along which the computation
+        shall be batched.
 
     Returns
     -------
@@ -411,7 +420,7 @@ def get_nonlinear_call(
       written into `out`.
     - the contents of `args` must not be modified.
     - no references to `args` or `out` may be stored beyond the execution
-      time of `func`
+      time of `func`.
     """
     _func = NonLinearFunction(
         f=f,
