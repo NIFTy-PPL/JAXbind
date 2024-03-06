@@ -79,6 +79,8 @@ The second argument is also a `tuple` containing the input to the function, in o
 Via `kwargs_dump`, potential keyword arguments given to the later registered Jax primitive can be forwarded to `f` in serialized form.
 
 ```python
+import jax_linop #FIXME
+
 def f(out, args, kwargs_dump):
     kwargs = jax_linop.load_kwargs(kwargs_dump)
     x1, x2 = args
@@ -132,8 +134,6 @@ def f_abstract_T(*args, **kwargs):
 We have now defined all ingredients necessary to register a JAX primitive for our function $f$ using the `jax_op` package.
 
 ```python
-import jax_linop #FIXME
-
 f_jax = jax_linop.get_nonlinear_call(
     f, (f_jvp, f_vjp), f_abstract, f_abstract_T
 )
