@@ -73,7 +73,10 @@ Automatic differentiation is a core feature of JAX and often one of the main rea
 Thus, it is essential that custom functions registered with JAX support automatic differentiation.
 In the following, we will outline which functions our package respectively JAX requires to enable automatic differentiation.
 For simplicity, we assume that we want to connect the nonlinear function $f(x_1,x_2) = x_1x_2^2$ to JAX.
-FIXME: description of function taking three arguments, out, args, and kwargs_dump is needed
+The `jax_op` package expects the Python function for $f$ to take three positional arguments.
+The first argument, `out`, is a `tuple` into which the function results are written.
+The second argument is also a `tuple` containing the input to the function, in our case, $x_1$ and $x_2$.
+Via `kwargs_dump`, potential keyword arguments given to the later registered Jax primitive can be forwarded to `f` in serialized form.
 
 ```python
 import jax_linop #FIXME
