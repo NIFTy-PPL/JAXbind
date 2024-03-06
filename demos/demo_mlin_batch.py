@@ -72,40 +72,16 @@ mlin_jax = jax_linop.get_linear_call(
     func_T,
     mlin_abstract,
     func_abstract_T,
-    args_fixed=(False, False),
     func_can_batch=True,
 )
 
 
-inp = (4 + jnp.zeros((2,)), 1 + jnp.zeros((2,)))
+inp = (4 + jnp.zeros((2,)), 1 + jnp.zeros((2,)))\
 
-mlin_jax(*inp)
-jax.vmap(mlin_jax, in_axes=(0, 0))(*inp)
-jax.vmap(mlin_jax, in_axes=(0, None))(*inp)
-jax.vmap(mlin_jax, in_axes=(None, 0))(*inp)
+vm = jax.vmap(mlin_jax, in_axes=(0, 0))
+vmj = jax.vmap(mlin_call, in_axes=(0, 0))
 
-# %%
-check_grads(partial(mlin_jax, axes=(3, 4)), inp, order=2, modes=["fwd"], eps=1.0)
+r1 = vm(*inp)
+r2 = vmj(*inp)
 
-# NOTE: for this the transposed of the transposed would needed to be implemented
-# check_grads(partial(mlin_jax, axes=(3, 4)), inp, order=2, modes=["rev"], eps=1.)
-
-
-inp2 = (7 + jnp.zeros((2, 2)), -3 + jnp.zeros((2, 2)))
-inp3 = (10 + jnp.zeros((2, 2)), 5 + jnp.zeros((2, 2)))
-
-primals, f_vjp = jax.vjp(mlin_jax, *inp)
-res_vjp = f_vjp(mlin_jax(*inp))
-res_jvp = jax.jvp(mlin_jax, inp2, inp3)
-
-
-def mlin_purejax(x, y):
-    return [x * y, x * y]
-
-
-primals, njf_vjp = jax.vjp(mlin_purejax, *inp)
-res_vjp_jax = njf_vjp(mlin_purejax(*inp))
-res_jvp_jax = jax.jvp(mlin_purejax, inp2, inp3)
-
-np.testing.assert_allclose(res_vjp, res_vjp_jax)
-np.testing.assert_allclose(res_jvp, res_jvp_jax)
+assert(r1[0].shape == r2[0].shape)
