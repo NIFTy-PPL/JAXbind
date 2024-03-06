@@ -85,7 +85,7 @@ def f(out, args, kwargs_dump):
     out[0][()] = x1 * x2**2
 ```
 
-JAX's automatic differentiation engine computes the Jacobian-vector product `jvp` and vector-Jacobian product `vjp` of $f$.
+JAX's automatic differentiation engine can computes the Jacobian-vector product `jvp` and vector-Jacobian product `vjp` of JAX primitives.
 The Jacobian-vector product in JAX is a function applying the Jacobian of $f$ at a position $x$ to a tangent vector.
 In mathematical nomenclature this operation is called the pushforward of $f$ and can be denoted as $\partial f(x): T_x X \mapsto T_{f(x)} Y$, with $T_x X$ and $T_{f(x)} Y$ being the tangent spaces of $X$ and $Y$ at the positions $x$ and $f(x)$.
 As the implementation of $f$ is not JAX native, JAX cannot automatically compute the `jvp`.
