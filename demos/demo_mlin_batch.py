@@ -71,13 +71,20 @@ mlin_jax = jax_linop.get_linear_call(
     func_can_batch=True,
 )
 
-
 inp = (4 + jnp.zeros((2,)), 1 + jnp.zeros((2,)))
 
-vm = jax.vmap(mlin_jax, in_axes=(None, 0))
-vmj = jax.vmap(mlin_call, in_axes=(None, 0))
 
-r = vm(*inp)
-rj = vmj(*inp)
+in_ax = []
+in_ax += ((None, 0),)
+in_ax += ((0, 0),)
+in_ax += ((0, None),)
 
-assert r[0].shape == rj[0].shape
+for ia in in_ax:
+    vm = jax.vmap(mlin_jax, in_axes=ia)
+    vmj = jax.vmap(mlin_call, in_axes=ia)
+    r = vm(*inp)
+    rj = vmj(*inp)
+
+    assert r[0].shape == rj[0].shape
+    assert r[1].shape == rj[1].shape
+    np.testing.assert_allclose(r, rj)
