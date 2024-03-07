@@ -175,6 +175,10 @@ Analogously, the pullback respectively the `vjp` becomes independent of the init
 Also, all higher order derivatives can be expressed in terms of $f$ and its transpose.
 To make use of these simplifications, `jax_op` provides a special interface for linear functions, supporting higher order derivatives, only requiring an implementation of the function and its transpose.
 
+# Platforms
+
+Currently, `jax_op` only has CPU but no GPU support. With some expertise on Python bindings for GPU kernels adding GPU support should be fairly simple. We especially want to highlight that the interfacing with the JAX automatic differentiation engine is identical for CPU and GPU.
+
 # Acknowledgements
 
 We would like to thank Dan Foreman-Mackey for his detailed guide (https://dfm.io/posts/extending-jax/) on connecting C++ code to JAX.
