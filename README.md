@@ -22,14 +22,14 @@ The latest version of jax_linop can be obtained by cloning the repository via
 
 ## TODOs
 
-* Interface:
-  * refine docstrings
-* Tests
-* Reorganize internal data structure
+* Tests:
+    - test mlin
 * Check if reference to function can get lost
 * Paper
   * final editing
-  * martin orcid id
+* PiPy release
+* CI Pipline
+* README
 
 ## Licensing terms
 
