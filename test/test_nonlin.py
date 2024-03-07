@@ -34,79 +34,44 @@ def is_complex_type(dtype):
         return True
 
 
-def get_batched_func(call, kwargs_dump):
-    call_new = call
-    kwargs = jax_linop.load_kwargs(kwargs_dump)
-    batch_axes = kwargs.pop("batch_axes", ())
-    if batch_axes != () and batch_axes != ((),) * len(args):
-        assert all(
-            len(ba) in (0, 1) for ba in batch_axes
-        )  # Allow vmapping exactly once
-        call_new = jax.vmap(
-            call,
-            in_axes=tuple((ba[0] if len(ba) == 1 else None) for ba in batch_axes),
-        )
-    return call_new
-
-
 def f_call(x, y):
     return x * y, y * y
 
 
-def f(out, args, kwargs_dump, batch_version=False):
-    if batch_version:
-        call = get_batched_func(f_call, kwargs_dump)
-    else:
-        call = f_call
-    out[0][()], out[1][()] = call(*args)
+def f(out, args, kwargs_dump):
+    out[0][()], out[1][()] = f_call(*args)
 
 
 def f_jvp_call(x, y, dx, dy):
     return y * dx + x * dy, 2 * y * dy
 
 
-def f_jvp(out, args, kwargs_dump, batch_version=False):
-    if batch_version:
-        call = get_batched_func(f_jvp_call, kwargs_dump)
-    else:
-        call = f_jvp_call
-    out[0][()], out[1][()] = call(*args)
+def f_jvp(out, args, kwargs_dump):
+    out[0][()], out[1][()] = f_jvp_call(*args)
 
 
 def f_vjp_call(x, y, da, db):
     return y * da, x * da + 2 * y * db
 
 
-def f_vjp(out, args, kwargs_dump, batch_version=False):
-    if batch_version:
-        call = get_batched_func(f_vjp_call, kwargs_dump)
-    else:
-        call = f_vjp_call
-    out[0][()], out[1][()] = call(*args)
+def f_vjp(out, args, kwargs_dump):
+    out[0][()], out[1][()] = f_vjp_call(*args)
 
 
 def f_jvp_fix_x_call(x, y, dy):
     return x * dy, 2 * y * dy
 
 
-def f_jvp_fix_x(out, args, kwargs_dump, batch_version=False):
-    if batch_version:
-        call = get_batched_func(f_jvp_fix_x_call, kwargs_dump)
-    else:
-        call = f_jvp_fix_x_call
-    out[0][()], out[1][()] = call(*args)
+def f_jvp_fix_x(out, args, kwargs_dump):
+    out[0][()], out[1][()] = f_jvp_fix_x_call(*args)
 
 
 def f_vjp_fix_x_call(x, y, da, db):
     return x * da + 2 * y * db
 
 
-def f_vjp_fix_x(out, args, kwargs_dump, batch_version=False):
-    if batch_version:
-        call = get_batched_func(f_vjp_fix_x_call, kwargs_dump)
-    else:
-        call = f_vjp_fix_x_call
-    out[0][()] = call(*args)
+def f_vjp_fix_x(out, args, kwargs_dump):
+    out[0][()] = f_vjp_fix_x_call(*args)
 
 
 def f_abstract(*args, **kwargs):
@@ -120,29 +85,28 @@ def f_abstract_vjp_fix_x(*args, **kwargs):
 
 
 @pmp("first_n_args_fixed", (0, 1))
-@pmp("can_batch", (True, False))
 @pmp("dtype", (np.float32, np.float64, np.complex64, np.complex128))
 @pmp("shape", ((2,), (3, 4)))
 @pmp("seed", (42,))
 @pmp("jit", (False, True))
-def test_derivatives(first_n_args_fixed, can_batch, dtype, shape, seed, jit):
+def test_derivatives(first_n_args_fixed, dtype, shape, seed, jit):
     if first_n_args_fixed == 0:
         funcs_deriv = (
-            partial(f_jvp, batch_version=can_batch),
-            partial(f_vjp, batch_version=can_batch),
+            f_jvp,
+            f_vjp,
         )
-        absr_T = partial(f_abstract, batch_version=can_batch)
+        absr_T = f_abstract
     else:
         funcs_deriv = (
-            partial(f_jvp_fix_x, batch_version=can_batch),
-            partial(f_vjp_fix_x, batch_version=can_batch),
+            f_jvp_fix_x,
+            f_vjp_fix_x,
         )
-        absr_T = partial(f_abstract_vjp_fix_x, batch_version=can_batch)
+        absr_T = f_abstract_vjp_fix_x
 
     f_jax = jax_linop.get_nonlinear_call(
-        partial(f, batch_version=False),
+        f,
         funcs_deriv,
-        partial(f_abstract, batch_version=can_batch),
+        f_abstract,
         absr_T,
         first_n_args_fixed=first_n_args_fixed,
     )
@@ -179,24 +143,22 @@ def test_derivatives(first_n_args_fixed, can_batch, dtype, shape, seed, jit):
 
 
 @pmp("in_axes", ((0, 0), (0, None), (None, 0)))
-@pmp("can_batch", (True, False))
 @pmp("dtype", (np.float32, np.float64, np.complex64, np.complex128))
 @pmp("shape", ((2,), (3, 4)))
 @pmp("seed", (42,))
 @pmp("jit", (False, True))
-def test_vmap(in_axes, can_batch, dtype, shape, seed, jit):
+def test_vmap(in_axes, dtype, shape, seed, jit):
     funcs_deriv = (
-        partial(f_jvp, batch_version=can_batch),
-        partial(f_vjp, batch_version=can_batch),
+        f_jvp,
+        f_vjp,
     )
-    absr_T = partial(f_abstract, batch_version=can_batch)
+    absr_T = f_abstract
 
     f_jax = jax_linop.get_nonlinear_call(
-        partial(f, batch_version=False),
+        f,
         funcs_deriv,
-        partial(f_abstract, batch_version=can_batch),
+        f_abstract,
         absr_T,
-        func_can_batch=can_batch
     )
     if jit:
         f_jax = jax.jit(f_jax)
@@ -276,5 +238,3 @@ def test_vmap(in_axes, can_batch, dtype, shape, seed, jit):
     check_grads(f_jax_vmap, inp, order=1, modes=["fwd", "rev"], eps=1e-3)
 
 
-if __name__ == "__main__":
-    test_vmap((0, 0), True, np.float64, (2,1), 42, False)
