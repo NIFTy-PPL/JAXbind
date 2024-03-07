@@ -74,8 +74,8 @@ mlin_jax = jax_linop.get_linear_call(
 
 inp = (4 + jnp.zeros((2,)), 1 + jnp.zeros((2,)))
 
-vm = jax.vmap(mlin_jax, in_axes=(0, 0))
-vmj = jax.vmap(mlin_call, in_axes=(0, 0))
+vm = jax.vmap(mlin_jax, in_axes=(None, 0))
+vmj = jax.vmap(mlin_call, in_axes=(None, 0))
 
 r = vm(*inp)
 rj = vmj(*inp)
