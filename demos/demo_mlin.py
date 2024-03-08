@@ -51,7 +51,6 @@ mlin_jax = jax_linop.get_linear_call(
     func_T,
     mlin_abstract,
     func_abstract_T,
-    func_can_batch=True,
 )
 
 
@@ -81,16 +80,10 @@ np.testing.assert_allclose(res_jvp, res_jvp_jax)
 
 
 # ############################################################ test fixing arg
-raise SystemExit()
 
 def mlin(out, args, kwargs_dump):
     out[0][()] = args[0] * args[1] * args[0]
     out[1][()] = args[0] * args[1]
-
-
-# def mlin_T1(out, args, kwargs_dump):
-#     kwargs = pickle.loads(np.ndarray.tobytes(kwargs_dump))
-#     out[0][()] = args[0] * args[1] + args[0]*args[2]
 
 
 def mlin_T2(out, args, kwargs_dump):
@@ -105,13 +98,6 @@ def mlin_abstract(*args, **kwargs):
         (args[0].shape, args[0].dtype, None),
     )
 
-
-# def mlin_abstract_T1(*args, **kwargs):
-#     out_axes = kwargs.pop("batch_axes", ())
-#     assert args[0].shape == args[1].shape
-#     return ((args[0].shape, args[0].dtype, out_axes),)
-
-
 def mlin_abstract_T2(*args, **kwargs):
     assert args[0].shape == args[1].shape
     return ((args[0].shape, args[0].dtype, None),)
@@ -124,23 +110,12 @@ mlin_jax = jax_linop.get_linear_call(
     func_T,
     mlin_abstract,
     func_abstract_T,
-    args_fixed=(True, False),
-    func_can_batch=True,
+    first_n_args_fixed=1,
 )
 
 
 inp1 = 4 + jnp.zeros((2, 2))
 inp2 = 1 + jnp.zeros((2, 2))
-
-mlin_jax = jax_linop.get_linear_call(
-    mlin,
-    func_T,
-    mlin_abstract,
-    func_abstract_T,
-    args_fixed=(True, False),
-    func_can_batch=True,
-)
-
 
 def mlin_purejax(x, y):
     return [x * y * x, x * y]
