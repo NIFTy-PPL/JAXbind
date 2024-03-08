@@ -1,7 +1,13 @@
 from functools import partial
 
-import ducc0
+have_ducc0=True
+try:
+    import ducc0
+except ImportError:
+    have_ducc0=False
+
 import jax
+import scipy
 import numpy as np
 import pytest
 from jax.test_util import check_grads
@@ -36,7 +42,11 @@ def fhtfunc(out, args, kwargs_dump):
     kwargs = jax_linop.load_kwargs(kwargs_dump)
     # This function must _not_ keep any reference to 'inp' or 'args'!
     # Also, it must not change 'args'.
-    ducc0.fft.genuine_fht(*args, out=out[0], **kwargs)
+    if have_ducc0:
+        ducc0.fft.genuine_fht(args[0], out=out[0], **kwargs)
+    else:
+        tmp = scipy.fft.fftn(args[0], axes=kwargs["axes"])
+        out[0][()] = tmp.real - tmp.imag
 
 
 def fhtfunc_abstract(*args, **kwargs):
@@ -47,7 +57,12 @@ def fhtfunc_abstract(*args, **kwargs):
 def c2cfunc(out, args, kwargs_dump):
     kwargs = jax_linop.load_kwargs(kwargs_dump)
     (x,) = args
-    ducc0.fft.c2c(x, out=out[0], **kwargs)
+    if have_ducc0:
+        ducc0.fft.c2c(x, out=out[0], **kwargs)
+    else:
+        func = scipy.fft.fftn if kwargs["forward"] else scipy.fft.ifftn
+        norm = "backward" if kwargs["forward"] else "forward"
+        out[0][()] = func(x, norm=norm, axes=kwargs["axes"])
 
 
 def c2cfunc_abstract(*args, **kwargs):
@@ -192,7 +207,10 @@ def healpixfunc_abstract_T(*args, **kwargs):
 
 
 def _assert_close(a, b, epsilon):
-    assert_allclose(ducc0.misc.l2error(a, b), 0, atol=epsilon)
+    if have_ducc0:
+        assert_allclose(ducc0.misc.l2error(a, b), 0, atol=epsilon)
+    else:
+        assert_allclose(scipy.linalg.norm(a-b)/scipy.linalg.norm(a), 0, atol=epsilon)
 
 
 @pmp("shape,axes", (((100,), (0,)), ((10, 17), (0, 1)), ((10, 17, 3), (1,))))
@@ -208,7 +226,12 @@ def test_fht(shape, axes, dtype, nthreads):
 
     a = (rng.random(shape) - 0.5).astype(dtype)
     b1 = np.array(fht(a, **kw)[0])
-    b2 = ducc0.fft.genuine_fht(a, **kw)
+    if have_ducc0:
+        b2 = ducc0.fft.genuine_fht(a, **kw)
+    else:
+        b2 = scipy.fft.fftn(a, axes=kw["axes"])
+        b2 = b2.real - b2.imag
+
     _assert_close(b1, b2, epsilon=1e-6 if dtype == np.float32 else 1e-14)
 
     max_order = 2
@@ -234,7 +257,13 @@ def test_c2c(shape, axes, forward, dtype, nthreads):
         1j * (rng.random(shape) - 0.5)
     ).astype(dtype)
     b1 = np.array(c2c(a, **kw)[0])
-    b2 = ducc0.fft.c2c(a, **kw)
+    if have_ducc0:
+        b2 = ducc0.fft.c2c(a, **kw)
+    else:
+        if forward:
+            b2 = scipy.fft.fftn(a, axes=kw["axes"])
+        else:
+            b2 = scipy.fft.ifftn(a, norm="forward", axes=kw["axes"])
     _assert_close(b1, b2, epsilon=1e-6 if dtype == np.complex64 else 1e-14)
 
     max_order = 2
@@ -268,6 +297,8 @@ def random_alm(lmax, mmax, spin, ncomp, rng):
 @pmp("dtype", (np.float32, np.float64))
 @pmp("nthreads", (1, 2))
 def test_sht2d(lmmax, geometry, ntheta, nphi, spin, dtype, nthreads):
+    if not have_ducc0:
+        pytest.skip()
     rng = np.random.default_rng(42)
 
     lmax, mmax = lmmax
@@ -323,6 +354,8 @@ def test_sht2d(lmmax, geometry, ntheta, nphi, spin, dtype, nthreads):
 @pmp("dtype", (np.float32, np.float64))
 @pmp("nthreads", (1, 2))
 def test_healpix(lmmax, nside, spin, dtype, nthreads):
+    if not have_ducc0:
+        pytest.skip()
     rng = np.random.default_rng(42)
 
     lmax, mmax = lmmax

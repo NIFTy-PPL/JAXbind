@@ -20,8 +20,8 @@ def f(out, args, kwargs_dump):
     if batch_axes:
         axes0 = [i for i in range(len(x.shape)) if not i in batch_axes[0]]
         axes1 = [i for i in range(len(y.shape)) if not i in batch_axes[1]]
-    out[0][()] = scipy.fft.fft2(x, axes=axes0, norm="forward", workers=workers)
-    out[1][()] = scipy.fft.fft2(y, axes=axes1, norm="forward", workers=workers)
+    out[0][()] = scipy.fft.fftn(x, axes=axes0, norm="forward", workers=workers)
+    out[1][()] = scipy.fft.fftn(y, axes=axes1, norm="forward", workers=workers)
 
 
 def f_T(out, args, kwargs_dump):
@@ -34,8 +34,8 @@ def f_T(out, args, kwargs_dump):
     if batch_axes:
         axes0 = [i for i in range(len(x.shape)) if not i in batch_axes[0]]
         axes1 = [i for i in range(len(y.shape)) if not i in batch_axes[1]]
-    out[0][()] = scipy.fft.ifft2(x.conj(), axes=axes0, norm="backward", workers=workers).conj()
-    out[1][()] = scipy.fft.ifft2(y.conj(), axes=axes1, norm="backward", workers=workers).conj()
+    out[0][()] = scipy.fft.ifftn(x.conj(), axes=axes0, norm="backward", workers=workers).conj()
+    out[1][()] = scipy.fft.ifftn(y.conj(), axes=axes1, norm="backward", workers=workers).conj()
 
 
 def f_a(*args, **kwargs):
