@@ -19,7 +19,6 @@ def f(out, args, kwargs_dump):
     axes = list(range(len(x.shape)))
     if batch_axes:
         axes = [i for i in range(len(x.shape)) if not i in batch_axes[0]]
-    # raise RuntimeError()
     out[0][()] = scipy.fft.fft2(x, axes=axes, norm="forward", workers=workers)
 
 
@@ -35,22 +34,24 @@ def f_T(out, args, kwargs_dump):
 
 
 def f_a(*args, **kwargs):
-    batch_axes = kwargs.pop("batch_axes", None)
     # Returns `shape` and `dtype` of output as well as the added batch_axes of the `output``
+    batch_axes = kwargs.pop("batch_axes", None)
     x, = args
     out_ax = ()
     if batch_axes:
-        out_ax = batch_axes[0]
+        if len(batch_axes[0]) > 0:
+            out_ax = batch_axes[0][-1]
     return ((x.shape, x.dtype, out_ax),)
 
 
 def f_a_T(*args, **kwargs):
-    batch_axes = kwargs.pop("batch_axes", None)
     # Returns `shape` and `dtype` of output as well as the added batch_axes of the `output``
+    batch_axes = kwargs.pop("batch_axes", None)
     a, = args
     out_ax = ()
     if batch_axes:
-        out_ax = batch_axes[0]
+        if len(batch_axes[0]) > 0:
+            out_ax = batch_axes[0][-1]
     return ((a.shape, a.dtype, out_ax),)
 
 f_jax = jax_linop.get_linear_call(

@@ -46,7 +46,7 @@ def mlin_abstract(*args, **kwargs):
         assert all(len(ba) in (0, 1) for ba in batch_axes)
         in_axes = tuple((ba[0] if len(ba) == 1 else None) for ba in batch_axes)
         call = jax.vmap(mlin_call, in_axes=in_axes)
-    out_axes = [tuple(range(len(ba))) for ba in batch_axes]
+    out_axes = [0 for ba in batch_axes]
     out = jax.eval_shape(call, *args)
     return tuple((o.shape, o.dtype, oa) for o, oa in zip(out, out_axes))
 
