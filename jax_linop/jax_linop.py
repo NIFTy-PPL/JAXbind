@@ -245,42 +245,25 @@ def _batch(args, in_axes, *, _func: FunctionType, **kwargs):
     else:
         batch_axes = _func.batch_axes
         batch_axes = ((),) * len(in_axes) if batch_axes is None else batch_axes
-        new_batch_axes, inserted_axes = [], []
+        new_batch_axes = []
         for ia, baxes in zip(in_axes, batch_axes, strict=True):
+            baxes_new = []
             if ia is not None:
                 assert isinstance(ia, int)
                 for b in baxes:
-                    if ia >= b:
-                        ia += 1
-                baxes = tuple(sorted(baxes + (ia,)))
-            inserted_axes.append(ia)
+                    if b >= ia:
+                        b += 1
+                    baxes_new.append(b)
+                baxes = tuple(tuple(baxes_new) + (ia,))
             new_batch_axes.append(baxes)
         new_batch_axes = tuple(new_batch_axes)
         _func = _func._replace(batch_axes=new_batch_axes)
 
         args_w = [jax.ShapeDtypeStruct(el.shape, el.dtype) for el in args]
         out_w = _func.abstract(*args_w, batch_axes=new_batch_axes, **kwargs)
-        args_wo = [
-            (
-                jax.ShapeDtypeStruct(el.shape[:ia] + el.shape[ia + 1 :], el.dtype)
-                if ia is not None
-                else jax.ShapeDtypeStruct(el.shape, el.dtype)
-            )
-            for el, ia in zip(args, inserted_axes)
-        ]
-        out_wo = _func.abstract(*args_wo, batch_axes=batch_axes, **kwargs)
         out_axes = []
-        for (_, _, ba_wb), (_, _, ba_wob) in zip(out_w, out_wo):
-            if ba_wb == ba_wob:
-                oa = None
-            else:
-                (oa,) = set.difference(set(ba_wb), set(ba_wob))
-                for b in ba_wob[::-1]:
-                    if oa >= b:
-                        oa -= 1
-                assert oa >= 0
-            out_axes.append(oa)
-
+        for _, _, ba_wb in out_w:
+            out_axes.append(ba_wb)
         y = _call(*args, _func=_func, **kwargs)
     return y, out_axes
 
