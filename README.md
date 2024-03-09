@@ -155,13 +155,10 @@ pip install --user .
 
 ## TODOs
 
-* Tests:
-    - test mlin
 * Check if reference to function can get lost
 * Paper
   * final editing
 * PiPy release
-* CI Pipline
 * README
 
 ## Licensing terms
