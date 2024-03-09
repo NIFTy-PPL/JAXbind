@@ -2,18 +2,15 @@ from functools import partial
 
 import jax
 import numpy as np
-from jax import numpy as jnp
-from jax.test_util import check_grads
-from jax import random
 import pytest
-
-pmp = pytest.mark.parametrize
-
+from jax import random
+from jax.test_util import check_grads
 
 import jax_linop
 
-jax.config.update("jax_enable_x64", True)
+pmp = pytest.mark.parametrize
 
+jax.config.update("jax_enable_x64", True)
 
 precision_dict = {
     np.dtype(np.complex64): np.dtype(np.float32),
@@ -236,5 +233,3 @@ def test_vmap(in_axes, dtype, shape, seed, jit):
 
     # test derivatives of vmap function
     check_grads(f_jax_vmap, inp, order=1, modes=["fwd", "rev"], eps=1e-3)
-
-

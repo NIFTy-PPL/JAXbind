@@ -1,10 +1,11 @@
-import scipy
-import numpy as np
 import jax
+import numpy as np
+import pytest
+import scipy
 from jax.test_util import check_grads
+
 import jax_linop
 
-import pytest
 pmp = pytest.mark.parametrize
 
 jax.config.update("jax_enable_x64", True)
@@ -86,10 +87,11 @@ av1 = rng.random((5, 5, 5, 5)) - 0.5 + 1j * (rng.random((5, 5, 5, 5)) - 0.5)
 av2 = rng.random((5, 5, 5, 5)) - 0.5 + 1j * (rng.random((5, 5, 5, 5)) - 0.5)
 av = (av1, av2)
 
-@pmp("bt_a1", (0,1,2))
-@pmp("bt_a2", (0,1,2))
-@pmp("bt2_a1", (0,1,2))
-@pmp("bt2_a2", (0,1,2))
+
+@pmp("bt_a1", (0, 1, 2))
+@pmp("bt_a2", (0, 1, 2))
+@pmp("bt2_a1", (0, 1, 2))
+@pmp("bt2_a2", (0, 1, 2))
 def test_vmap(bt_a1, bt_a2, bt2_a1, bt2_a2):
     vj = jax.vmap(f_jax, in_axes=(bt_a1, bt_a2))
     vb = jax.vmap(f_jax_can_batch, in_axes=(bt_a1, bt_a2))
@@ -98,7 +100,6 @@ def test_vmap(bt_a1, bt_a2, bt2_a1, bt2_a2):
     np.testing.assert_allclose(rj, rb)
     # check_grads(vj, a, order=2, modes=["fwd", "rev"], eps=1.0)
     # check_grads(vb, a, order=2, modes=["fwd", "rev"], eps=1.0)
-
 
     vvj = jax.vmap(vj, in_axes=(bt2_a1, bt2_a2))
     vvb = jax.vmap(vb, in_axes=(bt2_a1, bt2_a2))

@@ -1,10 +1,10 @@
 from functools import partial
 
-have_ducc0=True
+have_ducc0 = True
 try:
     import ducc0
 except ImportError:
-    have_ducc0=False
+    have_ducc0 = False
 
 import jax
 import scipy
@@ -15,9 +15,9 @@ from numpy.testing import assert_allclose
 
 import jax_linop
 
-jax.config.update("jax_enable_x64", True)
-
 pmp = pytest.mark.parametrize
+
+jax.config.update("jax_enable_x64", True)
 
 r2cdict = {
     np.dtype(np.float32): np.dtype(np.complex64),
@@ -210,7 +210,9 @@ def _assert_close(a, b, epsilon):
     if have_ducc0:
         assert_allclose(ducc0.misc.l2error(a, b), 0, atol=epsilon)
     else:
-        assert_allclose(scipy.linalg.norm(a-b)/scipy.linalg.norm(a), 0, atol=epsilon)
+        assert_allclose(
+            scipy.linalg.norm(a - b) / scipy.linalg.norm(a), 0, atol=epsilon
+        )
 
 
 @pmp("shape,axes", (((100,), (0,)), ((10, 17), (0, 1)), ((10, 17, 3), (1,))))
