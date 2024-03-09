@@ -66,10 +66,8 @@ def f_a_T(*args, **kwargs):
     out_ax = [(), ()]
     if batch_axes:
         if len(batch_axes[0]) > 0 and len(batch_axes[1]) > 0:
-            ia0 = batch_axes[0][-1]
-            ia1 = batch_axes[1][-1]
-            out_ax[0] = ia0
-            out_ax[1] = ia1
+            out_ax[0] = batch_axes[0][-1]
+            out_ax[1] = batch_axes[1][-1]
         else:
             raise RuntimeError("Batching along only 1 input axis not implemented.")
     return ((a.shape, a.dtype, out_ax[0]), (b.shape, b.dtype, out_ax[1]))
@@ -90,11 +88,13 @@ av = (av1, av2)
 
 @pmp("bt_a1", (0, 1, 2))
 @pmp("bt_a2", (0, 1, 2))
+@pmp("o_a1", (0, 1))
+@pmp("o_a2", (0, 1))
 @pmp("bt2_a1", (0, 1, 2))
 @pmp("bt2_a2", (0, 1, 2))
-def test_vmap(bt_a1, bt_a2, bt2_a1, bt2_a2):
-    vj = jax.vmap(f_jax, in_axes=(bt_a1, bt_a2))
-    vb = jax.vmap(f_jax_can_batch, in_axes=(bt_a1, bt_a2))
+def test_vmap(bt_a1, bt_a2, bt2_a1, bt2_a2, o_a1, o_a2):
+    vj = jax.vmap(f_jax, in_axes=(bt_a1, bt_a2), out_axes=[o_a1, o_a2])
+    vb = jax.vmap(f_jax_can_batch, in_axes=(bt_a1, bt_a2), out_axes=[o_a1, o_a2])
     rj = vj(*a)
     rb = vb(*a)
     np.testing.assert_allclose(rj, rb)
