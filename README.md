@@ -155,7 +155,6 @@ pip install --user .
 
 ## TODOs
 
-* Check if reference to function can get lost
 * Paper
   * final editing
 * PiPy release

@@ -340,10 +340,6 @@ def get_linear_call(
     - no reference to the contents of `args` or `out` may be stored beyond
       the execution time of `f` or `f_T`.
     """
-    # TODO: register all func* in global scope such that the user does not need
-    # keep a reference. Ideally this reference is cheap but just to be sure,
-    # also implement a clear cache function
-    # TODO check if above is actually needed
     kw = dict(
         f=f,
         T=f_T,
