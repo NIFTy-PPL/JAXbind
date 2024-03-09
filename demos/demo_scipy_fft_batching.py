@@ -147,8 +147,8 @@ fftn_jax = jax_linop.get_linear_call(
 # generate some random input to showcase the use of the newly register JAX primitive
 key = random.PRNGKey(42)
 key, subkey = random.split(key)
-inp = jax.random.uniform(subkey, shape=(10, 10), dtype=jnp.complex64)
-inp = inp + 1j * jax.random.uniform(subkey, shape=(10, 10), dtype=jnp.complex64)
+inp = jax.random.uniform(subkey, shape=(10, 10), dtype=jnp.float64)
+inp = inp + 1j * jax.random.uniform(subkey, shape=(10, 10), dtype=jnp.float64)
 
 
 # apply the new primitive
@@ -159,10 +159,10 @@ res2 = fftn_jax(inp, workers=2)
 
 # jit compile the new primitive
 fftn_jax_jit = jax.jit(fftn_jax)
-res_jit = fftn_jax_jit(res)
+res_jit = fftn_jax_jit(inp)
 
 # vmap fft_jax over the fist axis of the input
 res_vmap = jax.vmap(fftn_jax, in_axes=0)
 
 # compute the jvp of fftn
-res_jvp = jax.vjp(fftn, (inp,), (inp,))
+res_jvp = jax.jvp(fftn_jax, (inp,), (inp,))
