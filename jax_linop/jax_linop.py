@@ -261,9 +261,7 @@ def _batch(args, in_axes, *, _func: FunctionType, **kwargs):
 
         args_w = [jax.ShapeDtypeStruct(el.shape, el.dtype) for el in args]
         out_w = _func.abstract(*args_w, batch_axes=new_batch_axes, **kwargs)
-        out_axes = []
-        for _, _, ba_wb in out_w:
-            out_axes.append(ba_wb)
+        out_axes = [ba_wb for _, _, ba_wb in out_w]
         y = _call(*args, _func=_func, **kwargs)
     return y, out_axes
 
