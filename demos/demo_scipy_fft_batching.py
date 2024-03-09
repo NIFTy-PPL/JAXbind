@@ -16,15 +16,15 @@ jax.config.update("jax_enable_x64", True)
 # translates the mapping operation into a sequential application of the function
 # along the batching axis. Nevertheless, some custom function such as the scipy
 # FFT natively support mapping over input axis giving significant speedups
-# compared to a sequential computation. The jax_op interface allows to makes of
-# custom batch, which will be demonstrated in this demo.
+# compared to a sequential computation. The jax_op interface allows to makes use
+# of custom batch, which will be demonstrated in this demo.
 
 
 # scipy.fft.fftn is the function we want to wrap as a JAX primitive. Therefore,
 # we wrap the scipy fft into a function 'fftn' having the signature required by
 # jax_op. jax_op requires the function to take 3 arguments.
 # The fist argument 'out' is a tuple into which the result is written, thus in
-# this case array containing output of scipy.fft.fftn.
+# this case an array containing the output of scipy.fft.fftn.
 # The second argument is also a tuple and contains the input for the function,
 # thus in our case this will be a tuple of length 1 containing the input array
 # for the scipy fft.
@@ -32,7 +32,7 @@ jax.config.update("jax_enable_x64", True)
 # primitive. Due to the internals of JAX and jax_linop these keyword arguments
 # are passed to the function in serialized from and need to be deserialized.
 # For functions supporting custom batching the keyword arguments also contain as
-# a lis the axis over which the function should be batched.
+# a list of the axis over which the function should be batched.
 
 
 def fftn(out, args, kwargs_dump):
@@ -87,14 +87,15 @@ def fftn_transposed(out, args, kwargs_dump):
 # the input. For this we have to provide the abstract eval functions for fftn
 # and fftn_transposed.
 # The abstract eval functions take normal arguments and keyword arguments and
-# return a tuple containg the output information for each output argument of the
-# function. Since fftn has only one output argument the output tuple of the
+# return a tuple containing the output information for each output argument of
+# the function. Since fftn has only one output argument the output tuple of the
 # abstract eval function has length 1.
 # The output description of each output argument is also a tuple. The first
 # entry in the tuple contains the shape of the output array. The second entry is
 # the dtype of this array. The third entry in the tuple is only required for
 # functions supporting custom batching and indicated the batching axis of the
-# output of the function (thus fftn).
+# output of the function (thus fftn). In our case the batching axis of the
+# output is identical to the batching axis of the input.
 
 
 def fftn_abstract_eval(*args, **kwargs):
@@ -119,7 +120,7 @@ def fftn_abstract_eval(*args, **kwargs):
 # JAX also needs to abstractly evaluate the transposed function. For that we
 # have to provide the same information as for fftn. Since a fft is not changing
 # the shape or dtype this function is identical to the fftn_abstract_eval. For
-# general linear functions this might be different
+# general linear functions this might be different.
 
 
 def fftn_transposed_abstract_eval(*args, **kwargs):
@@ -132,8 +133,8 @@ def fftn_transposed_abstract_eval(*args, **kwargs):
     return ((a.shape, a.dtype, out_ax),)
 
 
-# now we register our function as a custom JAX primitive using the interface for
-# linear functions of jax_lino. jax_linop returns the resulting JAX primitive.
+# Now we register our function as a custom JAX primitive using the interface for
+# linear functions of jax_linop. jax_linop returns the resulting JAX primitive.
 fftn_jax = jax_linop.get_linear_call(
     fftn,
     fftn_transposed,
