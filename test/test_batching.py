@@ -98,6 +98,7 @@ def test_vmap(bt_a1, bt_a2, bt2_a1, bt2_a2):
     rj = vj(*a)
     rb = vb(*a)
     np.testing.assert_allclose(rj, rb)
+    assert rj[0].shape == rb[0].shape and rj[1].shape == rb[1].shape
     # check_grads(vj, a, order=2, modes=["fwd", "rev"], eps=1.0)
     # check_grads(vb, a, order=2, modes=["fwd", "rev"], eps=1.0)
 
@@ -106,5 +107,6 @@ def test_vmap(bt_a1, bt_a2, bt2_a1, bt2_a2):
     rb = vvb(*av)
     rj = vvj(*av)
     np.testing.assert_allclose(rj, rb)
+    assert rj[0].shape == rb[0].shape and rj[1].shape == rb[1].shape
     # check_grads(vvj, av, order=2, modes=["fwd", "rev"], eps=1.0)
     # check_grads(vvb, av, order=2, modes=["fwd", "rev"], eps=1.0)
