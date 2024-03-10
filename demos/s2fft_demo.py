@@ -8,6 +8,7 @@ import numpy as np
 import s2fft
 import jax_linop
 from time import time
+from functools import partial
 
 r2cdict = {np.dtype(np.float32) : np.dtype(np.complex64),
            np.dtype(np.float64) : np.dtype(np.complex128)}
@@ -62,7 +63,10 @@ def ssht_operator(L, sampling, spin, reality, nthreads, nside=0):
             raise RuntimeError("bad alm shape")
         return L, spin, nthreads, reality, geometry, mapshape, hpxparam
 
-    def ssht_T(inp, out, state):
+    def ssht_T(out_, args, kwargs_dump):
+        out, = out_
+        inp, = args
+        state = jax_linop.load_kwargs(kwargs_dump)
         L, spin, nthreads, reality, geometry, mapshape, hpxparam = get_config(out, inp, state)
 
         if spin==0:
@@ -105,7 +109,10 @@ def ssht_operator(L, sampling, spin, reality, nthreads, nside=0):
         ducc0.sht.experimental.alm2flm(tmp, spin, out)
         out.imag *= -1
 
-    def ssht(inp, out, state):
+    def ssht(out_, args, kwargs_dump):
+        out, = out_
+        inp, = args
+        state = jax_linop.load_kwargs(kwargs_dump)
         L, spin, nthreads, reality, geometry, mapshape, hpxparam = get_config(inp, out, state)
 
         tmp = ducc0.sht.experimental.flm2alm(inp, spin, real=reality)
@@ -138,7 +145,8 @@ def ssht_operator(L, sampling, spin, reality, nthreads, nside=0):
             else:
                 out.real *= -1
 
-    def ssht_abstract(shape_in, dtype_in, state):
+    def ssht_abstract(*args, **state):
+        shape_in, dtype_in = args[0].shape, args[0].dtype
         if not isvalidtype(dtype_in):
             raise RuntimeError("invalid data type")
         spin = state["spin"]
@@ -158,9 +166,10 @@ def ssht_operator(L, sampling, spin, reality, nthreads, nside=0):
             raise RuntimeError("bad flm shape")
         shape_out = mapshape
         dtype_out = dtype_in if not reality else realtype(dtype_in)
-        return shape_out, dtype_out
+        return ((shape_out, dtype_out),)
 
-    def ssht_abstract_T(shape_in, dtype_in, state):
+    def ssht_abstract_T(*args, **state):
+        shape_in, dtype_in = args[0].shape, args[0].dtype
         if not isvalidtype(dtype_in):
             raise RuntimeError("invalid data type")
         spin = state["spin"]
@@ -185,7 +194,7 @@ def ssht_operator(L, sampling, spin, reality, nthreads, nside=0):
         else:
             dtype_out = dtype_in
         shape_out = (L, 2*L-1)
-        return shape_out, dtype_out
+        return ((shape_out, dtype_out),)
 
     L = int(L)
     if (L<=0):
@@ -197,8 +206,10 @@ def ssht_operator(L, sampling, spin, reality, nthreads, nside=0):
     sampling = str(sampling)
     if sampling!="mw" and sampling!="dh" and sampling!="mwss" and sampling!="healpix":
         raise ValueError("unsupported sampling type")
-    return jax_linop.get_linear_call(
+    op = jax_linop.get_linear_call(
         ssht, ssht_T, ssht_abstract, ssht_abstract_T,
+        func_can_batch=False)
+    return partial(op,
         L=L, spin=spin,
         sampling=sampling,
         reality=reality,
