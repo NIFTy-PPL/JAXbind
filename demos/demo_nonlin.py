@@ -51,7 +51,7 @@ nonlin_jax = jax_linop.get_nonlinear_call(
     funcs_deriv,
     nonlin_abstract,
     nonlin_abstract,  # FIXME
-    args_fixed=(False, False),
+    first_n_args_fixed=0,
     func_can_batch=True,
 )
 
@@ -111,7 +111,7 @@ nonlin_jax = jax_linop.get_nonlinear_call(
     funcs_deriv,
     nonlin_abstract,
     nonlin_abstract_T,  # FIXME
-    args_fixed=(True, False),
+    first_n_args_fixed=1,
     func_can_batch=True,
 )
 

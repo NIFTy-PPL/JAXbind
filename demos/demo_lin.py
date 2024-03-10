@@ -45,7 +45,7 @@ def lin_abstract_T(*args, **kwargs):
 
 
 lin_jax = jax_linop.get_linear_call(
-    lin, lin_T, lin_abstract, lin_abstract_T, args_fixed=(False, False)
+    lin, lin_T, lin_abstract, lin_abstract_T, first_n_args_fixed=0,
 )
 inp = (4 + jnp.zeros((2, 2)), 1 + jnp.zeros((2, 2)))
 lin_jax(*inp, axes=(3, 4))
@@ -84,7 +84,7 @@ lin_jax = jax_linop.get_linear_call(
     lin_T,
     lin_abstract,
     lin_abstract_T,
-    args_fixed=(True, False),
+    first_n_args_fixed=1,
     func_can_batch=True,
 )
 
