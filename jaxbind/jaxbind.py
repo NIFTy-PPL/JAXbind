@@ -16,6 +16,9 @@ from jax.interpreters import ad, batching, mlir
 from jax.interpreters.mlir import ir_constant as irc
 from jaxlib.hlo_helpers import custom_call
 
+
+__all__ = ['get_linear_call', 'get_nonlinear_call']
+
 import _jaxbind
 
 for _name, _value in _jaxbind.registrations().items():
@@ -179,8 +182,9 @@ def _jvp(args, tangents, *, _func: FunctionType, **kwargs):
     return (res, tans)
 
 
-# NOTE: for whatever reason JAX will pass each arg separately to _transpose and not
-# as a tuple as for _jvp. Thus we need *args since we don't know the number of arguments.
+# NOTE: for whatever reason JAX will pass each arg separately to _transpose
+# and not as a tuple as for _jvp. Thus we need *args since we don't know
+# the number of arguments.
 def _transpose(cotangents, *args, _func: FunctionType, **kwargs):
     assert isinstance(_func, (LinearFunction, MultiLinearFunction))
     if _func.T is None:
