@@ -1,0 +1,626 @@
+\documentclass[10pt,a4paper,onecolumn]{article}
+\usepackage{marginnote}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{authblk,etoolbox}
+\usepackage{titlesec}
+\usepackage{calc}
+\usepackage{tikz}
+\usepackage{hyperref}
+\hypersetup{colorlinks,breaklinks=true,
+            urlcolor=[rgb]{0.0, 0.5, 1.0},
+            linkcolor=[rgb]{0.0, 0.5, 1.0}}
+\usepackage{caption}
+\usepackage{tcolorbox}
+\usepackage{amssymb,amsmath}
+\usepackage{ifxetex,ifluatex}
+\usepackage{seqsplit}
+\usepackage{xstring}
+
+\usepackage{float}
+\let\origfigure\figure
+\let\endorigfigure\endfigure
+\renewenvironment{figure}[1][2] {
+    \expandafter\origfigure\expandafter[H]
+} {
+    \endorigfigure
+}
+
+
+\usepackage{fixltx2e} % provides \textsubscript
+\usepackage[
+  backend=biber,
+%  style=alphabetic,
+%  citestyle=numeric
+]{biblatex}
+\bibliography{paper.bib}
+
+% --- Splitting \texttt --------------------------------------------------
+
+\let\textttOrig=\texttt
+\def\texttt#1{\expandafter\textttOrig{\seqsplit{#1}}}
+\renewcommand{\seqinsert}{\ifmmode
+  \allowbreak
+  \else\penalty6000\hspace{0pt plus 0.02em}\fi}
+
+
+% --- Pandoc does not distinguish between links like [foo](bar) and
+% --- [foo](foo) -- a simplistic Markdown model.  However, this is
+% --- wrong:  in links like [foo](foo) the text is the url, and must
+% --- be split correspondingly.
+% --- Here we detect links \href{foo}{foo}, and also links starting
+% --- with https://doi.org, and use path-like splitting (but not
+% --- escaping!) with these links.
+% --- Another vile thing pandoc does is the different escaping of
+% --- foo and bar.  This may confound our detection.
+% --- This problem we do not try to solve at present, with the exception
+% --- of doi-like urls, which we detect correctly.
+
+
+\makeatletter
+\let\href@Orig=\href
+\def\href@Urllike#1#2{\href@Orig{#1}{\begingroup
+    \def\Url@String{#2}\Url@FormatString
+    \endgroup}}
+\def\href@Notdoi#1#2{\def\tempa{#1}\def\tempb{#2}%
+  \ifx\tempa\tempb\relax\href@Urllike{#1}{#2}\else
+  \href@Orig{#1}{#2}\fi}
+\def\href#1#2{%
+  \IfBeginWith{#1}{https://doi.org}%
+  {\href@Urllike{#1}{#2}}{\href@Notdoi{#1}{#2}}}
+\makeatother
+
+\newlength{\cslhangindent}
+\setlength{\cslhangindent}{1.5em}
+\newlength{\csllabelwidth}
+\setlength{\csllabelwidth}{3em}
+\newenvironment{CSLReferences}[3] % #1 hanging-ident, #2 entry spacing
+ {% don't indent paragraphs
+  \setlength{\parindent}{0pt}
+  % turn on hanging indent if param 1 is 1
+  \ifodd #1 \everypar{\setlength{\hangindent}{\cslhangindent}}\ignorespaces\fi
+  % set entry spacing
+  \ifnum #2 > 0
+  \setlength{\parskip}{#2\baselineskip}
+  \fi
+ }%
+ {}
+\usepackage{calc}
+\newcommand{\CSLBlock}[1]{#1\hfill\break}
+\newcommand{\CSLLeftMargin}[1]{\parbox[t]{\csllabelwidth}{#1}}
+\newcommand{\CSLRightInline}[1]{\parbox[t]{\linewidth - \csllabelwidth}{#1}}
+\newcommand{\CSLIndent}[1]{\hspace{\cslhangindent}#1}
+
+% --- Page layout -------------------------------------------------------------
+\usepackage[top=3.5cm, bottom=3cm, right=2.54cm, left=2.54cm,
+            headheight=2.2cm]{geometry}
+
+% --- Default font ------------------------------------------------------------
+\renewcommand\familydefault{\sfdefault}
+
+% --- Style -------------------------------------------------------------------
+\renewcommand{\bibfont}{\small \sffamily}
+\renewcommand{\captionfont}{\small\sffamily}
+\renewcommand{\captionlabelfont}{\bfseries}
+
+% --- Section/SubSection/SubSubSection ----------------------------------------
+\titleformat{\section}
+  {\normalfont\sffamily\Large\bfseries}
+  {}{0pt}{}
+\titleformat{\subsection}
+  {\normalfont\sffamily\large\bfseries}
+  {}{0pt}{}
+\titleformat{\subsubsection}
+  {\normalfont\sffamily\bfseries}
+  {}{0pt}{}
+\titleformat*{\paragraph}
+  {\sffamily\normalsize}
+
+
+% --- Header / Footer ---------------------------------------------------------
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+%\renewcommand{\headrulewidth}{0.50pt}
+\renewcommand{\headrulewidth}{0pt}
+\fancyhead[L]{}
+\fancyhead[C]{}
+\fancyhead[R]{}
+\renewcommand{\footrulewidth}{0.0pt}
+
+\fancyfoot[L]{}
+
+
+\fancyfoot[R]{\sffamily \thepage}
+\makeatletter
+\let\ps@plain\ps@fancy
+\fancyheadoffset[L]{4.5cm}
+\fancyfootoffset[L]{4.5cm}
+
+% --- Macros ---------
+
+\definecolor{linky}{rgb}{0.0, 0.5, 1.0}
+
+\newtcolorbox{repobox}
+   {colback=red, colframe=red!75!black,
+     boxrule=0.5pt, arc=2pt, left=6pt, right=6pt, top=3pt, bottom=3pt}
+
+\newcommand{\ExternalLink}{%
+   \tikz[x=1.2ex, y=1.2ex, baseline=-0.05ex]{%
+       \begin{scope}[x=1ex, y=1ex]
+           \clip (-0.1,-0.1)
+               --++ (-0, 1.2)
+               --++ (0.6, 0)
+               --++ (0, -0.6)
+               --++ (0.6, 0)
+               --++ (0, -1);
+           \path[draw,
+               line width = 0.5,
+               rounded corners=0.5]
+               (0,0) rectangle (1,1);
+       \end{scope}
+       \path[draw, line width = 0.5] (0.5, 0.5)
+           -- (1, 1);
+       \path[draw, line width = 0.5] (0.6, 1)
+           -- (1, 1) -- (1, 0.6);
+       }
+   }
+
+% --- Title / Authors ---------------------------------------------------------
+% patch \maketitle so that it doesn't center
+\patchcmd{\@maketitle}{center}{flushleft}{}{}
+\patchcmd{\@maketitle}{center}{flushleft}{}{}
+% patch \maketitle so that the font size for the title is normal
+\patchcmd{\@maketitle}{\LARGE}{\LARGE\sffamily}{}{}
+% patch the patch by authblk so that the author block is flush left
+\def\maketitle{{%
+  \renewenvironment{tabular}[2][]
+    {\begin{flushleft}}
+    {\end{flushleft}}
+  \AB@maketitle}}
+\makeatletter
+\renewcommand\AB@affilsepx{ \protect\Affilfont}
+%\renewcommand\AB@affilnote[1]{{\bfseries #1}\hspace{2pt}}
+\renewcommand\AB@affilnote[1]{{\bfseries #1}\hspace{3pt}}
+\renewcommand{\affil}[2][]%
+   {\newaffiltrue\let\AB@blk@and\AB@pand
+      \if\relax#1\relax\def\AB@note{\AB@thenote}\else\def\AB@note{#1}%
+        \setcounter{Maxaffil}{0}\fi
+        \begingroup
+        \let\href=\href@Orig
+        \let\texttt=\textttOrig
+        \let\protect\@unexpandable@protect
+        \def\thanks{\protect\thanks}\def\footnote{\protect\footnote}%
+        \@temptokena=\expandafter{\AB@authors}%
+        {\def\\{\protect\\\protect\Affilfont}\xdef\AB@temp{#2}}%
+         \xdef\AB@authors{\the\@temptokena\AB@las\AB@au@str
+         \protect\\[\affilsep]\protect\Affilfont\AB@temp}%
+         \gdef\AB@las{}\gdef\AB@au@str{}%
+        {\def\\{, \ignorespaces}\xdef\AB@temp{#2}}%
+        \@temptokena=\expandafter{\AB@affillist}%
+        \xdef\AB@affillist{\the\@temptokena \AB@affilsep
+          \AB@affilnote{\AB@note}\protect\Affilfont\AB@temp}%
+      \endgroup
+       \let\AB@affilsep\AB@affilsepx
+}
+\makeatother
+\renewcommand\Authfont{\sffamily\bfseries}
+\renewcommand\Affilfont{\sffamily\small\mdseries}
+\setlength{\affilsep}{1em}
+
+
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+
+\else % if luatex or xelatex
+  \ifxetex
+    \usepackage{mathspec}
+    \usepackage{fontspec}
+
+  \else
+    \usepackage{fontspec}
+  \fi
+  \defaultfontfeatures{Ligatures=TeX,Scale=MatchLowercase}
+
+\fi
+% use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+% use microtype if available
+\IfFileExists{microtype.sty}{%
+\usepackage{microtype}
+\UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+
+\usepackage{hyperref}
+\hypersetup{unicode=true,
+            pdftitle={jax\_op: Use any function in JAX},
+            pdfborder={0 0 0},
+            breaklinks=true}
+\urlstyle{same}  % don't use monospace font for urls
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\newenvironment{Shaded}{}{}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{1.00,0.00,0.00}{\textbf{#1}}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.49,0.56,0.16}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\BuiltInTok}[1]{#1}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.53,0.00,0.00}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.56,0.13,0.00}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.73,0.13,0.13}{\textit{#1}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{1.00,0.00,0.00}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.02,0.16,0.49}{#1}}
+\newcommand{\ImportTok}[1]{#1}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.40,0.40,0.40}{#1}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.74,0.48,0.00}{#1}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.73,0.40,0.53}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.10,0.09,0.49}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+
+% --- We redefined \texttt, but in sections and captions we want the
+% --- old definition
+\let\addcontentslineOrig=\addcontentsline
+\def\addcontentsline#1#2#3{\bgroup
+  \let\texttt=\textttOrig\addcontentslineOrig{#1}{#2}{#3}\egroup}
+\let\markbothOrig\markboth
+\def\markboth#1#2{\bgroup
+  \let\texttt=\textttOrig\markbothOrig{#1}{#2}\egroup}
+\let\markrightOrig\markright
+\def\markright#1{\bgroup
+  \let\texttt=\textttOrig\markrightOrig{#1}\egroup}
+
+
+\IfFileExists{parskip.sty}{%
+\usepackage{parskip}
+}{% else
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt plus 2pt minus 1pt}
+}
+\setlength{\emergencystretch}{3em}  % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{0}
+% Redefines (sub)paragraphs to behave more like sections
+\ifx\paragraph\undefined\else
+\let\oldparagraph\paragraph
+\renewcommand{\paragraph}[1]{\oldparagraph{#1}\mbox{}}
+\fi
+\ifx\subparagraph\undefined\else
+\let\oldsubparagraph\subparagraph
+\renewcommand{\subparagraph}[1]{\oldsubparagraph{#1}\mbox{}}
+\fi
+
+\title{\texttt{jax\_op}: Use any function in JAX}
+
+        \author[1, 2, 3*]{Jakob Roth}
+          \author[1*]{Martin Reinecke}
+          \author[1, 2*]{Gordian Edenhofer}
+    
+      \affil[1]{Max Planck Institute for Astrophysics,
+Karl-Schwarzschild-Str. 1, 85748 Garching, Germany}
+      \affil[2]{Ludwig Maximilian University of Munich,
+Geschwister-Scholl-Platz 1, 80539 Munich, Germany}
+      \affil[3]{Technical University of Munich, Boltzmannstr. 3, 85748
+Garching, Germany}
+      \affil[*]{These authors contributed equally.}
+  \date{\vspace{-7ex}}
+
+\begin{document}
+\maketitle
+
+\vspace{1em}
+
+\hypertarget{summary}{%
+\section{Summary}\label{summary}}
+
+JAX is widely used in machine learning and scientific computing.
+Scientific computing relies on existing high-performance code which we
+would ideally like to use in JAX. Reimplementing the existing code in
+JAX is often impractical and the existing interface in JAX for
+connecting custom code requires deep knowledge of JAX and its C++
+backend. The aim of \texttt{jax\_op} is to drastically lower the burden
+of connecting custom functions implemented in other programming
+languages to JAX. Specifically, \texttt{jax\_op} provides an easy-to-use
+Python interface for defining custom, so-called JAX primitives
+supporting any JAX transformations.
+
+\hypertarget{statement-of-need}{%
+\section{Statement of Need}\label{statement-of-need}}
+
+The use of JAX (Bradbury et al., 2018) is widespread in the natural
+sciences. JAX's powerful transformation system is of especially high
+interest. It enables retrieving arbitrary derivatives of functions,
+batch computations, and just-in-time code compilation for additional
+performance. Its transformation system relies on all constituents of the
+computation being written in JAX.
+
+A plethora of high-performance code is not written in JAX and thus not
+accessible from within JAX. Rewriting these is often infeasible and/or
+inefficient. Ideally, we would like to intermix existing
+high-performance code with JAX code. However, connecting code to JAX
+requires knowledge of the internals of JAX and its C++ backend.
+
+In this paper, we present \texttt{jax\_op}, a package for bridging any
+function to JAX without in-depth knowledge of JAX's transformation
+system. The interface is accessible from Python without requiring any
+development in C++. The package is able to register any function, its
+partial derivatives and their transpose functions as a JAX native call,
+a so-called primitive. Derivatives, compilation rules, and batching
+rules are automatically registered with JAX.
+
+We believe \texttt{jax\_op} to be highly useful in scientific computing.
+We intend to use this package to connect the Hartley transform and the
+spherical harmonic transform from ducc (Reinecke, 2024) to NIFTy
+(Edenhofer et al., 2024) as well as the radio interferometry response
+from ducc with \texttt{resolve} (Arras et al., 2024) for radio
+astronomy. Furthermore, we intend to connect the non-uniform FFT from
+ducc with JAX for applications in strong-lensing astrophysics. We
+envision many further applications within and outside of astrophysics.
+
+To the best of our knowledge no other code currently exists for
+connecting generic functions to JAX. The package that comes the closest
+is Enzyme-JAX (EnzymeAD, 2024). Enzyme-JAX allows one to differentiate a
+C++ function with Enzyme (W. Moses \& Churavy, 2020; W. S. Moses et al.,
+2021, 2022) and connect it together with its derivative to JAX. However,
+it enforces the use of Enzyme for deriving derivatives and does not
+allow for connecting arbitrary code to JAX.
+
+\hypertarget{automatic-differentiation-and-code-example}{%
+\section{Automatic Differentiation and Code
+Example}\label{automatic-differentiation-and-code-example}}
+
+Automatic differentiation is a core feature of JAX and often one of the
+main reasons for using it. Thus, it is essential that custom functions
+registered with JAX support automatic differentiation. In the following,
+we will outline which functions our package respectively JAX requires to
+enable automatic differentiation. For simplicity, we assume that we want
+to connect the nonlinear function \(f(x_1,x_2) = x_1x_2^2\) to JAX. The
+\texttt{jax\_op} package expects the Python function for \(f\) to take
+three positional arguments. The first argument, \texttt{out}, is a
+\texttt{tuple} into which the function results are written. The second
+argument is also a \texttt{tuple} containing the input to the function,
+in our case, \(x_1\) and \(x_2\). Via \texttt{kwargs\_dump}, potential
+keyword arguments given to the later registered Jax primitive can be
+forwarded to \texttt{f} in serialized form.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\ImportTok{import}\NormalTok{ jax\_linop }\CommentTok{\#FIXME}
+
+\KeywordTok{def}\NormalTok{ f(out, args, kwargs\_dump):}
+\NormalTok{    kwargs }\OperatorTok{=}\NormalTok{ jax\_linop.load\_kwargs(kwargs\_dump)}
+\NormalTok{    x1, x2 }\OperatorTok{=}\NormalTok{ args}
+\NormalTok{    out[}\DecValTok{0}\NormalTok{][()] }\OperatorTok{=}\NormalTok{ x1 }\OperatorTok{*}\NormalTok{ x2}\OperatorTok{**}\DecValTok{2}
+\end{Highlighting}
+\end{Shaded}
+
+JAX's automatic differentiation engine can compute the Jacobian-vector
+product \texttt{jvp} and vector-Jacobian product \texttt{vjp} of JAX
+primitives. The Jacobian-vector product in JAX is a function applying
+the Jacobian of \(f\) at a position \(x\) to a tangent vector. In
+mathematical nomenclature this operation is called the pushforward of
+\(f\) and can be denoted as \(\partial f(x): T_x X \mapsto T_{f(x)} Y\),
+with \(T_x X\) and \(T_{f(x)} Y\) being the tangent spaces of \(X\) and
+\(Y\) at the positions \(x\) and \(f(x)\). As the implementation of
+\(f\) is not JAX native, JAX cannot automatically compute the
+\texttt{jvp}. Instead, an implementation of the pushforward has to be
+provided, which \texttt{jax\_op} will register as the \texttt{jvp} of
+the JAX primitive of \(f\). For our example, this
+Jacobian-vector-product function is given by
+\(\partial f(x_1,x_2)(dx_1,dx_2) = x_2^2dx_1 + 2x_1x_2dx_2\).
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{def}\NormalTok{ f\_jvp(out, args, kwargs\_dump):}
+\NormalTok{    kwargs }\OperatorTok{=}\NormalTok{ jax\_linop.load\_kwargs(kwargs\_dump)}
+\NormalTok{    x1, x2, dx1, dx2 }\OperatorTok{=}\NormalTok{ args}
+\NormalTok{    out[}\DecValTok{0}\NormalTok{][()] }\OperatorTok{=}\NormalTok{ x2}\OperatorTok{**}\DecValTok{2} \OperatorTok{*}\NormalTok{ dx1 }\OperatorTok{+} \DecValTok{2} \OperatorTok{*}\NormalTok{ x1 }\OperatorTok{*}\NormalTok{ x2 }\OperatorTok{*}\NormalTok{ dx2}
+\end{Highlighting}
+\end{Shaded}
+
+The vector-Jacobian product \texttt{vjp} in JAX is the linear transpose
+of the Jacobian-vector product. In mathematical nomenclature this is the
+pullback \((\partial f(x))^{T}: T_{f(x)}Y \mapsto T_x X\) of \(f\).
+Analogously to the \texttt{jvp}, the user has to implement this function
+as JAX cannot automatically construct it. For our example function, the
+vector-Jacobian product is
+\((\partial f(x_1,x_2))^{T}(dy) = (x_2^2dy, 2x_1x_2dy)\).
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{def}\NormalTok{ f\_vjp(out, args, kwargs\_dump):}
+\NormalTok{    kwargs }\OperatorTok{=}\NormalTok{ jax\_linop.load\_kwargs(kwargs\_dump)}
+\NormalTok{    x1, x2, dy }\OperatorTok{=}\NormalTok{ args}
+\NormalTok{    out[}\DecValTok{0}\NormalTok{][()] }\OperatorTok{=}\NormalTok{ x2}\OperatorTok{**}\DecValTok{2} \OperatorTok{*}\NormalTok{ dy}
+\NormalTok{    out[}\DecValTok{1}\NormalTok{][()] }\OperatorTok{=} \DecValTok{2} \OperatorTok{*}\NormalTok{ x1 }\OperatorTok{*}\NormalTok{ x2 }\OperatorTok{*}\NormalTok{ dy}
+\end{Highlighting}
+\end{Shaded}
+
+To just-in-time compile the function, JAX needs to abstractly evaluate
+the code, i.e.~it needs to be able to know the shape and dtype of the
+output of the custom function given only the shape and dtype of the
+input. We have to provide these abstract evaluation functions returning
+the output shape and dtype given an input shape and dtype for \texttt{f}
+as well as for the \texttt{vjp} application. The output shape of the
+\texttt{jvp} is identical to the output shape of \texttt{f} itself and
+does not need to be specified again.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{def}\NormalTok{ f\_abstract(}\OperatorTok{*}\NormalTok{args, }\OperatorTok{**}\NormalTok{kwargs):}
+    \ControlFlowTok{assert}\NormalTok{ args[}\DecValTok{0}\NormalTok{].shape }\OperatorTok{==}\NormalTok{ args[}\DecValTok{1}\NormalTok{].shape}
+    \ControlFlowTok{return}\NormalTok{ ((args[}\DecValTok{0}\NormalTok{].shape, args[}\DecValTok{0}\NormalTok{].dtype),)}
+
+\KeywordTok{def}\NormalTok{ f\_abstract\_T(}\OperatorTok{*}\NormalTok{args, }\OperatorTok{**}\NormalTok{kwargs):}
+    \ControlFlowTok{return}\NormalTok{ (}
+\NormalTok{        (args[}\DecValTok{0}\NormalTok{].shape, args[}\DecValTok{0}\NormalTok{].dtype),}
+\NormalTok{        (args[}\DecValTok{0}\NormalTok{].shape, args[}\DecValTok{0}\NormalTok{].dtype),}
+\NormalTok{    )}
+\end{Highlighting}
+\end{Shaded}
+
+We have now defined all ingredients necessary to register a JAX
+primitive for our function \(f\) using the \texttt{jax\_op} package.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{f\_jax }\OperatorTok{=}\NormalTok{ jax\_linop.get\_nonlinear\_call(}
+\NormalTok{    f, (f\_jvp, f\_vjp), f\_abstract, f\_abstract\_T}
+\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\texttt{f\_jax} is a JAX primitive registered via the \texttt{jax\_op}
+package supporting all JAX transformations. We can now compute the
+\texttt{jvp} and \texttt{vjp} of the new JAX primitive and even
+jit-compile and batch it.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\ImportTok{import}\NormalTok{ jax}
+\ImportTok{import}\NormalTok{ jax.numpy }\ImportTok{as}\NormalTok{ jnp}
+
+\NormalTok{inp }\OperatorTok{=}\NormalTok{ (jnp.full((}\DecValTok{4}\NormalTok{,}\DecValTok{3}\NormalTok{), }\FloatTok{4.}\NormalTok{), jnp.full((}\DecValTok{4}\NormalTok{,}\DecValTok{3}\NormalTok{), }\FloatTok{2.}\NormalTok{))}
+\NormalTok{tan }\OperatorTok{=}\NormalTok{ (jnp.full((}\DecValTok{4}\NormalTok{,}\DecValTok{3}\NormalTok{), }\FloatTok{1.}\NormalTok{), jnp.full((}\DecValTok{4}\NormalTok{,}\DecValTok{3}\NormalTok{), }\FloatTok{1.}\NormalTok{))}
+\NormalTok{res, res\_tan }\OperatorTok{=}\NormalTok{ jax.jvp(f\_jax, inp, tan)}
+
+\NormalTok{cotan }\OperatorTok{=}\NormalTok{ (jnp.full((}\DecValTok{4}\NormalTok{,}\DecValTok{3}\NormalTok{), }\FloatTok{6.}\NormalTok{),)}
+\NormalTok{res, f\_vjp }\OperatorTok{=}\NormalTok{ jax.vjp(f\_jax, }\OperatorTok{*}\NormalTok{inp)}
+\NormalTok{res\_cotan }\OperatorTok{=}\NormalTok{ f\_vjp(cotan)}
+
+\NormalTok{f\_jax\_jit }\OperatorTok{=}\NormalTok{ jax.jit(f\_jax)}
+\NormalTok{res }\OperatorTok{=}\NormalTok{ f\_jax\_jit(}\OperatorTok{*}\NormalTok{inp)}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{higher-order-derivatives-and-linear-functions}{%
+\section{Higher Order Derivatives and Linear
+Functions}\label{higher-order-derivatives-and-linear-functions}}
+
+JAX supports higher order derivatives and can differentiate a
+\texttt{jvp} or \texttt{vjp} with respect to the position at which the
+Jacobian was taken. Similar to first derivatives, JAX can not
+automatically compute higher derivatives of a general function \(f\)
+that is not natively implemented in JAX. Higher order derivatives would
+again need to be provided by the user. For many algorithms, first
+derivatives are sufficient, and higher order derivatives are often not
+implemented by the high-performance codes. Therefore, the current
+interface of \texttt{jax\_op} is, for simplicity, restricted to first
+derivatives. In the future, the interface could be easily expanded if
+specific use cases require higher order derivatives.
+
+In scientific computing, linear functions such as, e.g., spherical
+harmonic transforms are widespread. If the function \(f\) is linear,
+differentiation becomes trivial. Specifically for a linear function
+\(f\), the pushforward respectively the \texttt{jvp} of \(f\) is
+identical to \(f\) itself and independent of the position at which it is
+computed. Expressed in formulas, \(\partial f(x)(dx) = f(dx)\) if \(f\)
+is linear in \(x\). Analogously, the pullback respectively the
+\texttt{vjp} becomes independent of the initial position and is given by
+the linear transpose of \(f\), thus
+\((\partial f(x))^{T}(dy) = f^T(dy)\). Also, all higher order
+derivatives can be expressed in terms of \(f\) and its transpose. To
+make use of these simplifications, \texttt{jax\_op} provides a special
+interface for linear functions, supporting higher order derivatives,
+only requiring an implementation of the function and its transpose.
+
+\hypertarget{platforms}{%
+\section{Platforms}\label{platforms}}
+
+Currently, \texttt{jax\_op} only has CPU but no GPU support. With some
+expertise on Python bindings for GPU kernels adding GPU support should
+be fairly simple. We especially want to highlight that the interfacing
+with the JAX automatic differentiation engine is identical for CPU and
+GPU.
+
+\hypertarget{acknowledgements}{%
+\section{Acknowledgements}\label{acknowledgements}}
+
+We would like to thank Dan Foreman-Mackey for his detailed guide
+(https://dfm.io/posts/extending-jax/) on connecting C++ code to JAX.
+Jakob Roth acknowledges financial support from the German Federal
+Ministry of Education and Research (BMBF) under grant 05A23WO1
+(Verbundprojekt D-MeerKAT III). Gordian Edenhofer acknowledges support
+from the German Academic Scholarship Foundation in the form of a PhD
+scholarship (``Promotionsstipendium der Studienstiftung des Deutschen
+Volkes'').
+
+\hypertarget{references}{%
+\section{References}\label{references}}
+
+\hypertarget{refs}{}
+\begin{CSLReferences}{1}{0}
+\leavevmode\hypertarget{ref-Resolve2024}{}%
+Arras, P., Roth, J., Ding, S., Reinecke, M., Fuchs, R., \& Johnson, V.
+(2024). \emph{RESOLVE}. \url{https://gitlab.mpcdf.mpg.de/ift/resolve}
+
+\leavevmode\hypertarget{ref-Jax2018}{}%
+Bradbury, J., Frostig, R., Hawkins, P., Johnson, M. J., Leary, C.,
+Maclaurin, D., Necula, G., Paszke, A., VanderPlas, J., Wanderman-Milne,
+S., \& Zhang, Q. (2018). \emph{{JAX}: Composable transformations of
+{P}ython+{N}um{P}y programs} (Version 0.3.13) {[}Computer software{]}.
+\url{http://github.com/google/jax}
+
+\leavevmode\hypertarget{ref-Edenhofer2023NIFTyRE}{}%
+Edenhofer, G., Frank, P., Roth, J., Leike, R. H., Guerdi, M.,
+Scheel-Platz, L. I., Guardiani, M., Eberle, V., Westerkamp, M., \&
+Enßlin, T. A. (2024). \emph{{Re-Envisioning Numerical Information Field
+Theory (NIFTy.re): A Library for Gaussian Processes and Variational
+Inference}}. \url{http://arxiv.org/abs/2402.16683}
+
+\leavevmode\hypertarget{ref-Moses2024}{}%
+EnzymeAD. (2024). \emph{{Enzyme-JAX}} (Version 0.0.6) {[}Computer
+software{]}. \url{https://github.com/EnzymeAD/Enzyme-JAX}
+
+\leavevmode\hypertarget{ref-Moses2020}{}%
+Moses, W., \& Churavy, V. (2020). Instead of rewriting foreign code for
+machine learning, automatically synthesize fast gradients. In H.
+Larochelle, M. Ranzato, R. Hadsell, M. F. Balcan, \& H. Lin (Eds.),
+\emph{Advances in neural information processing systems} (Vol. 33, pp.
+12472--12485). Curran Associates, Inc.
+\url{https://proceedings.neurips.cc/paper/2020/file/9332c513ef44b682e9347822c2e457ac-Paper.pdf}
+
+\leavevmode\hypertarget{ref-Moses2021}{}%
+Moses, W. S., Churavy, V., Paehler, L., Hückelheim, J., Narayanan, S. H.
+K., Schanen, M., \& Doerfert, J. (2021). Reverse-mode automatic
+differentiation and optimization of GPU kernels via enzyme.
+\emph{Proceedings of the International Conference for High Performance
+Computing, Networking, Storage and Analysis}.
+\url{https://doi.org/10.1145/3458817.3476165}
+
+\leavevmode\hypertarget{ref-Moses2022}{}%
+Moses, W. S., Narayanan, S. H. K., Paehler, L., Churavy, V., Schanen,
+M., Hückelheim, J., Doerfert, J., \& Hovland, P. (2022). Scalable
+automatic differentiation of multiple parallel paradigms through
+compiler augmentation. \emph{Proceedings of the International Conference
+on High Performance Computing, Networking, Storage and Analysis}.
+ISBN:~\href{https://worldcat.org/isbn/9784665454445}{9784665454445}
+
+\leavevmode\hypertarget{ref-ducc0}{}%
+Reinecke, M. (2024). \emph{{DUCC}: Distinctly useful code collection}
+(Version 0.33.0) {[}Computer software{]}.
+\url{https://gitlab.mpcdf.mpg.de/mtr/ducc}
+
+\end{CSLReferences}
+
+\end{document}
