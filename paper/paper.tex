@@ -234,7 +234,7 @@
 
 \usepackage{hyperref}
 \hypersetup{unicode=true,
-            pdftitle={jax\_op: Use any function in JAX},
+            pdftitle={JAXbind: Easy bindings to JAX},
             pdfborder={0 0 0},
             breaklinks=true}
 \urlstyle{same}  % don't use monospace font for urls
@@ -310,7 +310,7 @@
 \renewcommand{\subparagraph}[1]{\oldsubparagraph{#1}\mbox{}}
 \fi
 
-\title{\texttt{jax\_op}: Use any function in JAX}
+\title{\texttt{JAXbind}: Easy bindings to JAX}
 
         \author[1, 2, 3*]{Jakob Roth}
           \author[1*]{Martin Reinecke}
@@ -338,9 +338,9 @@ Scientific computing relies on existing high-performance code which we
 would ideally like to use in JAX. Reimplementing the existing code in
 JAX is often impractical and the existing interface in JAX for
 connecting custom code requires deep knowledge of JAX and its C++
-backend. The aim of \texttt{jax\_op} is to drastically lower the burden
+backend. The aim of \texttt{JAXbind} is to drastically lower the burden
 of connecting custom functions implemented in other programming
-languages to JAX. Specifically, \texttt{jax\_op} provides an easy-to-use
+languages to JAX. Specifically, \texttt{JAXbind} provides an easy-to-use
 Python interface for defining custom, so-called JAX primitives
 supporting any JAX transformations.
 
@@ -360,7 +360,7 @@ inefficient. Ideally, we would like to intermix existing
 high-performance code with JAX code. However, connecting code to JAX
 requires knowledge of the internals of JAX and its C++ backend.
 
-In this paper, we present \texttt{jax\_op}, a package for bridging any
+In this paper, we present \texttt{JAXbind}, a package for bridging any
 function to JAX without in-depth knowledge of JAX's transformation
 system. The interface is accessible from Python without requiring any
 development in C++. The package is able to register any function, its
@@ -368,7 +368,7 @@ partial derivatives and their transpose functions as a JAX native call,
 a so-called primitive. Derivatives, compilation rules, and batching
 rules are automatically registered with JAX.
 
-We believe \texttt{jax\_op} to be highly useful in scientific computing.
+We believe \texttt{JAXbind} to be highly useful in scientific computing.
 We intend to use this package to connect the Hartley transform and the
 spherical harmonic transform from ducc (Reinecke, 2024) to NIFTy
 (Edenhofer et al., 2024) as well as the radio interferometry response
@@ -395,7 +395,7 @@ registered with JAX support automatic differentiation. In the following,
 we will outline which functions our package respectively JAX requires to
 enable automatic differentiation. For simplicity, we assume that we want
 to connect the nonlinear function \(f(x_1,x_2) = x_1x_2^2\) to JAX. The
-\texttt{jax\_op} package expects the Python function for \(f\) to take
+\texttt{JAXbind} package expects the Python function for \(f\) to take
 three positional arguments. The first argument, \texttt{out}, is a
 \texttt{tuple} into which the function results are written. The second
 argument is also a \texttt{tuple} containing the input to the function,
@@ -405,10 +405,10 @@ forwarded to \texttt{f} in serialized form.
 
 \begin{Shaded}
 \begin{Highlighting}[]
-\ImportTok{import}\NormalTok{ jax\_linop }\CommentTok{\#FIXME}
+\ImportTok{import}\NormalTok{ jaxbind }
 
 \KeywordTok{def}\NormalTok{ f(out, args, kwargs\_dump):}
-\NormalTok{    kwargs }\OperatorTok{=}\NormalTok{ jax\_linop.load\_kwargs(kwargs\_dump)}
+\NormalTok{    kwargs }\OperatorTok{=}\NormalTok{ jaxbind.load\_kwargs(kwargs\_dump)}
 \NormalTok{    x1, x2 }\OperatorTok{=}\NormalTok{ args}
 \NormalTok{    out[}\DecValTok{0}\NormalTok{][()] }\OperatorTok{=}\NormalTok{ x1 }\OperatorTok{*}\NormalTok{ x2}\OperatorTok{**}\DecValTok{2}
 \end{Highlighting}
@@ -424,7 +424,7 @@ with \(T_x X\) and \(T_{f(x)} Y\) being the tangent spaces of \(X\) and
 \(Y\) at the positions \(x\) and \(f(x)\). As the implementation of
 \(f\) is not JAX native, JAX cannot automatically compute the
 \texttt{jvp}. Instead, an implementation of the pushforward has to be
-provided, which \texttt{jax\_op} will register as the \texttt{jvp} of
+provided, which \texttt{JAXbind} will register as the \texttt{jvp} of
 the JAX primitive of \(f\). For our example, this
 Jacobian-vector-product function is given by
 \(\partial f(x_1,x_2)(dx_1,dx_2) = x_2^2dx_1 + 2x_1x_2dx_2\).
@@ -432,7 +432,7 @@ Jacobian-vector-product function is given by
 \begin{Shaded}
 \begin{Highlighting}[]
 \KeywordTok{def}\NormalTok{ f\_jvp(out, args, kwargs\_dump):}
-\NormalTok{    kwargs }\OperatorTok{=}\NormalTok{ jax\_linop.load\_kwargs(kwargs\_dump)}
+\NormalTok{    kwargs }\OperatorTok{=}\NormalTok{ jaxbind.load\_kwargs(kwargs\_dump)}
 \NormalTok{    x1, x2, dx1, dx2 }\OperatorTok{=}\NormalTok{ args}
 \NormalTok{    out[}\DecValTok{0}\NormalTok{][()] }\OperatorTok{=}\NormalTok{ x2}\OperatorTok{**}\DecValTok{2} \OperatorTok{*}\NormalTok{ dx1 }\OperatorTok{+} \DecValTok{2} \OperatorTok{*}\NormalTok{ x1 }\OperatorTok{*}\NormalTok{ x2 }\OperatorTok{*}\NormalTok{ dx2}
 \end{Highlighting}
@@ -449,7 +449,7 @@ vector-Jacobian product is
 \begin{Shaded}
 \begin{Highlighting}[]
 \KeywordTok{def}\NormalTok{ f\_vjp(out, args, kwargs\_dump):}
-\NormalTok{    kwargs }\OperatorTok{=}\NormalTok{ jax\_linop.load\_kwargs(kwargs\_dump)}
+\NormalTok{    kwargs }\OperatorTok{=}\NormalTok{ jaxbind.load\_kwargs(kwargs\_dump)}
 \NormalTok{    x1, x2, dy }\OperatorTok{=}\NormalTok{ args}
 \NormalTok{    out[}\DecValTok{0}\NormalTok{][()] }\OperatorTok{=}\NormalTok{ x2}\OperatorTok{**}\DecValTok{2} \OperatorTok{*}\NormalTok{ dy}
 \NormalTok{    out[}\DecValTok{1}\NormalTok{][()] }\OperatorTok{=} \DecValTok{2} \OperatorTok{*}\NormalTok{ x1 }\OperatorTok{*}\NormalTok{ x2 }\OperatorTok{*}\NormalTok{ dy}
@@ -480,17 +480,17 @@ does not need to be specified again.
 \end{Shaded}
 
 We have now defined all ingredients necessary to register a JAX
-primitive for our function \(f\) using the \texttt{jax\_op} package.
+primitive for our function \(f\) using the \texttt{JAXbind} package.
 
 \begin{Shaded}
 \begin{Highlighting}[]
-\NormalTok{f\_jax }\OperatorTok{=}\NormalTok{ jax\_linop.get\_nonlinear\_call(}
+\NormalTok{f\_jax }\OperatorTok{=}\NormalTok{ jaxbind.get\_nonlinear\_call(}
 \NormalTok{    f, (f\_jvp, f\_vjp), f\_abstract, f\_abstract\_T}
 \NormalTok{)}
 \end{Highlighting}
 \end{Shaded}
 
-\texttt{f\_jax} is a JAX primitive registered via the \texttt{jax\_op}
+\texttt{f\_jax} is a JAX primitive registered via the \texttt{JAXbind}
 package supporting all JAX transformations. We can now compute the
 \texttt{jvp} and \texttt{vjp} of the new JAX primitive and even
 jit-compile and batch it.
@@ -525,7 +525,7 @@ that is not natively implemented in JAX. Higher order derivatives would
 again need to be provided by the user. For many algorithms, first
 derivatives are sufficient, and higher order derivatives are often not
 implemented by the high-performance codes. Therefore, the current
-interface of \texttt{jax\_op} is, for simplicity, restricted to first
+interface of \texttt{JAXbind} is, for simplicity, restricted to first
 derivatives. In the future, the interface could be easily expanded if
 specific use cases require higher order derivatives.
 
@@ -540,14 +540,14 @@ is linear in \(x\). Analogously, the pullback respectively the
 the linear transpose of \(f\), thus
 \((\partial f(x))^{T}(dy) = f^T(dy)\). Also, all higher order
 derivatives can be expressed in terms of \(f\) and its transpose. To
-make use of these simplifications, \texttt{jax\_op} provides a special
+make use of these simplifications, \texttt{JAXbind} provides a special
 interface for linear functions, supporting higher order derivatives,
 only requiring an implementation of the function and its transpose.
 
 \hypertarget{platforms}{%
 \section{Platforms}\label{platforms}}
 
-Currently, \texttt{jax\_op} only has CPU but no GPU support. With some
+Currently, \texttt{JAXbind} only has CPU but no GPU support. With some
 expertise on Python bindings for GPU kernels adding GPU support should
 be fairly simple. We especially want to highlight that the interfacing
 with the JAX automatic differentiation engine is identical for CPU and
