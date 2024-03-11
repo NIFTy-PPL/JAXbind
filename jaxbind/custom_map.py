@@ -1,4 +1,4 @@
-# Copyright(C) 2022-2023 Gordian Edenhofer
+# Copyright(C) 2022-2024 Gordian Edenhofer
 # SPDX-License-Identifier: GPL-2.0+ OR BSD-2-Clause
 
 from functools import partial

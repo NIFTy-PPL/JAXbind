@@ -1,3 +1,8 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Authors: Martin Reinecke, Jakob Roth, Gordian Edenhofer
+
+# Copyright(C) 2024 Max-Planck-Society
+
 import jax
 
 from jax import config

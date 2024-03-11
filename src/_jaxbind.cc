@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: BSD-3-Clause */
+/* SPDX-License-Identifier: BSD-2-Clause */
 
 /*
  *  JAXbind is being developed at the Max-Planck-Institut fuer Astrophysik
