@@ -63,7 +63,6 @@ def nonlin_deriv_T(out, args, kwargs_dump):
 def nonlin_abstract(*args, **kwargs):
     # Returns `shape` and `dtype` of output
     x, y, *_ = args
-    print(f"f {_=}")
     assert x.shape == x.shape and x.dtype is y.dtype
     return ((x.shape, x.dtype), (x.shape, x.dtype))
 
@@ -71,7 +70,6 @@ def nonlin_abstract(*args, **kwargs):
 def nonlin_abstract_T(*args, **kwargs):
     # Returns `shape` and `dtype` of output
     a, b, da, db = args
-    print(f"T {_=}")
     assert a.shape == b.shape == da.shape == db.shape
     assert a.dtype is b.dtype and a.dtype is da.dtype and a.dtype is db.dtype
     return ((a.shape, a.dtype),)
