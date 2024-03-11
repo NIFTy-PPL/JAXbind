@@ -1,4 +1,7 @@
-# jax_op: Use any function in JAX
+# JAXbind: Use any function in JAX
+
+Found a bug? [github.com/NIFTy-PPL/JAXbind/issues](https://github.com/NIFTy-PPL/JAXbind/issues)
+ | Need help? [github.com/NIFTy-PPL/JAXbind/discussions](https://github.com/NIFTy-PPL/JAXbind/discussions)
 
 ## Summary
 
