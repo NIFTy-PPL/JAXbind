@@ -6,8 +6,8 @@ Found a bug? [github.com/NIFTy-PPL/JAXbind/issues](https://github.com/NIFTy-PPL/
 ## Summary
 
 The existing interface in JAX for connecting custom code requires deep knowledge of JAX and its C++ backend.
-The aim of `jax_op` is to drastically lower the burden of connecting custom functions implemented in other programming languages to JAX.
-Specifically, `jax_op` provides an easy-to-use Python interface for defining custom, so-called JAX primitives supporting any JAX transformations.
+The aim of `JAXbind` is to drastically lower the burden of connecting custom functions implemented in other programming languages to JAX.
+Specifically, `JAXbind` provides an easy-to-use Python interface for defining custom, so-called JAX primitives supporting any JAX transformations.
 
 ### Automatic Differentiation and Code Example
 
@@ -15,7 +15,7 @@ Automatic differentiation is a core feature of JAX and often one of the main rea
 Thus, it is essential that custom functions registered with JAX support automatic differentiation.
 In the following, we will outline which functions our package respectively JAX requires to enable automatic differentiation.
 For simplicity, we assume that we want to connect the nonlinear function $f(x_1,x_2) = x_1x_2^2$ to JAX.
-The `jax_op` package expects the Python function for $f$ to take three positional arguments.
+The `JAXbind` package expects the Python function for $f$ to take three positional arguments.
 The first argument, `out`, is a `tuple` into which the function results are written.
 The second argument is also a `tuple` containing the input to the function, in our case, $x_1$ and $x_2$.
 Via `kwargs_dump`, potential keyword arguments given to the later registered Jax primitive can be forwarded to `f` in serialized form.
@@ -33,7 +33,7 @@ JAX's automatic differentiation engine can compute the Jacobian-vector product `
 The Jacobian-vector product in JAX is a function applying the Jacobian of $f$ at a position $x$ to a tangent vector.
 In mathematical nomenclature this operation is called the pushforward of $f$ and can be denoted as $\partial f(x): T_x X \mapsto T_{f(x)} Y$, with $T_x X$ and $T_{f(x)} Y$ being the tangent spaces of $X$ and $Y$ at the positions $x$ and $f(x)$.
 As the implementation of $f$ is not JAX native, JAX cannot automatically compute the `jvp`.
-Instead, an implementation of the pushforward has to be provided, which `jax_op` will register as the `jvp` of the JAX primitive of $f$.
+Instead, an implementation of the pushforward has to be provided, which `JAXbind` will register as the `jvp` of the JAX primitive of $f$.
 For our example, this Jacobian-vector-product function is given by $\partial f(x_1,x_2)(dx_1,dx_2) = x_2^2dx_1 + 2x_1x_2dx_2$.
 
 ```python
@@ -73,7 +73,7 @@ def f_abstract_T(*args, **kwargs):
     )
 ```
 
-We have now defined all ingredients necessary to register a JAX primitive for our function $f$ using the `jax_op` package.
+We have now defined all ingredients necessary to register a JAX primitive for our function $f$ using the `JAXbind` package.
 
 ```python
 f_jax = jaxbind.get_nonlinear_call(
@@ -81,7 +81,7 @@ f_jax = jaxbind.get_nonlinear_call(
 )
 ```
 
-`f_jax` is a JAX primitive registered via the `jax_op` package supporting all JAX transformations.
+`f_jax` is a JAX primitive registered via the `JAXbind` package supporting all JAX transformations.
 We can now compute the `jvp` and `vjp` of the new JAX primitive and even jit-compile and batch it.
 
 ```python
@@ -106,7 +106,7 @@ JAX supports higher order derivatives and can differentiate a `jvp` or `vjp` wit
 Similar to first derivatives, JAX can not automatically compute higher derivatives of a general function $f$ that is not natively implemented in JAX.
 Higher order derivatives would again need to be provided by the user.
 For many algorithms, first derivatives are sufficient, and higher order derivatives are often not implemented by the high-performance codes.
-Therefore, the current interface of `jax_op` is, for simplicity, restricted to first derivatives.
+Therefore, the current interface of `JAXbind` is, for simplicity, restricted to first derivatives.
 In the future, the interface could be easily expanded if specific use cases require higher order derivatives.
 
 In scientific computing, linear functions such as, e.g., spherical harmonic transforms are widespread.
@@ -115,7 +115,7 @@ Specifically for a linear function $f$, the pushforward respectively the `jvp` o
 Expressed in formulas, $\partial f(x)(dx) = f(dx)$ if $f$ is linear in $x$.
 Analogously, the pullback respectively the `vjp` becomes independent of the initial position and is given by the linear transpose of $f$, thus $(\partial f(x))^{T}(dy) = f^T(dy)$.
 Also, all higher order derivatives can be expressed in terms of $f$ and its transpose.
-To make use of these simplifications, `jax_op` provides a special interface for linear functions, supporting higher order derivatives, only requiring an implementation of the function and its transpose.
+To make use of these simplifications, `JAXbind` provides a special interface for linear functions, supporting higher order derivatives, only requiring an implementation of the function and its transpose.
 
 ### DEMOS
 
@@ -128,7 +128,7 @@ and the interface for functions supporting custom batching.
 
 ## Platforms
 
-Currently, `jax_op` only has CPU but no GPU support.
+Currently, `JAXbind` only has CPU but no GPU support.
 With some expertise on Python bindings for GPU kernels adding GPU support should be fairly simple.
 The Interfacing with the JAX automatic differentiation engine is identical for CPU and GPU.
 Contributions are welcome!
@@ -166,4 +166,4 @@ pip install --user .
 ## Licensing terms
 
 All source code in this package is released under the 3-clause BSD license.
-All of jax_op is distributed *without any warranty*.
+All of JAXbind is distributed *without any warranty*.

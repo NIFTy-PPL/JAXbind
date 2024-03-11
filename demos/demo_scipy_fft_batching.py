@@ -8,21 +8,21 @@ import jaxbind
 
 jax.config.update("jax_enable_x64", True)
 
-# This demo showcases the use of the interface of jax_op for  binding linear
+# This demo showcases the use of the interface of JAXbind for  binding linear
 # functions to jax. Specifically it wraps the scipy fft as a JAX primitive.
 
 # All JAX primitives can batched over input axes with 'jax.vmap'. JAX primitives
-# registered via jax_op are no exception from that. By default jax_op internally
+# registered via JAXbind are no exception from that. By default JAXbind internally
 # translates the mapping operation into a sequential application of the function
 # along the batching axis. Nevertheless, some custom function such as the scipy
 # FFT natively support mapping over input axis giving significant speedups
-# compared to a sequential computation. The jax_op interface allows to makes use
+# compared to a sequential computation. The JAXbind interface allows to makes use
 # of custom batch, which will be demonstrated in this demo.
 
 
 # scipy.fft.fftn is the function we want to wrap as a JAX primitive. Therefore,
 # we wrap the scipy fft into a function 'fftn' having the signature required by
-# jax_op. jax_op requires the function to take 3 arguments.
+# JAXbind. JAXbind requires the function to take 3 arguments.
 # The fist argument 'out' is a tuple into which the result is written, thus in
 # this case an array containing the output of scipy.fft.fftn.
 # The second argument is also a tuple and contains the input for the function,
