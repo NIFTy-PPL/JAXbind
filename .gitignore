@@ -93,3 +93,15 @@ ENV/
 
 # Rope project settings
 .ropeproject
+
+# latex
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.out
+*.pdf
+*.xml
+*.gz
