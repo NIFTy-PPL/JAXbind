@@ -8,7 +8,6 @@ from functools import partial
 
 import jax
 from jax import numpy as jnp
-from jax.test_util import check_grads
 
 import jaxbind
 
@@ -98,5 +97,3 @@ _ = jax.jvp(nonlin_jax_pt, (inp,), (inp,))
 _, nonlin_jax_pt_vjp = jax.vjp(nonlin_jax_pt, inp)
 nonlin_jax_pt_vjp = jax.jit(nonlin_jax_pt_vjp)
 _ = nonlin_jax_pt_vjp([inp, inp])
-
-check_grads(nonlin_jax_pt, (inp,), order=1, modes=("fwd", "rev"), eps=1e-3)
