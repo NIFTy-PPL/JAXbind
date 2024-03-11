@@ -6,9 +6,8 @@
 # %%
 import jax
 import jax.numpy as jnp
-from jax import random
-
 import scipy
+from jax import random
 
 import jaxbind
 
