@@ -3,6 +3,7 @@
 
 # Copyright(C) 2024 Max-Planck-Society
 
+# %%
 import jax
 import jax.numpy as jnp
 from jax import random
@@ -13,31 +14,33 @@ import jaxbind
 
 jax.config.update("jax_enable_x64", True)
 
-# This demo showcases the use of the interface of JAXbind for  binding linear
-# functions to jax. Specifically it wraps the scipy fft as a JAX primitive.
+# %% [markdown]
 
-# All JAX primitives can batched over input axes with 'jax.vmap'. JAX primitives
-# registered via JAXbind are no exception from that. By default JAXbind internally
-# translates the mapping operation into a sequential application of the function
-# along the batching axis. Nevertheless, some custom function such as the scipy
-# FFT natively support mapping over input axis giving significant speedups
-# compared to a sequential computation. The JAXbind interface allows to makes use
-# of custom batch, which will be demonstrated in this demo.
+# # Binding Scipy's FFT to JAX
 
+# This demo showcases the use of the interface of JAXbind for binding linear
+# functions to jax. Specifically, it wraps scipy's FFT as a JAX primitive.
 
-# scipy.fft.fftn is the function we want to wrap as a JAX primitive. Therefore,
-# we wrap the scipy fft into a function 'fftn' having the signature required by
-# JAXbind. JAXbind requires the function to take 3 arguments.
-# The fist argument 'out' is a tuple into which the result is written, thus in
-# this case an array containing the output of scipy.fft.fftn.
-# The second argument is also a tuple and contains the input for the function,
-# thus in our case this will be a tuple of length 1 containing the input array
-# for the scipy fft.
-# The third argument are potential keyword arguments given later to the JAX
-# primitive. Due to the internals of JAX and jaxbind these keyword arguments
-# are passed to the function in serialized from and need to be deserialized.
-# For functions supporting custom batching the keyword arguments also contain as
-# a list of the axis over which the function should be batched.
+# The code wraps the scipy.fft.fftn function as a JAX primitive using JAXbind.
+# It defines the fftn function with the required signature for JAXbind. The
+# fftn function takes three arguments: out, args, and kwargs_dump. It extracts
+# the input array from args, deserializes the keyword arguments from
+# kwargs_dump, and computes the FFT using scipy.fft.fftn. Similarly, it defines
+# the fftn_transposed function for the linear transposed operation. The code
+# also includes abstract evaluation functions for fftn and fftn_transposed.
+# Finally, it explains the purpose of wrapping scipy.fft.fftn as a JAX
+# primitive.
+
+# All native JAX primitives can be batched via 'jax.vmap'. Primitives
+# registered via JAXbind are no exception here. By default, JAXbind performs
+# the batching by sequential applying the function along the batching axis.
+# However, it also exposes an interface to allow the user to perform the
+# batching themself. As the FFT natively support mapping over input axis and
+# yields significant speedups compared to a sequential computation, we
+# demonstrate in the following how JAXbind can be used to register a custom
+# batching.
+
+# %%
 
 
 def fftn(out, args, kwargs_dump):
@@ -46,10 +49,8 @@ def fftn(out, args, kwargs_dump):
 
     # deserialize keyword arguments
     kwargs = jaxbind.load_kwargs(kwargs_dump)
-
     # extract keyword argument which can be given to the JAX primitive
     workers = kwargs.pop("workers", None)
-
     # extract the axes over which the FFT should be batched. This is only
     # necessary when supporting custom batching.
     batch_axes = kwargs.pop("batch_axes", None)
@@ -63,9 +64,13 @@ def fftn(out, args, kwargs_dump):
     out[0][()] = scipy.fft.fftn(x, axes=axes, norm="forward", workers=workers)
 
 
-# Besides the application of the FFT jaxbind also requires the application of
-# the linear transposed function. The syntax is identical to fftn just computing
-# the linear transposed.
+# %% [markdown]
+
+# In addition to applying the FFT, JAXbind also requires the implementation
+# of the linear transposed function. The syntax for computing the linear
+# transposed is identical to fftn.
+
+# %%
 
 
 def fftn_transposed(out, args, kwargs_dump):
@@ -87,20 +92,28 @@ def fftn_transposed(out, args, kwargs_dump):
     ).conj()
 
 
-# JAX needs to abstractly evaluate the code, thus needs to be abel to evaluate
-# the shape and dtype of the output of a function given the shape and dtype of
-# the input. For this we have to provide the abstract eval functions for fftn
-# and fftn_transposed.
-# The abstract eval functions take normal arguments and keyword arguments and
-# return a tuple containing the output information for each output argument of
-# the function. Since fftn has only one output argument the output tuple of the
-# abstract eval function has length 1.
-# The output description of each output argument is also a tuple. The first
-# entry in the tuple contains the shape of the output array. The second entry is
-# the dtype of this array. The third entry in the tuple is only required for
-# functions supporting custom batching and indicated the batching axis of the
-# output of the function (thus fftn). In our case the batching axis of the
-# output is identical to the batching axis of the input.
+# %% [markdown]
+
+# JAX needs to abstractly evaluate the code, thus needs to be able to
+# evaluate the shape and dtype of the output of a function given the shape
+# and dtype of the input. For this we have to provide the abstract eval
+# functions for fftn and fftn_transposed.
+
+# The abstract eval functions take normal arguments and keyword arguments
+# and return a tuple containing the output information for each output
+# argument of the function. Since fftn has only one output argument the
+# output tuple of the abstract eval function has length one.
+
+# The output description of each output argument is also a tuple. The
+# first entry in the tuple contains the shape of the output array. The
+# second entry is the dtype of this array. The third entry in the tuple
+# is only required for functions supporting custom batching and indicates
+# the batching axis of the output of the function (thus fftn). In our case
+# the batching axis of the output is identical to the batching axis of the
+# input.
+
+
+# %%
 
 
 def fftn_abstract_eval(*args, **kwargs):
@@ -122,15 +135,19 @@ def fftn_abstract_eval(*args, **kwargs):
     return ((x.shape, x.dtype, out_ax),)
 
 
+# %% [markdown]
+
 # JAX also needs to abstractly evaluate the transposed function. For that we
 # have to provide the same information as for fftn. Since a fft is not changing
 # the shape or dtype this function is identical to the fftn_abstract_eval. For
 # general linear functions this might be different.
 
+# %%
+
 
 def fftn_transposed_abstract_eval(*args, **kwargs):
-    batch_axes = kwargs.pop("batch_axes", None)
     (a,) = args
+    batch_axes = kwargs.pop("batch_axes", None)
     out_ax = ()
     if batch_axes:
         if len(batch_axes[0]) > 0:
@@ -138,8 +155,12 @@ def fftn_transposed_abstract_eval(*args, **kwargs):
     return ((a.shape, a.dtype, out_ax),)
 
 
+# %% [markdown]
+
 # Now we register our function as a custom JAX primitive using the interface for
-# linear functions of jaxbind. jaxbind returns the resulting JAX primitive.
+# linear functions of JAXbind. JAXbind returns the resulting JAX primitive.
+
+# %%
 fftn_jax = jaxbind.get_linear_call(
     fftn,
     fftn_transposed,
