@@ -16,9 +16,9 @@ from jax.interpreters import ad, batching, mlir
 from jax.interpreters.mlir import ir_constant as irc
 from jaxlib.hlo_helpers import custom_call
 
-import _jax_linop
+import _jaxbind
 
-for _name, _value in _jax_linop.registrations().items():
+for _name, _value in _bind.registrations().items():
     jax.lib.xla_client.register_custom_call_target(_name, _value, platform="cpu")
 
 
@@ -267,7 +267,7 @@ def _batch(args, in_axes, *, _func: FunctionType, **kwargs):
     return y, out_axes
 
 
-_prim = jax.core.Primitive("jax_linop_prim")
+_prim = jax.core.Primitive("jaxbind_prim")
 _prim.multiple_results = True
 _prim.def_impl(partial(jax.interpreters.xla.apply_primitive, _prim))
 _prim.def_abstract_eval(_exec_abstract)
@@ -306,7 +306,7 @@ def get_linear_call(
         The args tuple contains the input for the function. In kwargs_dump,
         potential keyword arguments are contained in serialized form. The
         keyword arguments can be deserialized via
-        `jax_linop.load_kwargs(kwargs_dump)`.
+        `jaxbind.load_kwargs(kwargs_dump)`.
     abstract, abstract_T : function respectively its transpose
         Computing the shape and dtype of the operator's output from shape and
         dtype of its input. Its signature must be `(*args, **kwargs)`. `args`
@@ -378,7 +378,7 @@ def get_nonlinear_call(
         The args tuple contains the input for the function. In kwargs_dump,
         potential keyword arguments are contained in serialized form. The
         keyword arguments can be deserialized via
-        `jax_linop.load_kwargs(kwargs_dump)`.
+        `jaxbind.load_kwargs(kwargs_dump)`.
     f_derivative: tuple of functions
         Tuple containing functions for evaluating jvp and vjp of f. The fist entry
         in the function should evaluate jvp, the second vjp. The signature of the

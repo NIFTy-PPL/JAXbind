@@ -6,7 +6,7 @@ import pytest
 from jax import random
 from jax.test_util import check_grads
 
-import jax_linop
+import jaxbind
 
 pmp = pytest.mark.parametrize
 
@@ -100,7 +100,7 @@ def test_derivatives(first_n_args_fixed, dtype, shape, seed, jit):
         )
         absr_T = f_abstract_vjp_fix_x
 
-    f_jax = jax_linop.get_nonlinear_call(
+    f_jax = jaxbind.get_nonlinear_call(
         f,
         funcs_deriv,
         f_abstract,
@@ -151,7 +151,7 @@ def test_vmap(in_axes, dtype, shape, seed, jit):
     )
     absr_T = f_abstract
 
-    f_jax = jax_linop.get_nonlinear_call(
+    f_jax = jaxbind.get_nonlinear_call(
         f,
         funcs_deriv,
         f_abstract,

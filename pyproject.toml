@@ -1,6 +1,6 @@
 [project]
 requires-python = ">=3.8"
-name = "jax_linop"
+name = "jaxbind"
 readme = "README.md"
 authors = [
   {name = "Martin Reinecke", email = "martin@mpa-garching.mpg.de"},

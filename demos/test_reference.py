@@ -2,7 +2,7 @@
 import jax
 from jax import numpy as jnp
 
-import jax_linop
+import jaxbind
 
 jax.config.update("jax_enable_x64", True)
 
@@ -25,7 +25,7 @@ def lin_abstract(*args, **kwargs):
     return ((x.shape, x.dtype), (x.shape, x.dtype))
 
 
-lin_jax = jax_linop.get_linear_call(lin, lin_T, lin_abstract, lin_abstract)
+lin_jax = jaxbind.get_linear_call(lin, lin_T, lin_abstract, lin_abstract)
 inp = (4 + jnp.zeros((2, 2)), 1 + jnp.zeros((2, 2)))
 lin_jax = jax.jit(lin_jax, static_argnames=("axes",))
 

@@ -6,7 +6,7 @@ config.update("jax_enable_x64", True)
 import ducc0
 import numpy as np
 import s2fft
-import jax_linop
+import jaxbind
 from time import time
 from functools import partial
 
@@ -66,7 +66,7 @@ def ssht_operator(L, sampling, spin, reality, nthreads, nside=0):
     def ssht_T(out_, args, kwargs_dump):
         out, = out_
         inp, = args
-        state = jax_linop.load_kwargs(kwargs_dump)
+        state = jaxbind.load_kwargs(kwargs_dump)
         L, spin, nthreads, reality, geometry, mapshape, hpxparam = get_config(out, inp, state)
 
         if spin==0:
@@ -112,7 +112,7 @@ def ssht_operator(L, sampling, spin, reality, nthreads, nside=0):
     def ssht(out_, args, kwargs_dump):
         out, = out_
         inp, = args
-        state = jax_linop.load_kwargs(kwargs_dump)
+        state = jaxbind.load_kwargs(kwargs_dump)
         L, spin, nthreads, reality, geometry, mapshape, hpxparam = get_config(inp, out, state)
 
         tmp = ducc0.sht.experimental.flm2alm(inp, spin, real=reality)
@@ -206,7 +206,7 @@ def ssht_operator(L, sampling, spin, reality, nthreads, nside=0):
     sampling = str(sampling)
     if sampling!="mw" and sampling!="dh" and sampling!="mwss" and sampling!="healpix":
         raise ValueError("unsupported sampling type")
-    op = jax_linop.get_linear_call(
+    op = jaxbind.get_linear_call(
         ssht, ssht_T, ssht_abstract, ssht_abstract_T,
         func_can_batch=False)
     return partial(op,

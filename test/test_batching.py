@@ -4,7 +4,7 @@ import pytest
 import scipy
 from jax.test_util import check_grads
 
-import jax_linop
+import jaxbind
 
 pmp = pytest.mark.parametrize
 
@@ -13,7 +13,7 @@ jax.config.update("jax_enable_x64", True)
 
 def f(out, args, kwargs_dump):
     x, y = args
-    kwargs = jax_linop.load_kwargs(kwargs_dump)
+    kwargs = jaxbind.load_kwargs(kwargs_dump)
     workers = kwargs.pop("workers", None)
     batch_axes = kwargs.pop("batch_axes", None)
     axes0 = list(range(len(x.shape)))
@@ -27,7 +27,7 @@ def f(out, args, kwargs_dump):
 
 def f_T(out, args, kwargs_dump):
     x, y = args
-    kwargs = jax_linop.load_kwargs(kwargs_dump)
+    kwargs = jaxbind.load_kwargs(kwargs_dump)
     workers = kwargs.pop("workers", None)
     batch_axes = kwargs.pop("batch_axes", None)
     axes0 = list(range(len(x.shape)))
@@ -71,8 +71,8 @@ def f_a_T(*args, **kwargs):
     return ((a.shape, a.dtype, out_ax[0]), (b.shape, b.dtype, out_ax[1]))
 
 
-f_jax = jax_linop.get_linear_call(f, f_T, f_a, f_a_T, func_can_batch=False)
-f_jax_can_batch = jax_linop.get_linear_call(f, f_T, f_a, f_a_T, func_can_batch=True)
+f_jax = jaxbind.get_linear_call(f, f_T, f_a, f_a_T, func_can_batch=False)
+f_jax_can_batch = jaxbind.get_linear_call(f, f_T, f_a, f_a_T, func_can_batch=True)
 
 
 rng = np.random.default_rng(42)

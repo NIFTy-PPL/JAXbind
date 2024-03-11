@@ -6,7 +6,7 @@ import numpy as np
 from jax import numpy as jnp
 from jax.test_util import check_grads
 
-import jax_linop
+import jaxbind
 
 jax.config.update("jax_enable_x64", True)
 
@@ -16,7 +16,7 @@ def mlin_call(x, y):
 
 
 def mlin(out, args, kwargs_dump):
-    kwargs = jax_linop.load_kwargs(kwargs_dump)
+    kwargs = jaxbind.load_kwargs(kwargs_dump)
     batch_axes = kwargs.pop("batch_axes", None)
     call = mlin_call
     if batch_axes is not None and batch_axes != ((),) * len(args):
@@ -63,7 +63,7 @@ def mlin_abstract_T2(*args, **kwargs):
 
 func_T = (mlin_T1, mlin_T2)
 func_abstract_T = (mlin_abstract_T1, mlin_abstract_T2)
-mlin_jax = jax_linop.get_linear_call(
+mlin_jax = jaxbind.get_linear_call(
     mlin,
     func_T,
     mlin_abstract,

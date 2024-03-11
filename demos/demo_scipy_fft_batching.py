@@ -4,7 +4,7 @@ from jax import random
 
 import scipy
 
-import jax_linop
+import jaxbind
 
 jax.config.update("jax_enable_x64", True)
 
@@ -29,7 +29,7 @@ jax.config.update("jax_enable_x64", True)
 # thus in our case this will be a tuple of length 1 containing the input array
 # for the scipy fft.
 # The third argument are potential keyword arguments given later to the JAX
-# primitive. Due to the internals of JAX and jax_linop these keyword arguments
+# primitive. Due to the internals of JAX and jaxbind these keyword arguments
 # are passed to the function in serialized from and need to be deserialized.
 # For functions supporting custom batching the keyword arguments also contain as
 # a list of the axis over which the function should be batched.
@@ -40,7 +40,7 @@ def fftn(out, args, kwargs_dump):
     (x,) = args
 
     # deserialize keyword arguments
-    kwargs = jax_linop.load_kwargs(kwargs_dump)
+    kwargs = jaxbind.load_kwargs(kwargs_dump)
 
     # extract keyword argument which can be given to the JAX primitive
     workers = kwargs.pop("workers", None)
@@ -58,14 +58,14 @@ def fftn(out, args, kwargs_dump):
     out[0][()] = scipy.fft.fftn(x, axes=axes, norm="forward", workers=workers)
 
 
-# Besides the application of the FFT jax_linop also requires the application of
+# Besides the application of the FFT jaxbind also requires the application of
 # the linear transposed function. The syntax is identical to fftn just computing
 # the linear transposed.
 
 
 def fftn_transposed(out, args, kwargs_dump):
     (x,) = args
-    kwargs = jax_linop.load_kwargs(kwargs_dump)
+    kwargs = jaxbind.load_kwargs(kwargs_dump)
 
     workers = kwargs.pop("workers", None)
     batch_axes = kwargs.pop("batch_axes", None)
@@ -134,8 +134,8 @@ def fftn_transposed_abstract_eval(*args, **kwargs):
 
 
 # Now we register our function as a custom JAX primitive using the interface for
-# linear functions of jax_linop. jax_linop returns the resulting JAX primitive.
-fftn_jax = jax_linop.get_linear_call(
+# linear functions of jaxbind. jaxbind returns the resulting JAX primitive.
+fftn_jax = jaxbind.get_linear_call(
     fftn,
     fftn_transposed,
     fftn_abstract_eval,

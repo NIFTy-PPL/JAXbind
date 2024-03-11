@@ -13,7 +13,7 @@ import pytest
 from jax.test_util import check_grads
 from numpy.testing import assert_allclose
 
-import jax_linop
+import jaxbind
 
 pmp = pytest.mark.parametrize
 
@@ -39,7 +39,7 @@ def complextype(dtype):
 
 
 def fhtfunc(out, args, kwargs_dump):
-    kwargs = jax_linop.load_kwargs(kwargs_dump)
+    kwargs = jaxbind.load_kwargs(kwargs_dump)
     # This function must _not_ keep any reference to 'inp' or 'args'!
     # Also, it must not change 'args'.
     if have_ducc0:
@@ -55,7 +55,7 @@ def fhtfunc_abstract(*args, **kwargs):
 
 
 def c2cfunc(out, args, kwargs_dump):
-    kwargs = jax_linop.load_kwargs(kwargs_dump)
+    kwargs = jaxbind.load_kwargs(kwargs_dump)
     (x,) = args
     if have_ducc0:
         ducc0.fft.c2c(x, out=out[0], **kwargs)
@@ -91,7 +91,7 @@ def realalm2alm(alm, lmax, dtype, out=None):
 def sht2d_operator(lmax, mmax, ntheta, nphi, geometry, spin, nthreads):
     def sht2dfunc(out, args, kwargs_dump):
         inp = args[0]
-        state = jax_linop.load_kwargs(kwargs_dump)
+        state = jaxbind.load_kwargs(kwargs_dump)
         tmp = realalm2alm(inp, state["lmax"], complextype(inp.dtype))
         ducc0.sht.synthesis_2d(
             lmax=state["lmax"],
@@ -107,7 +107,7 @@ def sht2d_operator(lmax, mmax, ntheta, nphi, geometry, spin, nthreads):
 
     def sht2dfunc_T(out, args, kwargs_dump):
         inp = args[0]
-        state = jax_linop.load_kwargs(kwargs_dump)
+        state = jaxbind.load_kwargs(kwargs_dump)
         tmp = ducc0.sht.adjoint_synthesis_2d(
             lmax=state["lmax"],
             mmax=state["mmax"],
@@ -133,7 +133,7 @@ def sht2d_operator(lmax, mmax, ntheta, nphi, geometry, spin, nthreads):
         shape_out = (ncomp, nalm)
         return ((shape_out, args[0].dtype),)
 
-    func = jax_linop.get_linear_call(
+    func = jaxbind.get_linear_call(
         sht2dfunc,
         sht2dfunc_T,
         sht2dfunc_abstract,
@@ -153,7 +153,7 @@ def sht2d_operator(lmax, mmax, ntheta, nphi, geometry, spin, nthreads):
 
 
 def healpixfunc(out, args, kwargs_dump):
-    kwargs = jax_linop.load_kwargs(kwargs_dump).copy()
+    kwargs = jaxbind.load_kwargs(kwargs_dump).copy()
     theta, phi0, nphi, ringstart, x = args
     tmp = realalm2alm(x, kwargs["lmax"], complextype(x.dtype))
     ducc0.sht.synthesis(
@@ -171,7 +171,7 @@ def healpixfunc(out, args, kwargs_dump):
 
 
 def healpixfunc_T(out, args, kwargs_dump):
-    kwargs = jax_linop.load_kwargs(kwargs_dump).copy()
+    kwargs = jaxbind.load_kwargs(kwargs_dump).copy()
     theta, phi0, nphi, ringstart, x = args
     tmp = ducc0.sht.adjoint_synthesis(
         map=x,
@@ -221,7 +221,7 @@ def _assert_close(a, b, epsilon):
 def test_fht(shape, axes, dtype, nthreads):
     rng = np.random.default_rng(42)
 
-    fht = jax_linop.get_linear_call(
+    fht = jaxbind.get_linear_call(
         fhtfunc, fhtfunc, fhtfunc_abstract, fhtfunc_abstract
     )
     kw = dict(axes=axes, nthreads=nthreads)
@@ -250,7 +250,7 @@ def test_c2c(shape, axes, forward, dtype, nthreads):
     rng = np.random.default_rng(42)
 
     # The C2C FFT matrix is symmetric!
-    c2c = jax_linop.get_linear_call(
+    c2c = jaxbind.get_linear_call(
         c2cfunc, c2cfunc, c2cfunc_abstract, c2cfunc_abstract
     )
     kw = dict(axes=axes, forward=forward, nthreads=nthreads)
@@ -367,7 +367,7 @@ def test_healpix(lmmax, nside, spin, dtype, nthreads):
     base = ducc0.healpix.Healpix_Base(nside, "RING")
     hpxparam = base.sht_info()
 
-    hp = jax_linop.get_linear_call(
+    hp = jaxbind.get_linear_call(
         healpixfunc,
         healpixfunc_T,
         healpixfunc_abstract,

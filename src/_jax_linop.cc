@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
 
 /*
- *  Jax_linop is being developed at the Max-Planck-Institut fuer Astrophysik
+ *  JAXbind is being developed at the Max-Planck-Institut fuer Astrophysik
  */
 
 /*
@@ -112,7 +112,7 @@ pybind11::dict Registrations()
 
 }
 
-PYBIND11_MODULE(_jax_linop, m) {
+PYBIND11_MODULE(_jaxbind, m) {
   m.def("registrations", detail_pymodule_jax::Registrations);
 }
 

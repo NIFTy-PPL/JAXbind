@@ -3,7 +3,7 @@ import numpy as np
 from jax import numpy as jnp
 from jax.test_util import check_grads
 
-import jax_linop
+import jaxbind
 
 from functools import partial
 
@@ -42,7 +42,7 @@ def test_mlin():
 
     func_T = (mlin_T1, mlin_T2)
     func_abstract_T = (mlin_abstract_T1, mlin_abstract_T2)
-    mlin_jax = jax_linop.get_linear_call(
+    mlin_jax = jaxbind.get_linear_call(
         mlin,
         func_T,
         mlin_abstract,
@@ -95,7 +95,7 @@ def test_mlin_fixed_arg():
 
     func_T = (None, mlin_T2)
     func_abstract_T = (None, mlin_abstract_T2)
-    mlin_jax = jax_linop.get_linear_call(
+    mlin_jax = jaxbind.get_linear_call(
         mlin,
         func_T,
         mlin_abstract,

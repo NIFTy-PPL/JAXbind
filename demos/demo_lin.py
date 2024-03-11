@@ -5,7 +5,7 @@ import jax
 from jax import numpy as jnp
 from jax.test_util import check_grads
 
-import jax_linop
+import jaxbind
 
 jax.config.update("jax_enable_x64", True)
 
@@ -18,7 +18,7 @@ def lin(out, args, kwargs_dump):
     # %timeit pickle.loads(np.ndarray.tobytes(kwargs_dump))
     # # 582 ns ± 1.12 ns per loop (mean ± std. dev. of 7 runs, 1,000,000 loops each)
     # ```
-    kwargs = jax_linop.load_kwargs(kwargs_dump)
+    kwargs = jaxbind.load_kwargs(kwargs_dump)
     x, y = args
     out[0][()] = x + y
     out[1][()] = x + y
@@ -44,7 +44,7 @@ def lin_abstract_T(*args, **kwargs):
     return ((a.shape, a.dtype), (a.shape, a.dtype))
 
 
-lin_jax = jax_linop.get_linear_call(
+lin_jax = jaxbind.get_linear_call(
     lin, lin_T, lin_abstract, lin_abstract_T, first_n_args_fixed=0,
 )
 inp = (4 + jnp.zeros((2, 2)), 1 + jnp.zeros((2, 2)))
@@ -79,7 +79,7 @@ def lin_abstract_T(*args, **kwargs):
     return ((x.shape, x.dtype),)
 
 
-lin_jax = jax_linop.get_linear_call(
+lin_jax = jaxbind.get_linear_call(
     lin,
     lin_T,
     lin_abstract,

@@ -6,14 +6,14 @@ import numpy as np
 from jax import numpy as jnp
 from jax.test_util import check_grads
 
-import jax_linop
+import jaxbind
 
 jax.config.update("jax_enable_x64", True)
 
 
 # (x,y) -> (xy, y**2)
 def nonlin(out, args, kwargs_dump):
-    kwargs = jax_linop.load_kwargs(kwargs_dump)
+    kwargs = jaxbind.load_kwargs(kwargs_dump)
     x, y = args
     out[0][()] = x * y
     out[1][()] = y * y
@@ -21,7 +21,7 @@ def nonlin(out, args, kwargs_dump):
 
 # (x,y,dx,dy) -> (ydx + xdy, 2 * y * dy)
 def nonlin_deriv(out, args, kwargs_dump):
-    kwargs = jax_linop.load_kwargs(kwargs_dump)
+    kwargs = jaxbind.load_kwargs(kwargs_dump)
     x, y, dx, dy = args
     out[0][()] = y * dx + x * dy
     out[1][()] = 2 * y * dy
@@ -29,7 +29,7 @@ def nonlin_deriv(out, args, kwargs_dump):
 
 # (x, y, da, db) -> (yda, xda + 2ydb)
 def nonlin_deriv_T(out, args, kwargs_dump):
-    kwargs = jax_linop.load_kwargs(kwargs_dump)
+    kwargs = jaxbind.load_kwargs(kwargs_dump)
     x, y, da, db = args
     out[0][()] = y * da
     out[1][()] = x * da + 2 * y * db
@@ -46,7 +46,7 @@ def nonlin_abstract(*args, **kwargs):
 
 
 funcs_deriv = (nonlin_deriv, nonlin_deriv_T)
-nonlin_jax = jax_linop.get_nonlinear_call(
+nonlin_jax = jaxbind.get_nonlinear_call(
     nonlin,
     funcs_deriv,
     nonlin_abstract,
@@ -67,7 +67,7 @@ check_grads(
 ################################################## test non diff args
 # (x,y) -> (xy, y**2)
 def nonlin(out, args, kwargs_dump):
-    kwargs = jax_linop.load_kwargs(kwargs_dump)
+    kwargs = jaxbind.load_kwargs(kwargs_dump)
     x, y = args
     out[0][()] = x * y
     out[1][()] = y * y
@@ -75,7 +75,7 @@ def nonlin(out, args, kwargs_dump):
 
 # (x,y,dy) -> (ydx + xdy, 2 * y * dy)
 def nonlin_deriv(out, args, kwargs_dump):
-    kwargs = jax_linop.load_kwargs(kwargs_dump)
+    kwargs = jaxbind.load_kwargs(kwargs_dump)
     x, y, dy = args
     out[0][()] = x * dy
     out[1][()] = 2 * y * dy
@@ -83,7 +83,7 @@ def nonlin_deriv(out, args, kwargs_dump):
 
 # (x, y, da, db) -> (yda, xda + 2ydb)
 def nonlin_deriv_T(out, args, kwargs_dump):
-    kwargs = jax_linop.load_kwargs(kwargs_dump)
+    kwargs = jaxbind.load_kwargs(kwargs_dump)
     x, y, da, db = args
     out[0][()] = x * da + 2 * y * db
 
@@ -106,7 +106,7 @@ def nonlin_abstract_T(*args, **kwargs):
 
 
 funcs_deriv = (nonlin_deriv, nonlin_deriv_T)
-nonlin_jax = jax_linop.get_nonlinear_call(
+nonlin_jax = jaxbind.get_nonlinear_call(
     nonlin,
     funcs_deriv,
     nonlin_abstract,

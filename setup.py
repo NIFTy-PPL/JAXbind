@@ -4,7 +4,7 @@ import codecs
 import pybind11
 from setuptools import find_packages, setup, Extension
 
-pkgname = 'jax_linop'
+pkgname = 'jaxbind'
 
 
 def read(rel_path):
@@ -34,16 +34,16 @@ if sys.platform == 'darwin':
 elif sys.platform == 'win32':
     extra_compile_args = ['/EHsc', '/std:c++17']
 
-extensions = [Extension("_jax_linop",
+extensions = [Extension("_jaxbind",
                         language='c++',
-                        sources=['src/_jax_linop.cc'],
-                        depends=['src/_jax_linop.cc', 'setup.py'],
+                        sources=['src/_jaxbind.cc'],
+                        depends=['src/_jaxbind.cc', 'setup.py'],
                         include_dirs=include_dirs,
                         extra_compile_args=extra_compile_args,
                         extra_link_args=python_module_link_args)]
 
 setup(name=pkgname,
       version=get_version(f"{pkgname}/__init__.py"),
-      packages=find_packages(include=["jax_linop"]),
+      packages=find_packages(include=["jaxbind"]),
       ext_modules=extensions
       )
