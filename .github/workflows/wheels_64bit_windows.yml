@@ -15,7 +15,7 @@ jobs:
       - run: python -m cibuildwheel --output-dir wheelhouse
         env:
           CIBW_ARCHS: auto64
-          CIBW_SKIP: cp36-* cp37-* pp*
+          CIBW_SKIP: cp36-* cp37-* cp38-* pp*
           CIBW_TEST_REQUIRES: pytest
           CIBW_TEST_COMMAND: python -m pytest -x {project}/python/test
           CIBW_TEST_SKIP: cp36-* cp37-* cp38-* cp39-* cp310-* cp311-*
