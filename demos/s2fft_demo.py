@@ -189,7 +189,7 @@ def ssht_operator(L, sampling, spin, reality, nthreads, nside=0):
             raise RuntimeError("bad map shape")
         if isrealtype(dtype_in):
             if (not reality):
-                raise RuntimeError("real map provided,but complex map expected")
+                raise RuntimeError("real map provided, but complex map expected")
             dtype_out = complextype(dtype_in)
         else:
             dtype_out = dtype_in
