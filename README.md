@@ -165,5 +165,5 @@ pip install --user .
 
 ## Licensing terms
 
-All source code in this package is released under the 3-clause BSD license.
+All source code in this package is released under the 2-clause BSD license.
 All of JAXbind is distributed *without any warranty*.
