@@ -4,50 +4,91 @@
 # Copyright(C) 2024 Max-Planck-Society
 
 # %%
-from functools import partial
-
 import jax
-import numpy as np
-from jax import numpy as jnp
-from jax.test_util import check_grads
+import jax.numpy as jnp
+from jax import random
+
 
 import jaxbind
 
 jax.config.update("jax_enable_x64", True)
 
+# %% [markdown]
+
+# # Binding a multi-linear function to JAX
+
+# This demo showcases the use of JAXbind for binding multi-linear functions to
+# JAX. As an example we bind the python function mlin computing
+# (x,y) -> (x*y, x*y) to a JAX primitive. Note: multi-linear functions can also
+# be regarded als general non-linear functions. For the JAXbind interface for
+# non-linear functions see the 'demo_nonlin.py' and the docstring of the
+# jaxbind.get_nonlinear_cal'. Additional information for linear functions can
+# also be found in 'demo_scipy_fft.py'.
+
+
+
+# %%
+
 
 def mlin(out, args, kwargs_dump):
-    out[0][()] = args[0] * args[1]
-    out[1][()] = args[0] * args[1]
+    # extract the input from the input tuple
+    x,y = args[0], args[1]
 
+    # doe the computation and write result in the out tuple
+    out[0][()] = x*y
+    out[1][()] = x*y
 
+# %% [markdown]
+
+# Besides the application of the function ('mlin') itself, JAXbind required the
+# linear transposed of the partial derivatives of 'mlin'.
+# %%
+
+# linear transpose of the partial derivative of 'mlin' with respect to the fist
+# variable x.
 def mlin_T1(out, args, kwargs_dump):
-    out[0][()] = args[0] * args[1] + args[0] * args[2]
+    y, da, db = args[0], args[1], args[2]
+    out[0][()] = y * da + y * db
 
-
+# linear transpose of the partial derivative of 'mlin' with respect to the second
+# variable y.
 def mlin_T2(out, args, kwargs_dump):
-    out[0][()] = args[0] * args[1] + args[0] * args[2]
+    x, da, db = args[0], args[1], args[2]
+    out[0][()] = x * da + x * db
 
+# %% [markdown]
 
+# JAX needs to abstractly evaluate the code, thus needs to be abel to evaluate
+# the shape and dtype of the output of a function given the shape and dtype of
+# the input. For this we have to provide the abstract eval functions for mlin,
+# mlin_T1, and mlin_T2. The abstract evaluations functions return for each
+# output argument a tuple containing the shape and dtype of this output. More
+# details are in the 'demo_scipy_fft.py'
+
+# %%
 def mlin_abstract(*args, **kwargs):
-    # Returns `shape` and `dtype` of output as well as the added batch_axes of the `output``
     assert args[0].shape == args[1].shape
     return (
-        (args[0].shape, args[0].dtype, None),
-        (args[0].shape, args[0].dtype, None),
+        (args[0].shape, args[0].dtype),
+        (args[0].shape, args[0].dtype),
     )
 
 
 def mlin_abstract_T1(*args, **kwargs):
     assert args[0].shape == args[1].shape
-    return ((args[0].shape, args[0].dtype, None),)
+    return ((args[0].shape, args[0].dtype),)
 
 
 def mlin_abstract_T2(*args, **kwargs):
-    out_axes = kwargs.pop("batch_axes", ())
     assert args[0].shape == args[1].shape
-    return ((args[0].shape, args[0].dtype, out_axes),)
+    return ((args[0].shape, args[0].dtype),)
 
+# %% [markdown]
+
+# Now we can register the JAX primitive corresponding to the python function
+# mlin.
+
+# %%
 
 func_T = (mlin_T1, mlin_T2)
 func_abstract_T = (mlin_abstract_T1, mlin_abstract_T2)
@@ -58,88 +99,21 @@ mlin_jax = jaxbind.get_linear_call(
     func_abstract_T,
 )
 
+# generate some random input to showcase the use of the newly register JAX primitive
+key = random.PRNGKey(42)
+key, subkey = random.split(key)
+inp0 = jax.random.uniform(subkey, shape=(10, 10), dtype=jnp.float64)
+key, subkey = random.split(key)
+inp1 = jax.random.uniform(subkey, shape=(10, 10), dtype=jnp.float64)
+inp = (inp0, inp1)
 
-inp = (4 + jnp.zeros((2, 2)), 1 + jnp.zeros((2, 2)))
-check_grads(partial(mlin_jax, axes=(3, 4)), inp, order=2, modes=["fwd"], eps=1.0)
-check_grads(partial(mlin_jax, axes=(3, 4)), inp, order=1, modes=["rev"], eps=1.0)
+# apply the new primitive
+res = mlin_jax(*inp)
 
+# jit compile the new primitive
+mlin_jit = jax.jit(mlin_jax)
+res_jit = mlin_jit(*inp)
 
-inp2 = (7 + jnp.zeros((2, 2)), -3 + jnp.zeros((2, 2)))
-inp3 = (10 + jnp.zeros((2, 2)), 5 + jnp.zeros((2, 2)))
+# compute the jvp
+res_jvp = jax.jvp(mlin_jit, inp, inp)
 
-primals, f_vjp = jax.vjp(mlin_jax, *inp)
-res_vjp = f_vjp(mlin_jax(*inp))
-res_jvp = jax.jvp(mlin_jax, inp2, inp3)
-
-
-def mlin_purejax(x, y):
-    return [x * y, x * y]
-
-
-primals, njf_vjp = jax.vjp(mlin_purejax, *inp)
-res_vjp_jax = njf_vjp(mlin_purejax(*inp))
-res_jvp_jax = jax.jvp(mlin_purejax, inp2, inp3)
-
-np.testing.assert_allclose(res_vjp, res_vjp_jax)
-np.testing.assert_allclose(res_jvp, res_jvp_jax)
-
-
-# ############################################################ test fixing arg
-
-def mlin(out, args, kwargs_dump):
-    out[0][()] = args[0] * args[1] * args[0]
-    out[1][()] = args[0] * args[1]
-
-
-def mlin_T2(out, args, kwargs_dump):
-    out[0][()] = args[0] * args[0] * args[1] + args[0] * args[2]
-
-
-def mlin_abstract(*args, **kwargs):
-    # Returns `shape` and `dtype` of output as well as the added batch_axes of the `output``
-    assert args[0].shape == args[1].shape
-    return (
-        (args[0].shape, args[0].dtype, None),
-        (args[0].shape, args[0].dtype, None),
-    )
-
-def mlin_abstract_T2(*args, **kwargs):
-    assert args[0].shape == args[1].shape
-    return ((args[0].shape, args[0].dtype, None),)
-
-
-func_T = (None, mlin_T2)
-func_abstract_T = (None, mlin_abstract_T2)
-mlin_jax = jaxbind.get_linear_call(
-    mlin,
-    func_T,
-    mlin_abstract,
-    func_abstract_T,
-    first_n_args_fixed=1,
-)
-
-
-inp1 = 4 + jnp.zeros((2, 2))
-inp2 = 1 + jnp.zeros((2, 2))
-
-def mlin_purejax(x, y):
-    return [x * y * x, x * y]
-
-
-mlin_jax_pt = partial(mlin_jax, inp1, axes=(3, 4))
-mlin_purejax_pt = partial(mlin_purejax, inp1)
-
-mlin_jax_pt(inp2)
-
-check_grads(mlin_jax_pt, (inp2,), order=2, modes=["fwd"], eps=1.0)
-
-primals, f_vjp = jax.vjp(mlin_jax_pt, inp2)
-res_vjp = f_vjp(mlin_jax_pt(inp2))
-res_jvp = jax.jvp(mlin_jax_pt, (inp1,), (inp2,))
-
-primals, njf_vjp = jax.vjp(mlin_purejax_pt, inp2)
-res_vjp_jax = njf_vjp(mlin_purejax_pt(inp2))
-res_jvp_jax = jax.jvp(mlin_purejax_pt, (inp1,), (inp2,))
-
-np.testing.assert_allclose(res_vjp, res_vjp_jax)
-np.testing.assert_allclose(res_jvp, res_jvp_jax)
