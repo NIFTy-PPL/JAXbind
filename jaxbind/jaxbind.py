@@ -18,7 +18,7 @@ from jaxlib.hlo_helpers import custom_call
 
 import _jaxbind
 
-for _name, _value in _bind.registrations().items():
+for _name, _value in _jaxbind.registrations().items():
     jax.lib.xla_client.register_custom_call_target(_name, _value, platform="cpu")
 
 
