@@ -15,7 +15,7 @@ jobs:
       - run: python -m cibuildwheel --output-dir wheelhouse
         env:
           CIBW_ARCHS_MACOS: arm64
-          CIBW_SKIP: cp36-* cp37-* pp36-* pp37-* pp*win*
+          CIBW_SKIP: cp36-* cp37-* pp*
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
           CIBW_MANYLINUX_I686_IMAGE: manylinux_2_28
           CIBW_MANYLINUX_PYPY_X86_64_IMAGE: manylinux_2_28
