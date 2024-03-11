@@ -246,7 +246,7 @@ def _batch(args, in_axes, *, _func: FunctionType, **kwargs):
         batch_axes = _func.batch_axes
         batch_axes = ((),) * len(in_axes) if batch_axes is None else batch_axes
         new_batch_axes = []
-        assert len(in_axes) == len(batch_axes
+        assert len(in_axes) == len(batch_axes)
         for ia, baxes in zip(in_axes, batch_axes):
             baxes_new = []
             if ia is not None:
