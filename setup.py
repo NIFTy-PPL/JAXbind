@@ -22,7 +22,7 @@ def get_version(rel_path):
         raise RuntimeError("Unable to find version string.")
 
 
-include_dirs = [pybind11.get_include(True), pybind11.get_include(False)]
+include_dirs = [pybind11.get_include()]
 
 extra_compile_args = ["-std=c++17", "-fvisibility=hidden"]
 
