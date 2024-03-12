@@ -1,11 +1,14 @@
 name: Test python application
+
 on:
   push:
-    branches: [ "multi_arg" ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ "multi_arg" ]
+    types: [opened, reopened]
+
 permissions:
   contents: read
+
 jobs:
   pytest:
     runs-on: ubuntu-latest
