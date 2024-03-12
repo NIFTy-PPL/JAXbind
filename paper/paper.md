@@ -74,9 +74,9 @@ Thus, it is essential that custom functions registered with JAX support automati
 In the following, we will outline which functions our package respectively JAX requires to enable automatic differentiation.
 For simplicity, we assume that we want to connect the nonlinear function $f(x_1,x_2) = x_1x_2^2$ to JAX.
 The `JAXbind` package expects the Python function for $f$ to take three positional arguments.
-The first argument, `out`, is a `tuple` into which the function results are written.
+The first argument, `out`, is a `tuple` into which the results are written.
 The second argument is also a `tuple` containing the input to the function, in our case, $x_1$ and $x_2$.
-Via `kwargs_dump`, potential keyword arguments given to the later registered Jax primitive can be forwarded to `f` in serialized form.
+Via `kwargs_dump`, any keyword arguments given to the registered JAX primitive can be forwarded to $f$ in a serialized form.
 
 ```python
 import jaxbind
@@ -114,9 +114,9 @@ def f_vjp(out, args, kwargs_dump):
     out[1][()] = 2 * x1 * x2 * dy
 ```
 
-To just-in-time compile the function, JAX needs to abstractly evaluate the code, i.e. it needs to be able to know the shape and dtype of the output of the custom function given only the shape and dtype of the input.
-We have to provide these abstract evaluation functions returning the output shape and dtype given an input shape and dtype for `f` as well as for the `vjp` application.
-The output shape of the `jvp` is identical to the output shape of `f` itself and does not need to be specified again.
+To just-in-time compile the function, JAX needs to abstractly evaluate the code, i.e. it needs to be able to infer the shape and dtype of the output of the function given only the shape and dtype of the input.
+We have to provide these abstract evaluation functions returning the output shape and dtype given an input shape and dtype for $f$ as well as for the `vjp` application.
+The output shape of the `jvp` is identical to the output shape of $f$ itself and does not need to be specified again.
 <!-- Should we point out specifically that the abstract functions take "traditional" args and kwargs? -->
 
 ```python
@@ -163,7 +163,7 @@ res = f_jax_jit(*inp)
 JAX supports higher order derivatives and can differentiate a `jvp` or `vjp` with respect to the position at which the Jacobian was taken.
 Similar to first derivatives, JAX can not automatically compute higher derivatives of a general function $f$ that is not natively implemented in JAX.
 Higher order derivatives would again need to be provided by the user.
-For many algorithms, first derivatives are sufficient, and higher order derivatives are often not implemented by the high-performance codes.
+For many algorithms, first derivatives are sufficient, and higher order derivatives are often not implemented by high-performance codes.
 Therefore, the current interface of `JAXbind` is, for simplicity, restricted to first derivatives.
 In the future, the interface could be easily expanded if specific use cases require higher order derivatives.
 
@@ -177,7 +177,9 @@ To make use of these simplifications, `JAXbind` provides a special interface for
 
 # Platforms
 
-Currently, `JAXbind` only has CPU but no GPU support. With some expertise on Python bindings for GPU kernels adding GPU support should be fairly simple. We especially want to highlight that the interfacing with the JAX automatic differentiation engine is identical for CPU and GPU.
+Currently, `JAXbind` only supports primitives that act on CPU memory.
+In the future, GPU support could be added analogous to the CPU backend.
+Note, the automatic differentiation in JAX is backend agnostic and would thus not require any additional bindings.
 
 # Acknowledgements
 
