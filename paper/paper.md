@@ -24,7 +24,7 @@ affiliations:
     index: 2
   - name: Technical University of Munich, Boltzmannstr. 3, 85748 Garching, Germany
     index: 3
-  - name: Department of Astrophysics, University of Vienna, Türkenschanzstraße 17, A-1180 Vienna, Austria
+  - name: Department of Astrophysics, University of Vienna, Türkenschanzstr. 17, A-1180 Vienna, Austria
     index: 4
 date: 22 February 2024
 bibliography: paper.bib
