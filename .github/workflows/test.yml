@@ -22,3 +22,17 @@ jobs:
     - uses: ./.github/actions/setup_package
     - name: Run linear function demo
       run: python demos/01_linear_function.py
+  demos_02_multilinear_function:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: ./.github/actions/setup_package
+    - name: Run linear function demo
+      run: python demos/02_multilinear_function.py
+  demos_03_nonlinear_function:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: ./.github/actions/setup_package
+    - name: Run linear function demo
+      run: python demos/03_nonlinear_function.py
