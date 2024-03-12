@@ -84,14 +84,14 @@ rng = np.random.default_rng(42)
 a1 = rng.random((5, 5, 5)) - 0.5 + 1j * (rng.random((5, 5, 5)) - 0.5)
 a2 = rng.random((5, 5, 5)) - 0.5 + 1j * (rng.random((5, 5, 5)) - 0.5)
 a = (a1, a2)
-av1 = rng.random((5, 5, 5, 3, 4)) - 0.5 + 1j * (rng.random((5, 5, 5, 3, 4)) - 0.5)
-av2 = rng.random((5, 5, 5, 4, 3)) - 0.5 + 1j * (rng.random((5, 5, 5, 4, 3)) - 0.5)
+av1 = rng.random((5, 5, 5, 5, 5)) - 0.5 + 1j * (rng.random((5, 5, 5, 5, 5)) - 0.5)
+av2 = rng.random((5, 5, 5, 5, 5)) - 0.5 + 1j * (rng.random((5, 5, 5, 5, 5)) - 0.5)
 av = (av1, av2)
 
 
 @pmp("bt_a1", (0, 1, 2))
 @pmp("bt_a2", (0, 1, 2))
-@pmp("bt2_a1,bt2_a2", ((3, 4), (4, 3)))
+@pmp("bt2_a1,bt2_a2", ((3, 4), (4, 3), (0,0)))
 @pmp("o_a1", (0, 1))
 @pmp("o_a2", (0, 1))
 def test_vmap(bt_a1, bt_a2, bt2_a1, bt2_a2, o_a1, o_a2):
