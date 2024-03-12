@@ -88,6 +88,9 @@ av1 = rng.random((5, 5, 5, 5, 5)) - 0.5 + 1j * (rng.random((5, 5, 5, 5, 5)) - 0.
 av2 = rng.random((5, 5, 5, 5, 5)) - 0.5 + 1j * (rng.random((5, 5, 5, 5, 5)) - 0.5)
 av = (av1, av2)
 
+av1_diff_ax_len = rng.random((5, 5, 5, 3, 4)) - 0.5 + 1j * (rng.random((5, 5, 5, 3, 4)) - 0.5)
+av2_diff_ax_len = rng.random((5, 5, 5, 4, 3)) - 0.5 + 1j * (rng.random((5, 5, 5, 4, 3)) - 0.5)
+av_diff_ax_len = (av1_diff_ax_len, av2_diff_ax_len)
 
 @pmp("bt_a1", (0, 1, 2))
 @pmp("bt_a2", (0, 1, 2))
@@ -113,6 +116,15 @@ def test_vmap(bt_a1, bt_a2, bt2_a1, bt2_a2, o_a1, o_a2):
     assert rj[0].shape == rb[0].shape and rj[1].shape == rb[1].shape
     # check_grads(vvj, av, order=2, modes=["fwd", "rev"], eps=1.0)
     # check_grads(vvb, av, order=2, modes=["fwd", "rev"], eps=1.0)
+
+    if not (bt2_a1,bt2_a2) ==(0, 0):
+        vvj = jax.vmap(vj, in_axes=(bt2_a1, bt2_a2), out_axes=[o_a1, o_a2])
+        vvb = jax.vmap(vb, in_axes=(bt2_a1, bt2_a2), out_axes=[o_a1, o_a2])
+        rb = vvb(*av_diff_ax_len)
+        rj = vvj(*av_diff_ax_len)
+        np.testing.assert_allclose(rj[0], rb[0])
+        np.testing.assert_allclose(rj[1], rb[1])
+        assert rj[0].shape == rb[0].shape and rj[1].shape == rb[1].shape
 
 
 if __name__ == "__main__":
