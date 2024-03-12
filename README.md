@@ -132,17 +132,6 @@ With some expertise on Python bindings for GPU kernels adding GPU support should
 The Interfacing with the JAX automatic differentiation engine is identical for CPU and GPU.
 Contributions are welcome!
 
-## Requirements
-
-- [Python >= 3.8](https://www.python.org/)
-- only when compiling from source: [pybind11](https://github.com/pybind/pybind11)
-- only when compiling from source: a C++17-capable compiler, e.g.
-  - `g++` 7 or later
-  - `clang++`
-  - MSVC 2019 or later
-  - Intel `icpx` (oneAPI compiler series). (Note that the older `icpc` compilers
-    are not supported.)
-
 ## Installation
 
 Binary wheels for JAXbind can be obtained and installed from PyPI via:
