@@ -54,14 +54,11 @@ In this paper, we present `JAXbind`, a package for bridging any function to JAX 
 The interface is accessible from Python without requiring any development in C++.
 The package is able to register any function, its partial derivatives and their transpose functions as a JAX native call, a so-called primitive.
 
-<!-- Mention (if applicable) a representative set of past or ongoing research projects using the software and recent scholarly publications enabled by it. -->
 We believe `JAXbind` to be highly useful in scientific computing.
-<!-- There are a lot of well-developed packages in JAX for, e.g., optimization and sampling that could be used once existing code is able to interface with JAX. -->
 We intend to use this package to connect the Hartley transform and the spherical harmonic transform from DUCC [@ducc0] to the probabilistic programming package NIFTy [@Edenhofer2023NIFTyRE] as well as the radio interferometry response from DUCC with the radio astronomy package \texttt{resolve} [@Resolve2024].
 Furthermore, we intend to connect the non-uniform FFT from DUCC with JAX for applications in strong-lensing astrophysics.
 We envision many further applications within and outside of astrophysics.
 
-<!-- A list of key references, including to other software addressing related needs. Note that the references should include full names of venues, e.g., journals and conferences, not abbreviations only understood in the context of a specific discipline. -->
 To the best of our knowledge no other code currently exists for connecting generic functions to JAX.
 The package that comes the closest is Enzyme-JAX [@Moses2024].
 Enzyme-JAX allows one to differentiate a C++ function with Enzyme [@Moses2020; @Moses2021; @Moses2022] and connect it together with its derivative to JAX.
@@ -188,21 +185,3 @@ Jakob Roth acknowledges financial support from the German Federal Ministry of Ed
 Gordian Edenhofer acknowledges support from the German Academic Scholarship Foundation in the form of a PhD scholarship ("Promotionsstipendium der Studienstiftung des Deutschen Volkes").
 
 # References
-
-<!-- Citations to entries in paper.bib should be in
-[rMarkdown](http://rmarkdown.rstudio.com/authoring_bibliographies_and_citations.html)
-format.
-
-For a quick reference, the following citation commands can be used:
-- `@author:2001`  ->  "Author et al. (2001)"
-- `[@author:2001]` -> "(Author et al., 2001)"
-- `[@author1:2001; @author2:2001]` -> "(Author1 et al., 2001; Author2 et al., 2002)"
-# Figures
-
-Figures can be included like this:
-![Caption for example figure.\label{fig:example}](figure.png)
-and referenced from text using \autoref{fig:example}.
-
-Figure sizes can be customized by adding an optional second parameter:
-![Caption for example figure.](figure.png){ width=20% }
--->
