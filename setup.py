@@ -23,17 +23,13 @@ def get_version(rel_path):
 
 
 include_dirs = [pybind11.get_include()]
-
 extra_compile_args = ["-std=c++17", "-fvisibility=hidden"]
-
 python_module_link_args = []
-
 if sys.platform == "darwin":
     extra_compile_args += ["-mmacosx-version-min=10.14"]
     python_module_link_args += ["-mmacosx-version-min=10.14"]
 elif sys.platform == "win32":
     extra_compile_args = ["/EHsc", "/std:c++17"]
-
 extensions = [
     Extension(
         "_jaxbind",

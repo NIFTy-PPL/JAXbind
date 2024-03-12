@@ -1,12 +1,48 @@
 [project]
-requires-python = ">=3.8"
 name = "jaxbind"
 readme = "README.md"
 authors = [
+  {name = "Jakob Roth", email = "roth@mpa-garching.mpg.de"},
   {name = "Martin Reinecke", email = "martin@mpa-garching.mpg.de"},
+  {name = "Gordian Edenhofer", email = "gordian.edenhofer@gmail.com"},
 ]
-dynamic = ["license", "description", "version", "urls", "classifiers", "dependencies"]
+requires-python = ">=3.10"
+dependencies = [
+  "numpy >= 1.17.0",
+  "jax >= 0.4",
+  "jaxlib",
+]
+description = "Bind any function written in another language to JAX with support for JVP/VJP/batching/jit compilation"
+license = {file = "LICENSE"}
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering :: Mathematics",
+  "Topic :: Scientific/Engineering :: Physics",
+  "License :: OSI Approved :: BSD License",
+  "Programming Language :: C++",
+  "Programming Language :: Python",
+]
+dynamic = ["version"]
+
+[project.urls]
+"Source Code" = "https://github.com/NIFTy-PPL/JAXbind"
+"Bug Tracker" = "https://github.com/NIFTy-PPL/JAXbind/issues/issues"
+"README" = "https://github.com/NIFTy-PPL/JAXbind/blob/main/README.md"
+
+[project.optional-dependencies]
+test = [
+  "pytest",
+  "scipy",
+  "ducc0",
+]
 
 [build-system]
-requires = ["setuptools >= 40.6.0", "pybind11 >= 2.6.0", "numpy >= 1.17.0", "jax >= 0.4", "jaxlib"]
+requires = [
+  "setuptools >= 40.6.0",
+  "pybind11 >= 2.6.0",
+  "numpy >= 1.17.0",
+  "jax >= 0.4",
+  "jaxlib",
+]
 build-backend = "setuptools.build_meta"
