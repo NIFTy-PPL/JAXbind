@@ -1,22 +1,14 @@
-# This workflow will install Python dependencies and run tests
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
-
-name: Python application
-
+name: Test python application
 on:
   push:
     branches: [ "multi_arg" ]
   pull_request:
     branches: [ "multi_arg" ]
-
 permissions:
   contents: read
-
 jobs:
-  build:
-
+  test:
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python 3.10
@@ -28,7 +20,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install setuptools pybind11 pytest numpy scipy ducc0
         pip install "jax[cpu]"
-    - name: Install pakcage
+    - name: Install package
       run: |
         pip install --user .
     - name: Test with pytest
