@@ -119,7 +119,7 @@ def f_vjp(out, args, kwargs_dump):
 To just-in-time compile the function, JAX needs to abstractly evaluate the code, i.e. it needs to be able to know the shape and dtype of the output of the custom function given only the shape and dtype of the input.
 We have to provide these abstract evaluation functions returning the output shape and dtype given an input shape and dtype for `f` as well as for the `vjp` application.
 The output shape of the `jvp` is identical to the output shape of `f` itself and does not need to be specified again.
-<!-- Should we point out specifically that the abstract functions take "traditional" args and kwargs? -->
+The abstract evaluation functions take normal positional and keyword arguments.
 
 ```python
 def f_abstract(*args, **kwargs):
