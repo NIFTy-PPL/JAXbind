@@ -48,7 +48,7 @@ Its transformation system relies on all constituents of the computation being wr
 
 A plethora of high-performance code is not written in JAX and thus not accessible from within JAX.
 Rewriting these is often infeasible and/or inefficient.
-Ideally, we would like to intermix existing high-performance code with JAX code.
+Ideally, we would like to mix existing high-performance code with JAX code.
 However, connecting code to JAX requires knowledge of the internals of JAX and its C++ backend.
 
 In this paper, we present `JAXbind`, a package for bridging any function to JAX without in-depth knowledge of JAX's transformation system.
