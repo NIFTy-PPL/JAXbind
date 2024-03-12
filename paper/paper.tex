@@ -315,7 +315,7 @@
         \author[1, 2, 3*]{Jakob Roth}
           \author[1*]{Martin Reinecke}
           \author[1, 2, 4*]{Gordian Edenhofer}
-    
+
       \affil[1]{Max Planck Institute for Astrophysics,
 Karl-Schwarzschild-Str. 1, 85748 Garching, Germany}
       \affil[2]{Ludwig Maximilian University of Munich,
@@ -335,30 +335,23 @@ Garching, Germany}
 \hypertarget{summary}{%
 \section{Summary}\label{summary}}
 
-JAX is widely used in machine learning and scientific computing.
-Scientific computing relies on existing high-performance code which we
-would ideally like to use in JAX. Reimplementing the existing code in
-JAX is often impractical and the existing interface in JAX for
-connecting custom code requires deep knowledge of JAX and its C++
-backend. The aim of \texttt{JAXbind} is to drastically lower the burden
-of connecting custom functions implemented in other programming
-languages to JAX. Specifically, \texttt{JAXbind} provides an easy-to-use
-Python interface for defining custom, so-called JAX primitives
-supporting any JAX transformations.
+JAX is widely used in machine learning and scientific computing, the latter of which often relies on existing high-performance code that we would ideally like to incorporate into JAX.
+Reimplementing the existing code in JAX is often impractical and the existing interface in JAX for binding custom code requires deep knowledge of JAX and its C++ backend.
+The goal of \texttt{JAXbind} is to drastically reduce the effort required to bind custom functions implemented in other programming languages to JAX.
+Specifically, \texttt{JAXbind} provides an easy-to-use Python interface for defining custom so-called JAX primitives that support arbitrary JAX transformations.
 
 \hypertarget{statement-of-need}{%
 \section{Statement of Need}\label{statement-of-need}}
 
 The use of JAX (Bradbury et al., 2018) is widespread in the natural
-sciences. JAX's powerful transformation system is of especially high
-interest. It enables retrieving arbitrary derivatives of functions,
-batch computations, and just-in-time code compilation for additional
-performance. Its transformation system relies on all constituents of the
-computation being written in JAX.
+sciences.
+Of particular interest is JAX's powerful transformation system.
+It enables to retrieve arbitrary derivatives of functions, batch computations, and just-in-time code for additional performance.
+Its transformation system relies on all components of the computation being written in JAX.
 
 A plethora of high-performance code is not written in JAX and thus not
 accessible from within JAX. Rewriting these is often infeasible and/or
-inefficient. Ideally, we would like to intermix existing
+inefficient. Ideally, we would like to mix existing
 high-performance code with JAX code. However, connecting code to JAX
 requires knowledge of the internals of JAX and its C++ backend.
 
@@ -367,16 +360,15 @@ function to JAX without in-depth knowledge of JAX's transformation
 system. The interface is accessible from Python without requiring any
 development in C++. The package is able to register any function, its
 partial derivatives and their transpose functions as a JAX native call,
-a so-called primitive. Derivatives, compilation rules, and batching
-rules are automatically registered with JAX.
+a so-called primitive.
 
 We believe \texttt{JAXbind} to be highly useful in scientific computing.
 We intend to use this package to connect the Hartley transform and the
-spherical harmonic transform from ducc (Reinecke, 2024) to NIFTy
+spherical harmonic transform from DUCC (Reinecke, 2024) to the probabilistic programming package NIFTy
 (Edenhofer et al., 2024) as well as the radio interferometry response
-from ducc with \texttt{resolve} (Arras et al., 2024) for radio
+from DUCC with the radio astronomy package \texttt{resolve} (Arras et al., 2024) for radio
 astronomy. Furthermore, we intend to connect the non-uniform FFT from
-ducc with JAX for applications in strong-lensing astrophysics. We
+DUCC with JAX for applications in strong-lensing astrophysics. We
 envision many further applications within and outside of astrophysics.
 
 To the best of our knowledge no other code currently exists for
@@ -399,11 +391,11 @@ enable automatic differentiation. For simplicity, we assume that we want
 to connect the nonlinear function \(f(x_1,x_2) = x_1x_2^2\) to JAX. The
 \texttt{JAXbind} package expects the Python function for \(f\) to take
 three positional arguments. The first argument, \texttt{out}, is a
-\texttt{tuple} into which the function results are written. The second
+\texttt{tuple} into which the results are written. The second
 argument is also a \texttt{tuple} containing the input to the function,
-in our case, \(x_1\) and \(x_2\). Via \texttt{kwargs\_dump}, potential
-keyword arguments given to the later registered Jax primitive can be
-forwarded to \texttt{f} in serialized form.
+in our case, \(x_1\) and \(x_2\). Via \texttt{kwargs\_dump}, any
+keyword arguments given to the registered JAX primitive can be
+forwarded to $f$ in a serialized form.
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -459,13 +451,14 @@ vector-Jacobian product is
 \end{Shaded}
 
 To just-in-time compile the function, JAX needs to abstractly evaluate
-the code, i.e.~it needs to be able to know the shape and dtype of the
-output of the custom function given only the shape and dtype of the
+the code, i.e.~it needs to be able to infer the shape and dtype of the
+output of the function given only the shape and dtype of the
 input. We have to provide these abstract evaluation functions returning
-the output shape and dtype given an input shape and dtype for \texttt{f}
+the output shape and dtype given an input shape and dtype for $f$
 as well as for the \texttt{vjp} application. The output shape of the
-\texttt{jvp} is identical to the output shape of \texttt{f} itself and
+\texttt{jvp} is identical to the output shape of $f$ itself and
 does not need to be specified again.
+The abstract evaluation functions take normal positional and keyword arguments.
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -526,7 +519,7 @@ automatically compute higher derivatives of a general function \(f\)
 that is not natively implemented in JAX. Higher order derivatives would
 again need to be provided by the user. For many algorithms, first
 derivatives are sufficient, and higher order derivatives are often not
-implemented by the high-performance codes. Therefore, the current
+implemented by high-performance codes. Therefore, the current
 interface of \texttt{JAXbind} is, for simplicity, restricted to first
 derivatives. In the future, the interface could be easily expanded if
 specific use cases require higher order derivatives.
@@ -549,11 +542,9 @@ only requiring an implementation of the function and its transpose.
 \hypertarget{platforms}{%
 \section{Platforms}\label{platforms}}
 
-Currently, \texttt{JAXbind} only has CPU but no GPU support. With some
-expertise on Python bindings for GPU kernels adding GPU support should
-be fairly simple. We especially want to highlight that the interfacing
-with the JAX automatic differentiation engine is identical for CPU and
-GPU.
+Currently, \texttt{JAXbind} only supports primitives that act on CPU memory.
+In the future, GPU support could be added analogous to the CPU backend.
+The automatic differentiation in JAX is backend agnostic and would thus not require any additional bindings.
 
 \hypertarget{acknowledgements}{%
 \section{Acknowledgements}\label{acknowledgements}}

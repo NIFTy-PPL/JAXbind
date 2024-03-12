@@ -42,26 +42,23 @@ Specifically, `JAXbind` provides an easy-to-use Python interface for defining cu
 
 The use of JAX [@Jax2018] is widespread in the natural sciences.
 Of particular interest is JAX's powerful transformation system.
-It enables to retrieve arbitrary derivatives of functions, batch computations, and just-in-time code for additional performance.
+It enables to retrieve arbitrary derivatives of functions, batch computations, and just-in-time compilation for additional performance.
 Its transformation system relies on all components of the computation being written in JAX.
 
 A plethora of high-performance code is not written in JAX and thus not accessible from within JAX.
 Rewriting these is often infeasible and/or inefficient.
-Ideally, we would like to intermix existing high-performance code with JAX code.
+Ideally, we would like to mix existing high-performance code with JAX code.
 However, connecting code to JAX requires knowledge of the internals of JAX and its C++ backend.
 
 In this paper, we present `JAXbind`, a package for bridging any function to JAX without in-depth knowledge of JAX's transformation system.
 The interface is accessible from Python without requiring any development in C++.
 The package is able to register any function, its partial derivatives and their transpose functions as a JAX native call, a so-called primitive.
 
-<!-- Mention (if applicable) a representative set of past or ongoing research projects using the software and recent scholarly publications enabled by it. -->
 We believe `JAXbind` to be highly useful in scientific computing.
-<!-- There are a lot of well-developed packages in JAX for, e.g., optimization and sampling that could be used once existing code is able to interface with JAX. -->
 We intend to use this package to connect the Hartley transform and the spherical harmonic transform from DUCC [@ducc0] to the probabilistic programming package NIFTy [@Edenhofer2023NIFTyRE] as well as the radio interferometry response from DUCC with the radio astronomy package \texttt{resolve} [@Resolve2024].
 Furthermore, we intend to connect the non-uniform FFT from DUCC with JAX for applications in strong-lensing astrophysics.
 We envision many further applications within and outside of astrophysics.
 
-<!-- A list of key references, including to other software addressing related needs. Note that the references should include full names of venues, e.g., journals and conferences, not abbreviations only understood in the context of a specific discipline. -->
 To the best of our knowledge no other code currently exists for connecting generic functions to JAX.
 The package that comes the closest is Enzyme-JAX [@Moses2024].
 Enzyme-JAX allows one to differentiate a C++ function with Enzyme [@Moses2020; @Moses2021; @Moses2022] and connect it together with its derivative to JAX.
@@ -117,7 +114,7 @@ def f_vjp(out, args, kwargs_dump):
 To just-in-time compile the function, JAX needs to abstractly evaluate the code, i.e. it needs to be able to infer the shape and dtype of the output of the function given only the shape and dtype of the input.
 We have to provide these abstract evaluation functions returning the output shape and dtype given an input shape and dtype for $f$ as well as for the `vjp` application.
 The output shape of the `jvp` is identical to the output shape of $f$ itself and does not need to be specified again.
-<!-- Should we point out specifically that the abstract functions take "traditional" args and kwargs? -->
+The abstract evaluation functions take normal positional and keyword arguments.
 
 ```python
 def f_abstract(*args, **kwargs):
@@ -179,7 +176,7 @@ To make use of these simplifications, `JAXbind` provides a special interface for
 
 Currently, `JAXbind` only supports primitives that act on CPU memory.
 In the future, GPU support could be added analogous to the CPU backend.
-Note, the automatic differentiation in JAX is backend agnostic and would thus not require any additional bindings.
+The automatic differentiation in JAX is backend agnostic and would thus not require any additional bindings.
 
 # Acknowledgements
 
@@ -188,21 +185,3 @@ Jakob Roth acknowledges financial support from the German Federal Ministry of Ed
 Gordian Edenhofer acknowledges support from the German Academic Scholarship Foundation in the form of a PhD scholarship ("Promotionsstipendium der Studienstiftung des Deutschen Volkes").
 
 # References
-
-<!-- Citations to entries in paper.bib should be in
-[rMarkdown](http://rmarkdown.rstudio.com/authoring_bibliographies_and_citations.html)
-format.
-
-For a quick reference, the following citation commands can be used:
-- `@author:2001`  ->  "Author et al. (2001)"
-- `[@author:2001]` -> "(Author et al., 2001)"
-- `[@author1:2001; @author2:2001]` -> "(Author1 et al., 2001; Author2 et al., 2002)"
-# Figures
-
-Figures can be included like this:
-![Caption for example figure.\label{fig:example}](figure.png)
-and referenced from text using \autoref{fig:example}.
-
-Figure sizes can be customized by adding an optional second parameter:
-![Caption for example figure.](figure.png){ width=20% }
--->
