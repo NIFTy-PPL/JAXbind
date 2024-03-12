@@ -91,7 +91,7 @@ av = (av1, av2)
 
 @pmp("bt_a1", (0, 1, 2))
 @pmp("bt_a2", (0, 1, 2))
-@pmp("bt2_a1,bt2_a2", ((3, 4), (4, 3), (0,0)))
+@pmp("bt2_a1,bt2_a2", ((3, 4), (4, 3), (0, 0)))
 @pmp("o_a1", (0, 1))
 @pmp("o_a2", (0, 1))
 def test_vmap(bt_a1, bt_a2, bt2_a1, bt2_a2, o_a1, o_a2):

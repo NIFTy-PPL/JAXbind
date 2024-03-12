@@ -26,17 +26,17 @@ jax.config.update("jax_enable_x64", True)
 # also be found in 'demo_scipy_fft.py'.
 
 
-
 # %%
 
 
 def mlin(out, args, kwargs_dump):
     # extract the input from the input tuple
-    x,y = args[0], args[1]
+    x, y = args[0], args[1]
 
-    # doe the computation and write result in the out tuple
-    out[0][()] = x*y
-    out[1][()] = x*y
+    # do the computation and write result in the out tuple
+    out[0][()] = x * y
+    out[1][()] = x * y
+
 
 # %% [markdown]
 
@@ -44,17 +44,20 @@ def mlin(out, args, kwargs_dump):
 # linear transposed of the partial derivatives of 'mlin'.
 # %%
 
+
 # linear transpose of the partial derivative of 'mlin' with respect to the fist
 # variable x.
 def mlin_T1(out, args, kwargs_dump):
     y, da, db = args[0], args[1], args[2]
     out[0][()] = y * da + y * db
 
+
 # linear transpose of the partial derivative of 'mlin' with respect to the second
 # variable y.
 def mlin_T2(out, args, kwargs_dump):
     x, da, db = args[0], args[1], args[2]
     out[0][()] = x * da + x * db
+
 
 # %% [markdown]
 
@@ -64,6 +67,7 @@ def mlin_T2(out, args, kwargs_dump):
 # mlin_T1, and mlin_T2. The abstract evaluations functions return for each
 # output argument a tuple containing the shape and dtype of this output. More
 # details are in the 'demo_scipy_fft.py'
+
 
 # %%
 def mlin_abstract(*args, **kwargs):
@@ -82,6 +86,7 @@ def mlin_abstract_T1(*args, **kwargs):
 def mlin_abstract_T2(*args, **kwargs):
     assert args[0].shape == args[1].shape
     return ((args[0].shape, args[0].dtype),)
+
 
 # %% [markdown]
 
@@ -116,4 +121,3 @@ res_jit = mlin_jit(*inp)
 
 # compute the jvp
 res_jvp = jax.jvp(mlin_jit, inp, inp)
-
