@@ -117,7 +117,7 @@ Analogously, the pullback respectively the `vjp` becomes independent of the init
 Also, all higher order derivatives can be expressed in terms of $f$ and its transpose.
 To make use of these simplifications, `JAXbind` provides a special interface for linear functions, supporting higher order derivatives, only requiring an implementation of the function and its transpose.
 
-### DEMOS
+### Demos
 
 Additional demos can be found in the demos folder.
 Specifically, there is a basic demo [demo_lin.py](https://github.com/NIFTy-PPL/JAXbind/blob/multi_arg/demos/demo_lin.py) showcasing the interface for linear functions and custom batching rules.
