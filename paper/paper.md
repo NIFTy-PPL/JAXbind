@@ -1,5 +1,5 @@
 ---
-title: '`JAXbind`: Easy bindings to JAX'
+title: '`JAXbind`: Bind any function to JAX'
 tags:
   - Python
   - Machine Learning

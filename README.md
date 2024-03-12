@@ -1,4 +1,4 @@
-# JAXbind: Easy bindings to JAX
+# JAXbind: Bind any function to JAX
 
 Found a bug? [github.com/NIFTy-PPL/JAXbind/issues](https://github.com/NIFTy-PPL/JAXbind/issues)
  | Need help? [github.com/NIFTy-PPL/JAXbind/discussions](https://github.com/NIFTy-PPL/JAXbind/discussions)
