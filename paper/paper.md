@@ -42,7 +42,7 @@ Specifically, `JAXbind` provides an easy-to-use Python interface for defining cu
 
 The use of JAX [@Jax2018] is widespread in the natural sciences.
 Of particular interest is JAX's powerful transformation system.
-It enables to retrieve arbitrary derivatives of functions, batch computations, and just-in-time code for additional performance.
+It enables to retrieve arbitrary derivatives of functions, batch computations, and just-in-time compilation for additional performance.
 Its transformation system relies on all components of the computation being written in JAX.
 
 A plethora of high-performance code is not written in JAX and thus not accessible from within JAX.
