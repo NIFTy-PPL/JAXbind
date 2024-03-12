@@ -16,7 +16,7 @@ authors:
   - name: Gordian Edenhofer
     equal-contrib: true
     orcid: 0000-0003-3122-4894
-    affiliation: "1, 2"  # Multiple affiliations must be quoted
+    affiliation: "1, 2, 4"
 affiliations:
   - name: Max Planck Institute for Astrophysics, Karl-Schwarzschild-Str. 1, 85748 Garching, Germany
     index: 1
@@ -24,6 +24,8 @@ affiliations:
     index: 2
   - name: Technical University of Munich, Boltzmannstr. 3, 85748 Garching, Germany
     index: 3
+  - name: Department of Astrophysics, University of Vienna, Türkenschanzstraße 17, A-1180 Vienna, Austria
+    index: 4
 date: 22 February 2024
 bibliography: paper.bib
 ---
