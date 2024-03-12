@@ -124,7 +124,6 @@ Specifically, there is a basic demo [01_linear_function.py](https://github.com/N
 [02_multilinear_function.py](https://github.com/NIFTy-PPL/JAXbind/blob/multi_arg/demos/02_multilinear_function.py) binds a multi-linear function as a JAX primitive.
 Finally, [03_nonlinear_function.py](https://github.com/NIFTy-PPL/JAXbind/blob/multi_arg/demos/03_nonlinear_function.py) demonstrates the interface for non-linear functions and shows how to deal with fixed arguments, which cannot be differentiated.
 
-
 ## Platforms
 
 Currently, `JAXbind` only has CPU but no GPU support.
@@ -132,31 +131,20 @@ With some expertise on Python bindings for GPU kernels adding GPU support should
 The Interfacing with the JAX automatic differentiation engine is identical for CPU and GPU.
 Contributions are welcome!
 
-## Requirements
-
-- [Python >= 3.8](https://www.python.org/)
-- only when compiling from source: [pybind11](https://github.com/pybind/pybind11)
-- only when compiling from source: a C++17-capable compiler, e.g.
-  - `g++` 7 or later
-  - `clang++`
-  - MSVC 2019 or later
-  - Intel `icpx` (oneAPI compiler series). (Note that the older `icpc` compilers
-    are not supported.)
-
 ## Installation
 
 Binary wheels for JAXbind can be obtained and installed from PyPI via:
 
 ```
-pip install --user jaxbind
+pip install jaxbind
 ```
 
-To install JAXbind from source clone the repository and install JAXbind via pip.
+To install JAXbind from source, clone the repository and install the package via pip.
 
 ```
 git clone https://github.com/NIFTy-PPL/jaxbind.git
 cd jaxbind
-pip install --user .
+pip install .
 ```
 
 ## Licensing terms
