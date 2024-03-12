@@ -42,7 +42,7 @@ Specifically, `JAXbind` provides an easy-to-use Python interface for defining cu
 
 The use of JAX [@Jax2018] is widespread in the natural sciences.
 Of particular interest is JAX's powerful transformation system.
-It enables to retrieve arbitrary derivatives of functions, batch computations, and just-in-time compilation for additional performance.
+It enables to retrieve arbitrary derivatives of functions, batch computations, and just-in-time compile code for additional performance.
 Its transformation system relies on all components of the computation being written in JAX.
 
 A plethora of high-performance code is not written in JAX and thus not accessible from within JAX.
@@ -176,7 +176,7 @@ To make use of these simplifications, `JAXbind` provides a special interface for
 
 Currently, `JAXbind` only supports primitives that act on CPU memory.
 In the future, GPU support could be added analogous to the CPU backend.
-The automatic differentiation in JAX is backend agnostic and would thus not require any additional bindings.
+The automatic differentiation in JAX is backend agnostic and would thus not require any additional bindings to work on the GPU.
 
 # Acknowledgements
 
