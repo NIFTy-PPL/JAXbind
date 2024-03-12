@@ -102,7 +102,7 @@ def test_vmap(bt_a1, bt_a2, bt2_a1, bt2_a2, o_a1, o_a2):
     np.testing.assert_allclose(rj, rb)
     assert rj[0].shape == rb[0].shape and rj[1].shape == rb[1].shape
     # check_grads(vj, a, order=2, modes=["fwd", "rev"], eps=1.0)
-    # check_grads(vb, a, order=2, modes=["fwd", "rev"], eps=1.0)
+    check_grads(vb, a, order=2, modes=["fwd", "rev"], eps=1.0)
 
     vvj = jax.vmap(vj, in_axes=(bt2_a1, bt2_a2), out_axes=[o_a1, o_a2])
     vvb = jax.vmap(vb, in_axes=(bt2_a1, bt2_a2), out_axes=[o_a1, o_a2])
