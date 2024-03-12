@@ -1,4 +1,4 @@
-# Copyright(C) 2022-2023 Gordian Edenhofer
+# Copyright(C) 2022-2024 Gordian Edenhofer
 # SPDX-License-Identifier: GPL-2.0+ OR BSD-2-Clause
 
 from functools import partial
@@ -67,7 +67,7 @@ def _generic_smap(fun, in_axes, out_axes, unroll, *x, _scan=lax.scan, **k):
         fun=fun,
         unmapped=unmapped,
         unflatten=partial(tree_unflatten, x_td),
-        in_axes=in_axes
+        in_axes=in_axes,
     )
     _, y = _scan(fun_reord, None, mapped, unroll=unroll)
 
@@ -98,8 +98,7 @@ def _generic_smap(fun, in_axes, out_axes, unroll, *x, _scan=lax.scan, **k):
 # unnecessary recompiles. Ensure scan is compiled only once by compiling the
 # whole data dependence.
 _smap = jax.jit(
-    _generic_smap,
-    static_argnames=("fun", "in_axes", "out_axes", "unroll", "_scan")
+    _generic_smap, static_argnames=("fun", "in_axes", "out_axes", "unroll", "_scan")
 )
 
 

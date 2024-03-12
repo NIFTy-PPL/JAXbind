@@ -1,6 +1,6 @@
 [project]
 requires-python = ">=3.8"
-name = "jax_linop"
+name = "jaxbind"
 readme = "README.md"
 authors = [
   {name = "Martin Reinecke", email = "martin@mpa-garching.mpg.de"},
@@ -8,5 +8,5 @@ authors = [
 dynamic = ["license", "description", "version", "urls", "classifiers", "dependencies"]
 
 [build-system]
-requires = ["setuptools >= 40.6.0", "pybind11 >= 2.6.0", "numpy >= 1.17.0"]
+requires = ["setuptools >= 40.6.0", "pybind11 >= 2.6.0", "numpy >= 1.17.0", "jax >= 0.4", "jaxlib"]
 build-backend = "setuptools.build_meta"
