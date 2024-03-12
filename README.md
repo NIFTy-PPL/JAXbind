@@ -159,13 +159,6 @@ cd jaxbind
 pip install --user .
 ```
 
-## TODOs
-
-* Paper
-  * final editing
-* PiPy release
-* README
-
 ## Licensing terms
 
 All source code in this package is released under the 2-clause BSD license.
