@@ -145,7 +145,11 @@ Contributions are welcome!
 
 ## Installation
 
-FIXME: PyPi Installation!
+Binary wheels for JAXbind can be obtained and installed from PyPI via:
+
+```
+pip install --user jaxbind
+```
 
 To install JAXbind from source clone the repository and install JAXbind via pip.
 
