@@ -120,9 +120,9 @@ To make use of these simplifications, `JAXbind` provides a special interface for
 ### Demos
 
 Additional demos can be found in the demos folder.
-Specifically, there is a basic demo [01_linear_function.py](https://github.com/NIFTy-PPL/JAXbind/blob/multi_arg/demos/01_linear_function.py) showcasing the interface for linear functions and custom batching rules.
-[02_multilinear_function.py](https://github.com/NIFTy-PPL/JAXbind/blob/multi_arg/demos/02_multilinear_function.py) binds a multi-linear function as a JAX primitive.
-Finally, [03_nonlinear_function.py](https://github.com/NIFTy-PPL/JAXbind/blob/multi_arg/demos/03_nonlinear_function.py) demonstrates the interface for non-linear functions and shows how to deal with fixed arguments, which cannot be differentiated.
+Specifically, there is a basic demo [01_linear_function.py](https://github.com/NIFTy-PPL/JAXbind/blob/main/demos/01_linear_function.py) showcasing the interface for linear functions and custom batching rules.
+[02_multilinear_function.py](https://github.com/NIFTy-PPL/JAXbind/blob/main/demos/02_multilinear_function.py) binds a multi-linear function as a JAX primitive.
+Finally, [03_nonlinear_function.py](https://github.com/NIFTy-PPL/JAXbind/blob/main/demos/03_nonlinear_function.py) demonstrates the interface for non-linear functions and shows how to deal with fixed arguments, which cannot be differentiated.
 
 ## Platforms
 
