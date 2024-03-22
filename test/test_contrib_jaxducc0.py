@@ -41,3 +41,26 @@ def test_fht(shape, axes, dtype, nthreads):
 
     max_order = 2
     check_grads(fht, (a,), order=max_order, modes=("fwd", "rev"), eps=1.0)
+
+
+@pmp("shape,axes", (((100,), (0,)), ((10, 17), (0, 1)), ((10, 17, 3), (1,))))
+@pmp("forward", (False, True))
+@pmp("dtype", (np.complex64, np.complex128))
+@pmp("nthreads", (1, 2))
+def test_c2c(shape, axes, forward, dtype, nthreads):
+    rng = np.random.default_rng(42)
+
+    # The C2C FFT matrix is symmetric!
+    kw = dict(axes=axes, forward=forward, nthreads=nthreads)
+    c2c = partial(jaxducc0.c2c, **kw)
+    c2c_alt = partial(ducc0.fft.c2c, **kw)
+
+    a = (rng.random(shape) - 0.5).astype(dtype)
+    a += (1j * (rng.random(shape) - 0.5)).astype(dtype)
+
+    b1 = np.array(c2c(a)[0])
+    b2 = c2c_alt(a)
+    _assert_close(b1, b2, epsilon=1e-6 if dtype == np.complex64 else 1e-14)
+
+    max_order = 2
+    check_grads(c2c, (a,), order=max_order, modes=("fwd", "rev"), eps=1.0)
