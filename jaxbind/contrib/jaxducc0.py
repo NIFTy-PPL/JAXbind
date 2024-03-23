@@ -180,8 +180,8 @@ def _dirty2vis(out, args, kwargs_dump):
     kwargs = load_kwargs(kwargs_dump)
     kwargs.pop("npix_x")
     kwargs.pop("npix_y")
-    out[0][()] = ducc0.wgridder.experimental.dirty2vis(
-        uvw=uvw, freq=freq, dirty=dirty, **kwargs
+    ducc0.wgridder.experimental.dirty2vis(
+        uvw=uvw, freq=freq, dirty=dirty, vis=out[0], **kwargs
     )
 
 
@@ -195,8 +195,8 @@ def _dirty2vis_abstract(*args, **kwargs):
 def _vis2dirty(out, args, kwargs_dump):
     uvw, freq, vis = args
     kwargs = load_kwargs(kwargs_dump)
-    out[0][()] = ducc0.wgridder.experimental.vis2dirty(
-        uvw=uvw, freq=freq, vis=vis.conj(), **kwargs
+    ducc0.wgridder.experimental.vis2dirty(
+        uvw=uvw, freq=freq, vis=vis.conj(), dirty=out[0], **kwargs
     )
 
 
