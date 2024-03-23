@@ -136,12 +136,8 @@ _hp_sht = get_linear_call(
 )
 
 
-def healpix_sht(x, *, spin, nthreads):
-    # TODO: is there a sane default for spin?
-    # TODO: infer lmmax and nside from shape of x?
-    lmax, mmax = lmmax
-    base = ducc0.healpix.Healpix_Base(nside, "RING")
-    hpxparam = base.sht_info()
+def healpix_sht(nside, lmax, mmax, spin, nthreads=1):
+    hpxparam = ducc0.healpix.Healpix_Base(nside, "RING").sht_info()
 
     hpp = partial(
         _hp_sht,
@@ -151,18 +147,18 @@ def healpix_sht(x, *, spin, nthreads):
         hpxparam["ringstart"],
         lmax=lmax,
         mmax=mmax,
-        spin=spin,  # TODO:
+        spin=spin,
         nthreads=nthreads,
         nside=nside,
     )
-    return hpp(x)
+    return hpp
 
 
 def nalm(lmax, mmax):
     return ((mmax + 1) * (mmax + 2)) // 2 + (mmax + 1) * (lmax - mmax)
 
 
-def random_alm(lmax, mmax, spin, ncomp, rng):
+def _random_alm(lmax, mmax, spin, ncomp, rng):
     res = rng.uniform(-1.0, 1.0, (ncomp, nalm(lmax, mmax))) + 1j * rng.uniform(
         -1.0, 1.0, (ncomp, nalm(lmax, mmax))
     )

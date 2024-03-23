@@ -112,3 +112,22 @@ def test_wgridder(dtype, nthreads):
     check_grads(
         partial(wgridder, uvw, freq), (dirty,), order=2, modes=("fwd", "rev"), eps=1.0
     )
+
+@pmp("lmmax", ((10, 10), (20, 5)))
+@pmp("nside", (16, 2))
+@pmp("spin", (0, 2))
+@pmp("dtype", (np.float32, np.float64))
+@pmp("nthreads", (1, 2))
+def test_healpix(lmmax, nside, spin, dtype, nthreads):
+    lmax, mmax = lmmax
+    ncomp = 1 if spin == 0 else 2
+    rng = np.random.default_rng(42)
+    alm0 = jaxducc0._random_alm(lmax, mmax, spin, ncomp, rng).astype(jaxducc0._complextype(dtype))
+    alm0r = jaxducc0._alm2realalm(alm0, lmax, dtype)
+    map0 = (rng.random((ncomp, 12 * nside**2)) - 0.5).astype(dtype)
+
+    hpp = jaxducc0.healpix_sht(nside, lmax, mmax, spin, nthreads)
+
+    max_order = 3
+    check_grads(hpp, (alm0r,), order=max_order, modes=("fwd", "rev"), eps=1.0)
+ #   check_grads(hpp_adj, (map0,), order=max_order, modes=("fwd", "rev"), eps=1.0)
