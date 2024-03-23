@@ -13,9 +13,18 @@ _r2cdict = {
     np.dtype(np.float64): np.dtype(np.complex128),
 }
 
+_c2rdict = {
+    np.dtype(np.complex64): np.dtype(np.float32),
+    np.dtype(np.complex128): np.dtype(np.float64),
+}
+
 
 def _complextype(dtype):
     return _r2cdict[np.dtype(dtype)]
+
+
+def _realtype(dtype):
+    return _c2rdict[np.dtype(dtype)]
 
 
 def _fht(out, args, kwargs_dump):
@@ -164,3 +173,72 @@ def random_alm(lmax, mmax, spin, ncomp, rng):
         res[:, ofs : ofs + spin - s] = 0.0
         ofs += lmax + 1 - s
     return res
+
+
+def _dirty2vis(out, args, kwargs_dump):
+    uvw, freq, dirty = args
+    kwargs = load_kwargs(kwargs_dump)
+    kwargs.pop("npix_x")
+    kwargs.pop("npix_y")
+    out[0][()] = ducc0.wgridder.experimental.dirty2vis(
+        uvw=uvw, freq=freq, dirty=dirty, **kwargs
+    )
+
+
+def _dirty2vis_abstract(*args, **kwargs):
+    uvw, freq, dirty = args
+    shape_out = (uvw.shape[0], freq.shape[0])
+    dtype_out = _complextype(dirty.dtype)
+    return ((shape_out, dtype_out),)
+
+
+def _vis2dirty(out, args, kwargs_dump):
+    uvw, freq, vis = args
+    kwargs = load_kwargs(kwargs_dump)
+    out[0][()] = ducc0.wgridder.experimental.vis2dirty(
+        uvw=uvw, freq=freq, vis=vis.conj(), **kwargs
+    )
+
+
+def _vis2dirty_abstract(*args, **kwargs):
+    _, _, vis = args
+    shape_out = (kwargs["npix_x"], kwargs["npix_y"])
+    dtype_out = _realtype(vis.dtype)
+    return ((shape_out, dtype_out),)
+
+
+_wgridder = get_linear_call(
+    _dirty2vis,
+    _vis2dirty,
+    _dirty2vis_abstract,
+    _vis2dirty_abstract,
+    first_n_args_fixed=2,
+)
+
+
+def get_wgridder(
+    *,
+    pixsize_x,
+    pixsize_y,
+    npix_x,
+    npix_y,
+    epsilon,
+    do_wgridding,
+    nthreads=1,
+    flip_v=False,
+    verbosity=0,
+):
+
+    wgridder = partial(
+        _wgridder,
+        pixsize_x=pixsize_x,
+        pixsize_y=pixsize_y,
+        npix_x=npix_x,
+        npix_y=npix_y,
+        epsilon=epsilon,
+        do_wgridding=do_wgridding,
+        nthreads=nthreads,
+        flip_v=flip_v,
+        verbosity=verbosity,
+    )
+    return wgridder
