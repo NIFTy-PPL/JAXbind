@@ -5,7 +5,6 @@
 from functools import partial
 
 import jax
-from jax._src.tree_util import Partial
 import numpy as np
 import pytest
 from jax.test_util import check_grads
@@ -111,5 +110,5 @@ def test_wgridder(dtype, nthreads):
 
     np.testing.assert_allclose(vis_jaxducc, vis_ducc, atol=epsilon, rtol=epsilon)
     check_grads(
-        Partial(wgridder, uvw, freq), (dirty,), order=2, modes=("fwd", "rev"), eps=1.0
+        partial(wgridder, uvw, freq), (dirty,), order=2, modes=("fwd", "rev"), eps=1.0
     )
