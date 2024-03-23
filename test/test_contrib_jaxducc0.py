@@ -5,6 +5,7 @@
 from functools import partial
 
 import jax
+from jax._src.tree_util import Partial
 import numpy as np
 import pytest
 from jax.test_util import check_grads
@@ -64,3 +65,51 @@ def test_c2c(shape, axes, forward, dtype, nthreads):
 
     max_order = 2
     check_grads(c2c, (a,), order=max_order, modes=("fwd", "rev"), eps=1.0)
+
+
+@pmp("dtype", (np.float32, np.float64))
+@pmp("nthreads", (1, 2))
+def test_wgridder(dtype, nthreads):
+    speedoflight = 299792458.0
+    rng = np.random.default_rng(42)
+
+    fov = 0.1 * np.pi
+    npix_x = 128
+    npix_y = 64
+    nrow, nchan = 1000, 2
+    pixsize_x = fov / npix_x
+    pixsize_y = fov / npix_y
+    f0 = 1e9
+    freq = f0 + np.arange(nchan) * (f0 / nchan)
+    uvw = (rng.random((nrow, 3)) - 0.5) / (pixsize_x * f0 / speedoflight)
+    uvw[:, 2] /= 20
+    epsilon = 1e-5
+    do_wgridding = True
+
+    dirty = rng.random((npix_x, npix_y), dtype)
+
+    wgridder = jaxducc0.get_wgridder(
+        pixsize_x=pixsize_x,
+        pixsize_y=pixsize_y,
+        npix_x=npix_x,
+        npix_y=npix_y,
+        epsilon=epsilon,
+        do_wgridding=do_wgridding,
+        nthreads=nthreads,
+    )
+    vis_jaxducc = wgridder(uvw, freq, dirty)[0]
+    vis_ducc = ducc0.wgridder.experimental.dirty2vis(
+        uvw=uvw,
+        freq=freq,
+        dirty=dirty,
+        pixsize_x=pixsize_x,
+        pixsize_y=pixsize_y,
+        epsilon=epsilon,
+        do_wgridding=do_wgridding,
+        nthreads=nthreads,
+    )
+
+    np.testing.assert_allclose(vis_jaxducc, vis_ducc, atol=epsilon, rtol=epsilon)
+    check_grads(
+        Partial(wgridder, uvw, freq), (dirty,), order=2, modes=("fwd", "rev"), eps=1.0
+    )
