@@ -227,6 +227,7 @@ def get_wgridder(
     nthreads=1,
     flip_v=False,
     verbosity=0,
+    **kwargs,
 ):
 
     wgridder = partial(
@@ -240,5 +241,6 @@ def get_wgridder(
         nthreads=nthreads,
         flip_v=flip_v,
         verbosity=verbosity,
+        **kwargs,
     )
     return wgridder
