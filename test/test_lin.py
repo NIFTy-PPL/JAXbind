@@ -226,9 +226,7 @@ def _assert_close(a, b, epsilon):
 def test_fht(shape, axes, dtype, nthreads):
     rng = np.random.default_rng(42)
 
-    fht = jaxbind.get_linear_call(
-        fhtfunc, fhtfunc, fhtfunc_abstract, fhtfunc_abstract
-    )
+    fht = jaxbind.get_linear_call(fhtfunc, fhtfunc, fhtfunc_abstract, fhtfunc_abstract)
     kw = dict(axes=axes, nthreads=nthreads)
 
     a = (rng.random(shape) - 0.5).astype(dtype)
@@ -255,9 +253,7 @@ def test_c2c(shape, axes, forward, dtype, nthreads):
     rng = np.random.default_rng(42)
 
     # The C2C FFT matrix is symmetric!
-    c2c = jaxbind.get_linear_call(
-        c2cfunc, c2cfunc, c2cfunc_abstract, c2cfunc_abstract
-    )
+    c2c = jaxbind.get_linear_call(c2cfunc, c2cfunc, c2cfunc_abstract, c2cfunc_abstract)
     kw = dict(axes=axes, forward=forward, nthreads=nthreads)
 
     a = (rng.random(shape) - 0.5).astype(dtype) + (
@@ -380,20 +376,18 @@ def test_healpix(lmmax, nside, spin, dtype, nthreads):
         first_n_args_fixed=4,
     )
 
-    def hpp(x):
-        # Partial insert where the first parameter is not inserted
-        return hp(
-            hpxparam["theta"],
-            hpxparam["phi0"],
-            hpxparam["nphi"],
-            hpxparam["ringstart"],
-            x,
-            lmax=lmax,
-            mmax=mmax,
-            spin=spin,
-            nthreads=nthreads,
-            nside=nside,
-        )
+    hpp = partial(
+        hp,
+        hpxparam["theta"],
+        hpxparam["phi0"],
+        hpxparam["nphi"],
+        hpxparam["ringstart"],
+        lmax=lmax,
+        mmax=mmax,
+        spin=spin,
+        nthreads=nthreads,
+        nside=nside,
+    )
 
     # The conjugations are only necessary if the input or output data types
     # are complex. Leaving them out makes things (surprisingly) faster.
