@@ -11,24 +11,22 @@ import jaxbind
 
 jax.config.update("jax_enable_x64", True)
 
+
 def test_reference():
     def lin(out, args, kwargs_dump):
         x, y = args
         out[0][()] = x + y
         out[1][()] = x + y
 
-
     def lin_T(out, args, kwargs_dump):
         a, b = args
         out[0][()] = a + b
         out[1][()] = a + b
 
-
     def lin_abstract(*args, **kwargs):
         x, y = args
         assert x.shape == y.shape
         return ((x.shape, x.dtype), (x.shape, x.dtype))
-
 
     lin_jax = jaxbind.get_linear_call(lin, lin_T, lin_abstract, lin_abstract)
     inp = (4 + jnp.zeros((2, 2)), 1 + jnp.zeros((2, 2)))
@@ -36,10 +34,8 @@ def test_reference():
 
     del lin, lin_abstract, lin_T
 
-
     def lin(*a):
         raise ValueError()
-
 
     _ = {"a": jnp.arange(10)}
 
