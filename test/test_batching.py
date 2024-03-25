@@ -21,11 +21,11 @@ def f(out, args, kwargs_dump):
     kwargs = jaxbind.load_kwargs(kwargs_dump)
     workers = kwargs.pop("workers", None)
     batch_axes = kwargs.pop("batch_axes", None)
-    axes0 = list(range(len(x.shape)))
-    axes1 = list(range(len(x.shape)))
+    axes0 = list(range(x.ndim))
+    axes1 = list(range(x.ndim))
     if batch_axes:
-        axes0 = [i for i in range(len(x.shape)) if not i in batch_axes[0]]
-        axes1 = [i for i in range(len(y.shape)) if not i in batch_axes[1]]
+        axes0 = [i for i in range(len(x.shape)) if i not in batch_axes[0]]
+        axes1 = [i for i in range(len(y.shape)) if i not in batch_axes[1]]
     out[0][()] = scipy.fft.fftn(x, axes=axes0, norm="forward", workers=workers)
     out[1][()] = scipy.fft.fftn(y, axes=axes1, norm="forward", workers=workers)
 
@@ -35,11 +35,11 @@ def f_T(out, args, kwargs_dump):
     kwargs = jaxbind.load_kwargs(kwargs_dump)
     workers = kwargs.pop("workers", None)
     batch_axes = kwargs.pop("batch_axes", None)
-    axes0 = list(range(len(x.shape)))
-    axes1 = list(range(len(x.shape)))
+    axes0 = list(range(x.ndim))
+    axes1 = list(range(x.ndim))
     if batch_axes:
-        axes0 = [i for i in range(len(x.shape)) if not i in batch_axes[0]]
-        axes1 = [i for i in range(len(y.shape)) if not i in batch_axes[1]]
+        axes0 = [i for i in range(x.ndim) if i not in batch_axes[0]]
+        axes1 = [i for i in range(y.ndim) if i not in batch_axes[1]]
     out[0][()] = scipy.fft.ifftn(
         x.conj(), axes=axes0, norm="backward", workers=workers
     ).conj()
@@ -88,9 +88,14 @@ av1 = rng.random((5, 5, 5, 5, 5)) - 0.5 + 1j * (rng.random((5, 5, 5, 5, 5)) - 0.
 av2 = rng.random((5, 5, 5, 5, 5)) - 0.5 + 1j * (rng.random((5, 5, 5, 5, 5)) - 0.5)
 av = (av1, av2)
 
-av1_diff_ax_len = rng.random((5, 5, 5, 3, 4)) - 0.5 + 1j * (rng.random((5, 5, 5, 3, 4)) - 0.5)
-av2_diff_ax_len = rng.random((5, 5, 5, 4, 3)) - 0.5 + 1j * (rng.random((5, 5, 5, 4, 3)) - 0.5)
+av1_diff_ax_len = (
+    rng.random((5, 5, 5, 3, 4)) - 0.5 + 1j * (rng.random((5, 5, 5, 3, 4)) - 0.5)
+)
+av2_diff_ax_len = (
+    rng.random((5, 5, 5, 4, 3)) - 0.5 + 1j * (rng.random((5, 5, 5, 4, 3)) - 0.5)
+)
 av_diff_ax_len = (av1_diff_ax_len, av2_diff_ax_len)
+
 
 @pmp("bt_a1", (0, 1, 2))
 @pmp("bt_a2", (0, 1, 2))
@@ -117,7 +122,7 @@ def test_vmap(bt_a1, bt_a2, bt2_a1, bt2_a2, o_a1, o_a2):
     # check_grads(vvj, av, order=2, modes=["fwd", "rev"], eps=1.0)
     # check_grads(vvb, av, order=2, modes=["fwd", "rev"], eps=1.0)
 
-    if not (bt2_a1,bt2_a2) ==(0, 0):
+    if not (bt2_a1, bt2_a2) == (0, 0):
         vvj = jax.vmap(vj, in_axes=(bt2_a1, bt2_a2), out_axes=[o_a1, o_a2])
         vvb = jax.vmap(vb, in_axes=(bt2_a1, bt2_a2), out_axes=[o_a1, o_a2])
         rb = vvb(*av_diff_ax_len)
