@@ -39,6 +39,7 @@ def _fht_abstract(*args, **kwargs):
 
 
 genuine_fht = get_linear_call(_fht, _fht, _fht_abstract, _fht_abstract)
+genuine_fht.__doc__ = ducc0.fft.genuine_fht.__doc__
 
 
 def _c2c(out, args, kwargs_dump):
@@ -53,6 +54,7 @@ def _c2c_abstract(*args, **kwargs):
 
 
 c2c = get_linear_call(_c2c, _c2c, _c2c_abstract, _c2c_abstract)
+c2c.__doc__ = ducc0.fft.c2c.__doc__
 
 
 def _alm2realalm(alm, lmax, dtype, out=None):
