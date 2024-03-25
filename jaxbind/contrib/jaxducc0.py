@@ -136,7 +136,7 @@ _hp_sht = get_linear_call(
 )
 
 
-def healpix_sht(nside, lmax, mmax, spin, nthreads=1):
+def get_healpix_sht(nside, lmax, mmax, spin, nthreads=1):
     hpxparam = ducc0.healpix.Healpix_Base(nside, "RING").sht_info()
 
     hpp = partial(
@@ -156,19 +156,6 @@ def healpix_sht(nside, lmax, mmax, spin, nthreads=1):
 
 def nalm(lmax, mmax):
     return ((mmax + 1) * (mmax + 2)) // 2 + (mmax + 1) * (lmax - mmax)
-
-
-def _random_alm(lmax, mmax, spin, ncomp, rng):
-    res = rng.uniform(-1.0, 1.0, (ncomp, nalm(lmax, mmax))) + 1j * rng.uniform(
-        -1.0, 1.0, (ncomp, nalm(lmax, mmax))
-    )
-    # make a_lm with m==0 real-valued
-    res[:, 0 : lmax + 1].imag = 0.0
-    ofs = 0
-    for s in range(spin):
-        res[:, ofs : ofs + spin - s] = 0.0
-        ofs += lmax + 1 - s
-    return res
 
 
 def _dirty2vis(out, args, kwargs_dump):
@@ -225,7 +212,6 @@ def get_wgridder(
     verbosity=0,
     **kwargs,
 ):
-
     wgridder = partial(
         _wgridder,
         pixsize_x=pixsize_x,
