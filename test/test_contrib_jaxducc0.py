@@ -66,6 +66,56 @@ def test_c2c(shape, axes, forward, dtype, nthreads):
     check_grads(c2c, (a,), order=max_order, modes=("fwd", "rev"), eps=1.0)
 
 
+rng = np.random.default_rng(42)
+a1 = rng.random((5, 5, 5)) - 0.5 + 1j * (rng.random((5, 5, 5)) - 0.5)
+a = (a1,)
+av1 = rng.random((5, 5, 5, 5)) - 0.5 + 1j * (rng.random((5, 5, 5, 5)) - 0.5)
+av = (av1,)
+
+# HACK to disable native batching again
+fmap = {}
+for f_native in (jaxducc0.c2c, jaxducc0.genuine_fht):
+    assert isinstance(f_native, partial) and "_func" in f_native.keywords
+    kw = f_native.keywords
+    kw["_func"] = kw["_func"]._replace(can_batch=False)
+    fmap[f_native] = partial(f_native.func, *f_native.args, **kw)
+
+
+@pmp(
+    "f_native,f_map",
+    (
+        (jaxducc0.c2c, fmap[jaxducc0.c2c]),
+        (partial(jaxducc0.c2c, axis=0), partial(fmap[jaxducc0.c2c], axis=0)),
+        (
+            lambda x: jaxducc0.genuine_fht(x.real),
+            lambda x: fmap[jaxducc0.genuine_fht](x.real),
+        ),
+        (
+            lambda x: jaxducc0.genuine_fht(x.real, axis=0),
+            lambda x: fmap[jaxducc0.genuine_fht](x.real, axis=0),
+        ),
+    ),
+)
+@pmp("bt_a1", (0, 1))
+@pmp("bt2_a1", (3, 0))
+@pmp("o_a1", (0, 1))
+def test_ht_vmap(f_native, f_map, bt_a1, bt2_a1, o_a1):
+    vj = jax.vmap(f_map, in_axes=(bt_a1,), out_axes=[o_a1])
+    vb = jax.vmap(f_native, in_axes=(bt_a1,), out_axes=[o_a1])
+    rj = vj(*a)
+    rb = vb(*a)
+    np.testing.assert_allclose(rj, rb)
+    assert rj[0].shape == rb[0].shape
+    check_grads(vb, a, order=1, modes=["fwd", "rev"], eps=1.0)
+
+    vvj = jax.vmap(vj, in_axes=(bt2_a1,), out_axes=[o_a1])
+    vvb = jax.vmap(vb, in_axes=(bt2_a1,), out_axes=[o_a1])
+    rb = vvb(*av)
+    rj = vvj(*av)
+    assert rj[0].shape == rb[0].shape
+    np.testing.assert_allclose(rj[0], rb[0])
+
+
 @pmp("dtype", (np.float32, np.float64))
 @pmp("nthreads", (1, 2))
 def test_wgridder(dtype, nthreads):
