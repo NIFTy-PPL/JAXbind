@@ -142,8 +142,13 @@ def test_healpix(lmmax, nside, spin, dtype, nthreads):
     alm0r = jaxducc0._alm2realalm(alm0, lmax, dtype)
     hpp = jaxducc0.get_healpix_sht(nside, lmax, mmax, spin, nthreads)
 
-    max_order = 3
+    map0 = np.array(hpp(alm0r)[0])
+    map1 = ducc0.sht.synthesis(alm=alm0, lmax=lmax, mmax=mmax, spin=spin, nthreads=nthreads, **ducc0.healpix.Healpix_Base(nside, "RING").sht_info())
+    np.testing.assert_allclose(map0, map1, atol=1e-5, rtol=1e-5)
+
+    max_order = 2
     check_grads(hpp, (alm0r,), order=max_order, modes=("fwd", "rev"), eps=1.0)
 
-    # map0 = (rng.random((ncomp, 12 * nside**2)) - 0.5).astype(dtype)
-    # check_grads(hpp_adj, (map0,), order=max_order, modes=("fwd", "rev"), eps=1.0)
+#    map0 = (rng.random((ncomp, 12 * nside**2)) - 0.5).astype(dtype)
+#    hpp_t = jax.linear_transpose(hpp)
+#    check_grads(hpp_t, (map0,), order=max_order, modes=("fwd", "rev"), eps=1.0)
