@@ -8,6 +8,9 @@ import numpy as np
 
 from .. import get_linear_call, load_kwargs
 
+__all__ = ["c2c", "genuine_fht", "get_healpix_sht", "nalm", "get_wgridder"]
+
+
 _r2cdict = {
     np.dtype(np.float32): np.dtype(np.complex64),
     np.dtype(np.float64): np.dtype(np.complex128),
@@ -30,29 +33,55 @@ def _realtype(dtype):
 def _fht(out, args, kwargs_dump):
     (x,) = args
     kwargs = load_kwargs(kwargs_dump)
-    ducc0.fft.genuine_fht(x, out=out[0], **kwargs)
+    batch_axes = kwargs.pop("batch_axes", None)
+    axes = list(range(x.ndim))
+    if batch_axes is not None:
+        axes = [i for i in range(x.ndim) if i not in batch_axes[0]]
+    orig_axis = kwargs.pop("axes", None)
+    if orig_axis is not None:
+        axes = [i for idx, i in enumerate(axes) if idx in orig_axis]
+    ducc0.fft.genuine_fht(x, out=out[0], axes=axes, **kwargs)
 
 
 def _fht_abstract(*args, **kwargs):
     (x,) = args
-    return ((x.shape, x.dtype),)
+    batch_axes = kwargs.pop("batch_axes", None)
+    out_ax = ()
+    if batch_axes is not None and len(batch_axes[0]) > 0:
+        out_ax = batch_axes[0][-1]
+    return ((x.shape, x.dtype, out_ax),)
 
 
-genuine_fht = get_linear_call(_fht, _fht, _fht_abstract, _fht_abstract)
+genuine_fht = get_linear_call(
+    _fht, _fht, _fht_abstract, _fht_abstract, func_can_batch=True
+)
+genuine_fht.__doc__ = ducc0.fft.genuine_fht.__doc__
 
 
 def _c2c(out, args, kwargs_dump):
     (x,) = args
     kwargs = load_kwargs(kwargs_dump)
-    ducc0.fft.c2c(x, out=out[0], **kwargs)
+    batch_axes = kwargs.pop("batch_axes", None)
+    axes = list(range(x.ndim))
+    if batch_axes is not None:
+        axes = [i for i in range(x.ndim) if i not in batch_axes[0]]
+    orig_axis = kwargs.pop("axes", None)
+    if orig_axis is not None:
+        axes = [i for idx, i in enumerate(axes) if idx in orig_axis]
+    ducc0.fft.c2c(x, out=out[0], axes=axes, **kwargs)
 
 
 def _c2c_abstract(*args, **kwargs):
     (x,) = args
-    return ((x.shape, x.dtype),)
+    batch_axes = kwargs.pop("batch_axes", None)
+    out_ax = ()
+    if batch_axes is not None and len(batch_axes[0]) > 0:
+        out_ax = batch_axes[0][-1]
+    return ((x.shape, x.dtype, out_ax),)
 
 
-c2c = get_linear_call(_c2c, _c2c, _c2c_abstract, _c2c_abstract)
+c2c = get_linear_call(_c2c, _c2c, _c2c_abstract, _c2c_abstract, func_can_batch=True)
+c2c.__doc__ = ducc0.fft.c2c.__doc__
 
 
 def _alm2realalm(alm, lmax, dtype, out=None):
