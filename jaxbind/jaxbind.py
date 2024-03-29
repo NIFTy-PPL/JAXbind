@@ -43,6 +43,27 @@ FunctionType = Union[LinearFunction, MultiLinearFunction, NonLinearFunction]
 
 
 def _exec_abstract(*args, _func: FunctionType, **kwargs):
+    """JAXbind internal: bridging the user abstract function to JAX
+
+
+    Parameters
+    ----------
+    *args : tuple of shaped arrays
+        Input for the 'abstract' function in _func
+    _func : FunctionType
+        namedtuple containing all arguments from 'get_linear_call' and
+        'get_nonlinear_call'.
+    **kwargs : dict
+        Additional keyword arguments forwarded to functions contained in _func.
+
+
+    Returns
+    -------
+    tuple : tuple of jax.core.ShapedArray
+        Indicates the shape and dtype of each output argument of the function
+        'f' in _func.
+
+    """
     if _func.can_batch:
         assert "batch_axes" not in kwargs
         kwargs["batch_axes"] = _func.batch_axes
@@ -63,6 +84,27 @@ _dtype_dict = {
 
 
 def _lowering(ctx, *args, _func: FunctionType, _platform="cpu", **kwargs):
+    """JAXbind internal: lowering the user function to JAX/XLA
+
+
+    Parameters
+    ----------
+    ctx : mlir.LoweringRuleContext
+    _func : FunctionType
+        namedtuple containing all arguments from 'get_linear_call' and
+        'get_nonlinear_call'.
+    _platform : string
+        Indicates the desired backend. For now only 'cpu' is supported.
+    **kwargs : dict
+        Additional keyword arguments forwarded to functions contained in _func.
+
+
+    Returns
+    -------
+    tuple : ir.OpResultList
+        Results of the function 'f' in _func as mlir object.
+
+    """
     operands = [irc(id(_func.f))]  # Pass the ID of the callable to C++
     operand_layouts = [()]
 
@@ -117,12 +159,38 @@ def _lowering(ctx, *args, _func: FunctionType, _platform="cpu", **kwargs):
 
 
 def _explicify_zeros(x):
+    """JAXbind internal: helper function instantiating array with zeros for any
+    ad.Zero in x.
+    """
     if isinstance(x, (tuple, list)):
         return [ad.instantiate_zeros(t) if isinstance(t, ad.Zero) else t for t in x]
     return ad.instantiate_zeros(x) if isinstance(x, ad.Zero) else x
 
 
 def _jvp(args, tangents, *, _func: FunctionType, **kwargs):
+    """JAXbind internal: bridging the user derivative function to JAX
+
+
+    Parameters
+    ----------
+    args : tuple of arrays
+        Position at which the jacobian is computed.
+    tangents : tuple of arrays
+        Tangents to which the jacobian is applied.
+    _func : FunctionType
+        namedtuple containing all arguments from 'get_linear_call' and
+        'get_nonlinear_call'.
+    **kwargs : dict
+        Additional keyword arguments forwarded to functions contained in _func.
+
+
+    Returns
+    -------
+    tuple : tuple
+        Tuple containing as a first entry the result of the application of 'f'
+        in _funcs and as a second entry the result of the jvp of f.
+
+    """
     res = _prim.bind(*args, **kwargs, _func=_func)
 
     def zero_tans(tans):
@@ -186,6 +254,28 @@ def _jvp(args, tangents, *, _func: FunctionType, **kwargs):
 # and not as a tuple as for _jvp. Thus we need *args since we don't know
 # the number of arguments.
 def _transpose(cotangents, *args, _func: FunctionType, **kwargs):
+    """JAXbind internal: bridging the user transpose function to JAX
+
+
+    Parameters
+    ----------
+    cotangents : tuple of arrays
+        Cotangents for the transpose/ vjp application.
+    *args : tuple of arrays
+        Position at which the jacobian is computed.
+    _func : FunctionType
+        namedtuple containing all arguments from 'get_linear_call' and
+        'get_nonlinear_call'.
+    **kwargs : dict
+        Additional keyword arguments forwarded to functions contained in _func.
+
+
+    Returns
+    -------
+    tuple : tuple
+        Tuple with the result of the transposed function.
+
+    """
     assert isinstance(_func, (LinearFunction, MultiLinearFunction))
     if _func.T is None:
         raise NotImplementedError(f"transpose of {_func} not implemented")
@@ -241,6 +331,30 @@ def _transpose(cotangents, *args, _func: FunctionType, **kwargs):
 
 
 def _batch(args, in_axes, *, _func: FunctionType, **kwargs):
+    """JAXbind internal: adding batching support
+
+
+    Parameters
+    ----------
+    args : tuple of arrays
+        Input for function.
+    in_axis : int
+        Batching axis of input.
+    _func : FunctionType
+        namedtuple containing all arguments from 'get_linear_call' and
+        'get_nonlinear_call'.
+    **kwargs : dict
+        Additional keyword arguments forwarded to functions contained in _func.
+
+
+    Returns
+    -------
+    tuple : tuple
+        Tuple containing at the first entry the result of the batched function.
+        The second entry contains an int indicating the batching axis of the
+        output.
+
+    """
     from .custom_map import smap
 
     if not _func.can_batch:
@@ -270,7 +384,7 @@ def _batch(args, in_axes, *, _func: FunctionType, **kwargs):
         y = _call(*args, _func=_func, **kwargs)
     return y, out_axes
 
-
+# actually register the above functions in JAX
 _prim = jax.core.Primitive("jaxbind_prim")
 _prim.multiple_results = True
 _prim.def_impl(partial(jax.interpreters.xla.apply_primitive, _prim))
@@ -286,6 +400,9 @@ for platform in ["cpu", "gpu"]:
 
 
 def _call(*args, _func: FunctionType, **kwargs):
+    """JAXbind internal: helper function evaluating the JAX primitve for the
+     function 'f' in _func for given *args and **kwargs.
+    """
     return _prim.bind(*args, **kwargs, _func=_func)
 
 
