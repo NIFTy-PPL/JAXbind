@@ -507,7 +507,7 @@ jit-compile and batch it.
 \NormalTok{tan }\OperatorTok{=}\NormalTok{ (jnp.full((}\DecValTok{4}\NormalTok{,}\DecValTok{3}\NormalTok{), }\FloatTok{1.}\NormalTok{), jnp.full((}\DecValTok{4}\NormalTok{,}\DecValTok{3}\NormalTok{), }\FloatTok{1.}\NormalTok{))}
 \NormalTok{res, res\_tan }\OperatorTok{=}\NormalTok{ jax.jvp(f\_jax, inp, tan)}
 
-\NormalTok{cotan }\OperatorTok{=}\NormalTok{ (jnp.full((}\DecValTok{4}\NormalTok{,}\DecValTok{3}\NormalTok{), }\FloatTok{6.}\NormalTok{),)}
+\NormalTok{cotan }\OperatorTok{=}\NormalTok{ [jnp.full((}\DecValTok{4}\NormalTok{,}\DecValTok{3}\NormalTok{), }\FloatTok{6.}\NormalTok{)]}
 \NormalTok{res, f\_vjp }\OperatorTok{=}\NormalTok{ jax.vjp(f\_jax, }\OperatorTok{*}\NormalTok{inp)}
 \NormalTok{res\_cotan }\OperatorTok{=}\NormalTok{ f\_vjp(cotan)}
 
@@ -589,7 +589,7 @@ Edenhofer, G., Frank, P., Roth, J., Leike, R. H., Guerdi, M.,
 Scheel-Platz, L. I., Guardiani, M., Eberle, V., Westerkamp, M., \&
 Enßlin, T. A. (2024). \emph{{Re-Envisioning Numerical Information Field
 Theory (NIFTy.re): A Library for Gaussian Processes and Variational
-Inference}}. \url{http://arxiv.org/abs/2402.16683}
+Inference}}. \url{https://doi.org/10.48550/arXiv.2402.16683}
 
 \leavevmode\hypertarget{ref-Moses2024}{}%
 EnzymeAD. (2024). \emph{{Enzyme-JAX}} (Version 0.0.6) {[}Computer
@@ -617,7 +617,7 @@ M., Hückelheim, J., Doerfert, J., \& Hovland, P. (2022). Scalable
 automatic differentiation of multiple parallel paradigms through
 compiler augmentation. \emph{Proceedings of the International Conference
 on High Performance Computing, Networking, Storage and Analysis}.
-ISBN:~\href{https://worldcat.org/isbn/9784665454445}{9784665454445}
+\url{https://doi.org/10.1109/SC41404.2022.00065}
 
 \leavevmode\hypertarget{ref-ducc0}{}%
 Reinecke, M. (2024). \emph{{DUCC}: Distinctly useful code collection}
