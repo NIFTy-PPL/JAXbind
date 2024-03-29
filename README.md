@@ -92,7 +92,7 @@ inp = (jnp.full((4,3), 4.), jnp.full((4,3), 2.))
 tan = (jnp.full((4,3), 1.), jnp.full((4,3), 1.))
 res, res_tan = jax.jvp(f_jax, inp, tan)
 
-cotan = (jnp.full((4,3), 6.),)
+cotan = [jnp.full((4,3), 6.)]
 res, f_vjp = jax.vjp(f_jax, *inp)
 res_cotan = f_vjp(cotan)
 
