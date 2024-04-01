@@ -22,11 +22,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Setup Package
+        uses: ./.github/actions/setup_package
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Build with sphinx
-        run: pip install sphinx pydata-sphinx-theme
-        run: bash docs/generate.sh
+        run: |
+          pip install sphinx pydata-sphinx-theme
+          bash docs/generate.sh
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
 
