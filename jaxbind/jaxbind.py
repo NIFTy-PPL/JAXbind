@@ -43,7 +43,7 @@ FunctionType = Union[LinearFunction, MultiLinearFunction, NonLinearFunction]
 
 
 def _exec_abstract(*args, _func: FunctionType, **kwargs):
-    """JAXbind internal: bridging the user abstract function to JAX
+    """bridging the user abstract function to JAX
 
 
     Parameters
@@ -84,7 +84,7 @@ _dtype_dict = {
 
 
 def _lowering(ctx, *args, _func: FunctionType, _platform="cpu", **kwargs):
-    """JAXbind internal: lowering the user function to JAX/XLA
+    """lowering the user function to JAX/XLA
 
 
     Parameters
@@ -159,7 +159,7 @@ def _lowering(ctx, *args, _func: FunctionType, _platform="cpu", **kwargs):
 
 
 def _explicify_zeros(x):
-    """JAXbind internal: helper function instantiating array with zeros for any
+    """helper function instantiating array with zeros for any
     ad.Zero in x.
     """
     if isinstance(x, (tuple, list)):
@@ -168,15 +168,15 @@ def _explicify_zeros(x):
 
 
 def _jvp(args, tangents, *, _func: FunctionType, **kwargs):
-    """JAXbind internal: bridging the user derivative function to JAX
+    """bridging the user derivative function to JAX
 
 
     Parameters
     ----------
     args : tuple of arrays
-        Position at which the jacobian is computed.
+        Position at which the Jacobian is computed.
     tangents : tuple of arrays
-        Tangents to which the jacobian is applied.
+        Tangents to which the Jacobian is applied.
     _func : FunctionType
         namedtuple containing all arguments from 'get_linear_call' and
         'get_nonlinear_call'.
@@ -254,7 +254,7 @@ def _jvp(args, tangents, *, _func: FunctionType, **kwargs):
 # and not as a tuple as for _jvp. Thus we need *args since we don't know
 # the number of arguments.
 def _transpose(cotangents, *args, _func: FunctionType, **kwargs):
-    """JAXbind internal: bridging the user transpose function to JAX
+    """bridging the user transpose function to JAX
 
 
     Parameters
@@ -262,7 +262,7 @@ def _transpose(cotangents, *args, _func: FunctionType, **kwargs):
     cotangents : tuple of arrays
         Cotangents for the transpose/ vjp application.
     *args : tuple of arrays
-        Position at which the jacobian is computed.
+        Position at which the Jacobian is computed.
     _func : FunctionType
         namedtuple containing all arguments from 'get_linear_call' and
         'get_nonlinear_call'.
@@ -331,7 +331,7 @@ def _transpose(cotangents, *args, _func: FunctionType, **kwargs):
 
 
 def _batch(args, in_axes, *, _func: FunctionType, **kwargs):
-    """JAXbind internal: adding batching support
+    """adding batching support
 
 
     Parameters
@@ -400,8 +400,8 @@ for platform in ["cpu", "gpu"]:
 
 
 def _call(*args, _func: FunctionType, **kwargs):
-    """JAXbind internal: helper function evaluating the JAX primitve for the
-     function 'f' in _func for given *args and **kwargs.
+    """helper function evaluating the JAX primitive for the function 'f' in
+    _func for given *args and **kwargs.
     """
     return _prim.bind(*args, **kwargs, _func=_func)
 
@@ -421,7 +421,7 @@ def get_linear_call(
     Parameters
     ----------
     f, f_T : linear function respectively its transpose
-        The function signature must be (out, args, kwargs_dump), where
+        The function signature must be `(out, args, kwargs_dump)`, where
         out and args are tuples. The results of the functions should be written as
         numpy.ndarrays of float[32/64] or complex[64/128] type into the out tuple.
         The args tuple contains the input for the function. In kwargs_dump,
@@ -452,11 +452,11 @@ def get_linear_call(
 
     Returns
     -------
-    op : Jax primitive corresponding to the function f.
+    op : Jax primitive corresponding to the function `f`.
 
     Notes
     -----
-    - `f` and 'f_T' must not return anything; the result of the computation must be
+    - `f` and `f_T` must not return anything; the result of the computation must be
       written into the member arrays of `out`.
     - the contents of `args` must not be modified.
     - no reference to the contents of `args` or `out` may be stored beyond
@@ -493,7 +493,7 @@ def get_nonlinear_call(
     Parameters
     ----------
     f : function
-        The function signature must be (out, args, kwargs_dump), where
+        The function signature must be `(out, args, kwargs_dump)`, where
         out and args are tuples. The results of the functions should be written as
         numpy.ndarrays of float[32/64] or complex[64/128] type into the out tuple.
         The args tuple contains the input for the function. In kwargs_dump,
@@ -501,17 +501,18 @@ def get_nonlinear_call(
         keyword arguments can be deserialized via
         `jaxbind.load_kwargs(kwargs_dump)`.
     f_derivative: tuple of functions
-        Tuple containing functions for evaluating jvp and vjp of f. The fist entry
+        Tuple containing functions for evaluating jvp and vjp of `f`. The fist entry
         in the function should evaluate jvp, the second vjp. The signature of the
-        jvp and vjp functions should be (out, args, kwargs_dump) analogous to f.
+        jvp and vjp functions should be `(out, args, kwargs_dump)` analogous to `f`.
     abstract, abstract_reverse : functions
         Computing the shape and dtype of the operator's output from shape and
-        dtype of its input. Its signature must be (*args, **kwargs). *args will
+        dtype of its input. Its signature must be `(*args, **kwargs)`. `*args` will
         be a tuple containing abstract tracer arrays with shape and dtype for
-        each input argument of f. Via **kwargs, potential keyword arguments are
-        passed to the function. The function must return the tuple containing a
-        tuples of (shape_out, dtype_out). abstract should compute the output
-        shapes of f and jvp. abstract_reverse should compute the output shape of
+        each input argument of f. Via `**kwargs`, potential keyword arguments are
+        passed to the function. The function must return a tuple containing
+        tuples of (shape_out, dtype_out) for each output argument. abstract
+        should compute the output shapes of f and jvp. abstract_reverse should
+        compute the output shape of
         vjp.
     first_n_args_fixed : int
         If the function cannot be differentiated with respect to some of the
@@ -528,11 +529,11 @@ def get_nonlinear_call(
 
     Returns
     -------
-    op : Jax primitive corresponding to the function f.
+    op : Jax primitive corresponding to the function `f`.
 
     Notes
     -----
-    - `f` and members of 'f_derivative' must not return anything; the result
+    - `f` and members of `f_derivative` must not return anything; the result
       of the computation must be written into the member arrays `out`.
     - the contents of `args` must not be modified.
     - no references to the contents of `args` or `out` may be stored beyond
