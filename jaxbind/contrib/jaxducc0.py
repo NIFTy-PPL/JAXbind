@@ -241,6 +241,36 @@ def get_wgridder(
     verbosity=0,
     **kwargs,
 ):
+    """Create a JAX primitive for the ducc0 wgridder
+
+    Parameters
+    ----------
+    pixsize_x, pixsize_y : float
+        Size of the pixels in radian.
+    npix_x, npix_y : int
+        Number of pixels.
+    epsilon : float
+        Sets the required accuracy of the wgridder evaluation.
+    nthreads : int
+        Sets the number of threads used for evaluation. Default 1.
+    flip_v : bool
+        Whether or not to flip the v coordinate of the visibilities. Default
+        `False`.
+    verbosity : int
+        Sets the verbosity of the wgridder. For 0 no print out, for >0 verbose
+        output. Default 0.
+    **kwargs : dict
+        Additional forwarded to ducc wgridder.
+
+    Returns
+    -------
+    op : Jax primitive evaluating the ducc wgridder.
+        The Jax primitive has the
+        signature `(uvw, freq, image)` with `uvw` being an (N, 3) array the uvw
+        coordinates of the visibilities in meter, `freq`  a 1D array with the
+        frequencies in Herz, and `image` a 2D arrays of shape `(npix_x, npix_y)`
+        with the sky brightness in Jansky per Steradian.
+    """
     wgridder = partial(
         _wgridder,
         pixsize_x=pixsize_x,
