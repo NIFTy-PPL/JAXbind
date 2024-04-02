@@ -166,6 +166,25 @@ _hp_sht = get_linear_call(
 
 
 def get_healpix_sht(nside, lmax, mmax, spin, nthreads=1):
+    """Create a JAX primitive for the ducc0 SHT synthesis for HEALPix
+
+    Parameters
+    ----------
+    nside : int
+        Parameter of the HEALPix sphere.
+    lmax, mmax : int
+        Maximum l respectively m moment of the transformation (inclusive).
+    spin : int
+        Spin to use for the transfomration.
+    nthreads : int
+        Number of threads to use for the computation. If 0, use as many threads
+        as there are hardware threads available on the system.
+
+    Returns
+    -------
+    op : JAX primitive
+        The Jax primitive of the SHT synthesis for HEALPix.
+    """
     hpxparam = ducc0.healpix.Healpix_Base(nside, "RING").sht_info()
 
     hpp = partial(
@@ -184,6 +203,7 @@ def get_healpix_sht(nside, lmax, mmax, spin, nthreads=1):
 
 
 def nalm(lmax, mmax):
+    """Compute the number of a_lm for a given maximum l and m moment of the SHT"""
     return ((mmax + 1) * (mmax + 2)) // 2 + (mmax + 1) * (lmax - mmax)
 
 
@@ -241,6 +261,36 @@ def get_wgridder(
     verbosity=0,
     **kwargs,
 ):
+    """Create a JAX primitive for the ducc0 wgridder
+
+    Parameters
+    ----------
+    pixsize_x, pixsize_y : float
+        Size of the pixels in radian.
+    npix_x, npix_y : int
+        Number of pixels.
+    epsilon : float
+        Sets the required accuracy of the wgridder evaluation.
+    nthreads : int
+        Sets the number of threads used for evaluation. Default 1.
+    flip_v : bool
+        Whether or not to flip the v coordinate of the visibilities. Default
+        `False`.
+    verbosity : int
+        Sets the verbosity of the wgridder. For 0 no print out, for >0 verbose
+        output. Default 0.
+    **kwargs : dict
+        Additional forwarded to ducc wgridder.
+
+    Returns
+    -------
+    op : JAX primitive evaluating the ducc wgridder.
+        The Jax primitive has the
+        signature `(uvw, freq, image)` with `uvw` being an (N, 3) array the uvw
+        coordinates of the visibilities in meter, `freq`  a 1D array with the
+        frequencies in Herz, and `image` a 2D arrays of shape `(npix_x, npix_y)`
+        with the sky brightness in Jansky per Steradian.
+    """
     wgridder = partial(
         _wgridder,
         pixsize_x=pixsize_x,

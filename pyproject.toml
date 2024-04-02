@@ -36,6 +36,17 @@ test = [
   "scipy",
   "ducc0",
 ]
+doc = [
+  "sphinx",
+  "pydata-sphinx-theme",
+  "myst-parser",
+  "ipykernel",
+  "jupyterlab",
+  "notebook",
+  "jupytext",
+  "nbconvert",
+]
+all = ["jaxbind[test,doc]"]
 
 [build-system]
 requires = [

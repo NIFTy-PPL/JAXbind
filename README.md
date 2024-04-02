@@ -1,7 +1,8 @@
 # JAXbind: Bind any function to JAX
 
-Found a bug? [github.com/NIFTy-PPL/JAXbind/issues](https://github.com/NIFTy-PPL/JAXbind/issues)
- | Need help? [github.com/NIFTy-PPL/JAXbind/discussions](https://github.com/NIFTy-PPL/JAXbind/discussions)
+JAXbind API documentation: [nifty-ppl.github.io/JAXbind/](https://nifty-ppl.github.io/JAXbind/)
+| Found a bug? [github.com/NIFTy-PPL/JAXbind/issues](https://github.com/NIFTy-PPL/JAXbind/issues)
+| Need help? [github.com/NIFTy-PPL/JAXbind/discussions](https://github.com/NIFTy-PPL/JAXbind/discussions)
 
 ## Summary
 
@@ -117,12 +118,13 @@ Analogously, the pullback respectively the `vjp` becomes independent of the init
 Also, all higher order derivatives can be expressed in terms of $f$ and its transpose.
 To make use of these simplifications, `JAXbind` provides a special interface for linear functions, supporting higher order derivatives, only requiring an implementation of the function and its transpose.
 
-### Demos
+### Demos and Documentation
 
 Additional demos can be found in the demos folder.
 Specifically, there is a basic demo [01_linear_function.py](https://github.com/NIFTy-PPL/JAXbind/blob/main/demos/01_linear_function.py) showcasing the interface for linear functions and custom batching rules.
 [02_multilinear_function.py](https://github.com/NIFTy-PPL/JAXbind/blob/main/demos/02_multilinear_function.py) binds a multi-linear function as a JAX primitive.
 Finally, [03_nonlinear_function.py](https://github.com/NIFTy-PPL/JAXbind/blob/main/demos/03_nonlinear_function.py) demonstrates the interface for non-linear functions and shows how to deal with fixed arguments, which cannot be differentiated.
+The documentation of the JAXbind API is available [here](https://nifty-ppl.github.io/JAXbind/).
 
 ## Platforms
 
