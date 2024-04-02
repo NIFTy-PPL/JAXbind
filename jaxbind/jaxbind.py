@@ -17,7 +17,7 @@ from jax.interpreters.mlir import ir_constant as irc
 from jaxlib.hlo_helpers import custom_call
 
 
-__all__ = ['get_linear_call', 'get_nonlinear_call']
+__all__ = ["get_linear_call", "get_nonlinear_call"]
 
 import _jaxbind
 
@@ -383,6 +383,7 @@ def _batch(args, in_axes, *, _func: FunctionType, **kwargs):
         out_axes = [ba_wb for _, _, ba_wb in out_w]
         y = _call(*args, _func=_func, **kwargs)
     return y, out_axes
+
 
 # actually register the above functions in JAX
 _prim = jax.core.Primitive("jaxbind_prim")

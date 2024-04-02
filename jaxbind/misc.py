@@ -5,7 +5,7 @@
 
 
 def load_kwargs(kwargs_dump, /):
-    """deserialize keyword arguments
+    """Deserialize keyword arguments
 
     Parameters
     ----------
