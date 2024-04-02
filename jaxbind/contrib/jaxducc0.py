@@ -203,6 +203,7 @@ def get_healpix_sht(nside, lmax, mmax, spin, nthreads=1):
 
 
 def nalm(lmax, mmax):
+    """Compute the number of a_lm for a given maximum l and m moment of the SHT"""
     return ((mmax + 1) * (mmax + 2)) // 2 + (mmax + 1) * (lmax - mmax)
 
 
