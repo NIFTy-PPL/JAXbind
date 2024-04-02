@@ -2,7 +2,7 @@ name: Deploy GitHub Pages
 
 on:
   push:
-    branches: ["api_docs"]
+    branches: ["main"]
 
   workflow_dispatch:
 
