@@ -27,10 +27,7 @@ jobs:
         uses: actions/configure-pages@v5
       - name: Build with sphinx
         run: |
-          sudo apt-get install jupyter-nbconvert
-          pip install --upgrade pip ipython ipykernel
-          ipython kernel install --name "python3" --user
-          pip install sphinx jupytext pydata-sphinx-theme myst-parser
+          pip install --user .[doc]
           bash docs/generate.sh
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
