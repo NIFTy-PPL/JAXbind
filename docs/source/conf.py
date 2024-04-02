@@ -50,7 +50,24 @@ add_module_names = False
 html_theme = "pydata_sphinx_theme"
 html_context = {"default_mode": "dark"}
 
+html_theme_options = {
+    "icon_links": [
+        {
+            "name": "PyPI",
+            "url": "https://pypi.org/project/jaxbind/",
+            "icon": "fas fa-box",
+        },
+        {
+            "name": "Github",
+            "url": "https://github.com/NIFTy-PPL/JAXbind",
+            "icon": "fab fa-github",
+        }
+    ],
+    "navbar_persistent": ["search-field"],
+    "navbar_end": ["navbar-icon-links"],
+}
+
+
 html_last_updated_fmt = '%b %d, %Y'
 
 exclude_patterns = ['mod/modules.rst']
-# exclude_patterns = ['mod/modules.rst', 'mod/nifty8.logger.rst']
