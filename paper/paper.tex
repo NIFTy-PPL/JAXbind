@@ -379,13 +379,19 @@ connect the non-uniform FFT from DUCC with JAX for applications in
 strong-lensing astrophysics. We envision many further applications
 within and outside of astrophysics.
 
-To the best of our knowledge no other code currently exists for
-connecting generic functions to JAX. The package that comes the closest
-is Enzyme-JAX (EnzymeAD, 2024). Enzyme-JAX allows one to differentiate a
-C++ function with Enzyme (W. Moses \& Churavy, 2020; W. S. Moses et al.,
-2021, 2022) and connect it together with its derivative to JAX. However,
-it enforces the use of Enzyme for deriving derivatives and does not
-allow for connecting arbitrary code to JAX.
+The functionality of \texttt{JAXbind} extends the external callback
+functionality in JAX. Currently, \texttt{JAXbind}, akin to the external
+callback functions in JAX, briefly requires python's global interpreter
+lock (GIL) to call the user specified python function. In contrast to
+JAX's external callback functions, it allows for both a custom
+Jacobian-vector product and vector-Jacobian product. To the best of our
+knowledge no other code currently exists for connecting generic
+functions and both of their Jacobian products to JAX. The package that
+comes the closest is Enzyme-JAX (EnzymeAD, 2024). Enzyme-JAX allows one
+to differentiate a C++ function with Enzyme (W. Moses \& Churavy, 2020;
+W. S. Moses et al., 2021, 2022) and connect it together with its
+derivative to JAX. However, it enforces the use of Enzyme for deriving
+derivatives and does not allow for connecting arbitrary code to JAX.
 
 \hypertarget{automatic-differentiation-and-code-example}{%
 \section{Automatic Differentiation and Code

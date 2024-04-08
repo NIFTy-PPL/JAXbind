@@ -11,4 +11,5 @@ Specifically, `JAXbind` provides an easy-to-use Python interface for defining cu
    :maxdepth: 1
 
    Demos <demos/index>
+   Internals <internals>
    API reference <mod/jaxbind>
