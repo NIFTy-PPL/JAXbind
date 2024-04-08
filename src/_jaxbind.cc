@@ -99,7 +99,7 @@ void pycall(void *out_raw, void **in)
   size_t size_kwargs = *reinterpret_cast<uint64_t *>(in[idx++]);
   py::array py_kwargs (dtp_kwargs, size_kwargs, in[idx++], dummy);
 
-  // Execute the Python function implementing the linear operation
+  // Execute the Python function implementing the desired operation
   func(py_out, py_in, py_kwargs);
   }
 
