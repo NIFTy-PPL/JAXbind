@@ -37,6 +37,6 @@ This constraint could be easily lifted once the need arises to bridge GPU code t
 Please file an issue if this interests you!
 
 An alternative to consider when thinking about writing native GPU code and bridge it to JAX is Pallas.
-Pallas is JAX's `Triton <https://triton-lang.org>` frontend.
+Pallas is JAX's `Triton <https://triton-lang.org>`_ frontend.
 It natively interacts with JAX with no C++ in between.
 Pallas relies on JAX's automatic differentiation engine and, as described above, might be limited in the kind of Jacobian products it can compute.
