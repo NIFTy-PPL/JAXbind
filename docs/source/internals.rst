@@ -31,12 +31,12 @@ Compared to the interface in JAX, `JAXbind` allows for both a custom Jacobian-ve
 `JAXbind` is able to support both as it registers both of them directly with the primary function while JAX relies on its automatic differentiation engine to derive derivates also for external callbacks and unfortunately only one of the two Jacobian products can be customized in JAX at a time.
 Eventually, this limitation will hopefully be resolved with JAX's envisioned custom transposition backend which would allow defining a custom transpose, e.g., for the Jacobian-vector product, effectively allowing both a custom Jacobian-vector product and a custom vector-Jacobian product.
 
-`JAXbind` should be though of as an escape hatch that bridges tools to JAX that are otherwise difficult or too timeconsuming to code natively in JAX.
+`JAXbind` should be thought of as an escape hatch that bridges tools to JAX that are otherwise difficult or too timeconsuming to code natively in JAX.
 Currently, `JAXbind` limits itself to CPU code.
 This constraint could be easily lifted once the need arises to bridge GPU code to JAX.
 Please file an issue if this interests you!
 
-An alternative to consider when thinking about writing native GPU code and bridge it to JAX is Pallas.
+An alternative to consider when thinking about writing native GPU code and bridging it to JAX is Pallas.
 Pallas is JAX's `Triton <https://triton-lang.org>`_ frontend.
 It natively interacts with JAX with no C++ in between.
 Pallas relies on JAX's automatic differentiation engine and, as described above, might be limited in the kind of Jacobian products it can compute.
