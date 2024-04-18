@@ -38,6 +38,7 @@ def _fht(out, args, kwargs_dump):
     if batch_axes is not None:
         axes = [i for i in range(x.ndim) if i not in batch_axes[0]]
     orig_axis = kwargs.pop("axes", None)
+    orig_axis = [orig_axis] if isinstance(orig_axis, int) else orig_axis
     if orig_axis is not None:
         axes = [i for idx, i in enumerate(axes) if idx in orig_axis]
     ducc0.fft.genuine_fht(x, out=out[0], axes=axes, **kwargs)
@@ -66,6 +67,7 @@ def _c2c(out, args, kwargs_dump):
     if batch_axes is not None:
         axes = [i for i in range(x.ndim) if i not in batch_axes[0]]
     orig_axis = kwargs.pop("axes", None)
+    orig_axis = [orig_axis] if isinstance(orig_axis, int) else orig_axis
     if orig_axis is not None:
         axes = [i for idx, i in enumerate(axes) if idx in orig_axis]
     ducc0.fft.c2c(x, out=out[0], axes=axes, **kwargs)

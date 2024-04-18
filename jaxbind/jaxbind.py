@@ -358,7 +358,7 @@ def _batch(args, in_axes, *, _func: FunctionType, **kwargs):
     from .custom_map import smap
 
     if not _func.can_batch:
-        y = smap(partial(_prim.bind, _func=_func), in_axes=in_axes)(*args)
+        y = smap(partial(_prim.bind, _func=_func, **kwargs), in_axes=in_axes)(*args)
         out_axes = [0] * len(y)
     else:
         batch_axes = _func.batch_axes

@@ -85,14 +85,14 @@ for f_native in (jaxducc0.c2c, jaxducc0.genuine_fht):
     "f_native,f_map",
     (
         (jaxducc0.c2c, fmap[jaxducc0.c2c]),
-        (partial(jaxducc0.c2c, axis=0), partial(fmap[jaxducc0.c2c], axis=0)),
+        (partial(jaxducc0.c2c, axes=0), partial(fmap[jaxducc0.c2c], axes=0)),
         (
             lambda x: jaxducc0.genuine_fht(x.real),
             lambda x: fmap[jaxducc0.genuine_fht](x.real),
         ),
         (
-            lambda x: jaxducc0.genuine_fht(x.real, axis=0),
-            lambda x: fmap[jaxducc0.genuine_fht](x.real, axis=0),
+            lambda x: jaxducc0.genuine_fht(x.real, axes=0),
+            lambda x: fmap[jaxducc0.genuine_fht](x.real, axes=0),
         ),
     ),
 )
