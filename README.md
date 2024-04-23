@@ -149,6 +149,15 @@ cd jaxbind
 pip install .
 ```
 
+## Contributing
+
+Contributions are highly appreciated!
+Please open an issue first if you think your PR changes current code substanitally.
+Please format your code using black.
+PRs affecting the public API, including adding new features, should update the public documentation.
+If possible, add appropriate tests to your PR.
+Feel free to open a PR early on in the development process, we are happy to help in the development process and provide feedback along the way.
+
 ## Licensing terms
 
 All source code in this package is released under the 2-clause BSD license.
