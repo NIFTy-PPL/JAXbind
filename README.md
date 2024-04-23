@@ -152,11 +152,11 @@ pip install .
 ## Contributing
 
 Contributions are highly appreciated!
-Open an issue first if you think your PR changes current code substanitally.
-PRs should match the existing code style present in the file.
-PRs affecting the public API, including adding new features, must update the public documentation.
-Comments and docstrings should make the code accessible.
-PRs should have appropriate tests.
+Please open an issue first if you think your PR changes current code substanitally.
+Please format your code using black.
+PRs affecting the public API, including adding new features, should update the public documentation.
+If possible, add appropriate tests to your PR.
+Feel free to open a PR early on in the development process, we are happy to help in the development process and provide feedback along the way.
 
 ## Licensing terms
 
