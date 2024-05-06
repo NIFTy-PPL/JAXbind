@@ -33,10 +33,11 @@ bibliography: paper.bib
 # Summary
 
 JAX is widely used in machine learning and scientific computing, the latter of which often relies on existing high-performance code that we would ideally like to incorporate into JAX.
-Reimplementing the existing code in JAX is often impractical and the existing interface in JAX for binding custom code requires deep knowledge of JAX and its C++ backend.
-The goal of `JAXbind` is to drastically reduce the effort required to bind custom functions implemented in other programming languages with full support for Jacobian-vector products and vector-Jacobian products to JAX.
-Specifically, `JAXbind` provides an easy-to-use Python interface for defining custom so-called JAX primitives that support arbitrary JAX transformations.
-
+Reimplementing the existing code in JAX is often impractical and the existing interface in JAX for binding custom code either limits the user to a single Jacobian product or requires deep knowledge of JAX and its C++ backend for general Jacobian products.
+With `JAXbind` we drastically reduce the effort required to bind custom functions implemented in other programming languages with full support for Jacobian-vector products and vector-Jacobian products to JAX.
+Specifically, `JAXbind` provides an easy-to-use Python interface for defining custom, so-called JAX primitives.
+Via `JAXbind`, any function callable from Python can be exposed as a JAX primitive.
+`JAXbind` allows to interface the JAX function transformation engine with custom derivatives and batching rules, enabling all JAX transformations for the custom primitive.
 
 # Statement of Need
 
