@@ -1,12 +1,32 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright(C) 2024 Max-Planck-Society
 
+# %% [markdown]
+
+# # Binding the DUCC package to JAX
+
+# This file binds the fast fourier transformation, hartly transformation,
+# spherical harmonics transformation, and the wgridder of the
+# [DUCC](https://gitlab.mpcdf.mpg.de/mtr/ducc) package to JAX.
+
+# This provides real world examples on the usage of JAXbind. Together with
+# the [demos](https://nifty-ppl.github.io/JAXbind/demos/index.html) could be a
+# good starting point on the usage of JAXbind.
+
+# Please note: This file is JAXbind internal. When executing the blow code
+# blocks outside of JAXbind you need to import `get_linear_call` and
+# `load_kwargs` from JAXbind.
+
+# %%
+
 from functools import partial
 
 import ducc0
 import numpy as np
 
 from .. import get_linear_call, load_kwargs
+
+# %%
 
 __all__ = ["c2c", "genuine_fht", "get_healpix_sht", "nalm", "get_wgridder"]
 
@@ -30,6 +50,20 @@ def _realtype(dtype):
     return _c2rdict[np.dtype(dtype)]
 
 
+# %% [markdown]
+
+# ## Binding the DUCC hartly transform to JAX
+
+# In the following we provide a Python `_fht` calling C++ hartly transformation
+# of DUCC ` ducc0.fft.genuine_fht`. The C++ function natively supports
+# batching along axis. To make use of that the the python function also
+# translates potential batching axis of JAX to axis of DUCC. Detailed
+# explanations on custom batching along axis can be found in the
+# `01_linear_function.py` demo.
+
+# %%
+
+
 def _fht(out, args, kwargs_dump):
     (x,) = args
     kwargs = load_kwargs(kwargs_dump)
@@ -44,6 +78,13 @@ def _fht(out, args, kwargs_dump):
     ducc0.fft.genuine_fht(x, out=out[0], axes=axes, **kwargs)
 
 
+# %% [markdown]
+
+# Additionally we provide the abstract evaluation function.
+
+# %%
+
+
 def _fht_abstract(*args, **kwargs):
     (x,) = args
     batch_axes = kwargs.pop("batch_axes", None)
@@ -53,10 +94,25 @@ def _fht_abstract(*args, **kwargs):
     return ((x.shape, x.dtype, out_ax),)
 
 
+# %% [markdown]
+
+# How we register the hartly transformation JAX primitive via the
+# `get_linear_call` functionality of JAXbind.
+
+# %%
 genuine_fht = get_linear_call(
     _fht, _fht, _fht_abstract, _fht_abstract, func_can_batch=True
 )
 genuine_fht.__doc__ = ducc0.fft.genuine_fht.__doc__
+
+# %% [markdown]
+
+# ## Binding the DUCC fast fourier transformation to JAX
+
+# In analogy to the hartly transformation we bind the DUCC fast fourier
+# transformation to JAX.
+
+# %%
 
 
 def _c2c(out, args, kwargs_dump):
@@ -86,6 +142,13 @@ c2c = get_linear_call(_c2c, _c2c, _c2c_abstract, _c2c_abstract, func_can_batch=T
 c2c.__doc__ = ducc0.fft.c2c.__doc__
 
 
+# %% [markdown]
+
+# ## Binding the DUCC healpix spherical harmonic transformation to JAX
+
+# %%
+
+
 def _alm2realalm(alm, lmax, dtype, out=None):
     if out is None:
         out = np.empty((alm.shape[0], alm.shape[1] * 2 - lmax - 1), dtype=dtype)
@@ -102,6 +165,15 @@ def _realalm2alm(alm, lmax, dtype, out=None):
     out[:, lmax + 1 :] = alm[:, lmax + 1 :].view(dtype)
     out[:, lmax + 1 :] *= np.sqrt(2.0) / 2
     return out
+
+
+# %% [markdown]
+
+# We wrap the spherical harmonic transformation and it's transposed of DUCC as
+# a python function with the signature required by JAXbind. Additionally we
+# provide the required abstract evaluation functions.
+
+# %%
 
 
 def _healpix_sht(out, args, kwargs_dump):
@@ -158,6 +230,16 @@ def _healpix_sht_abstract_T(*args, **kwargs):
     return ((shape_out, x.dtype),)
 
 
+# %% [markdown]
+
+# Now we register the JAX primitive. The spherical harmonics transformation is
+# not linear/ differentiable in the arguments theta, phi0, nphi, and ringstart.
+# We communicate this to JAXbind via `first_n_args_fixed=4`. A more detailed
+# example on the usage of `first_n_args_fixed` is in demo
+# `03_nonlinear_function.py`.
+
+# %%
+
 _hp_sht = get_linear_call(
     _healpix_sht,
     _healpix_sht_T,
@@ -165,6 +247,13 @@ _hp_sht = get_linear_call(
     _healpix_sht_abstract_T,
     first_n_args_fixed=4,
 )
+
+# %% [markdown]
+
+# To the user we expose a JAX function in which the non differentiable
+# arguments are already inserted.
+
+# %%
 
 
 def get_healpix_sht(nside, lmax, mmax, spin, nthreads=1):
@@ -209,6 +298,17 @@ def nalm(lmax, mmax):
     return ((mmax + 1) * (mmax + 2)) // 2 + (mmax + 1) * (lmax - mmax)
 
 
+# %% [markdown]
+
+# ## Binding the DUCC wgridder to JAX
+
+#  Again we define python functions calling the DUCC wgridder and the transposed
+# alongside with abstract evaluation functions for the forward and transposed
+# directions.
+
+# %%
+
+
 def _dirty2vis(out, args, kwargs_dump):
     uvw, freq, dirty = args
     kwargs = load_kwargs(kwargs_dump)
@@ -240,6 +340,14 @@ def _vis2dirty_abstract(*args, **kwargs):
     dtype_out = _realtype(vis.dtype)
     return ((shape_out, dtype_out),)
 
+
+# %% [markdown]
+
+# Similar to the spherical harmonic transformation not all arguments of the
+# wgridder are differentiable. Again we specify the non-differentiable arguments
+# as fixed via `first_n_args_fixed=2`.
+
+# %%
 
 _wgridder = get_linear_call(
     _dirty2vis,
