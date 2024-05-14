@@ -71,7 +71,12 @@ def fftn(out, args, kwargs_dump):
 
 # %%
 
-
+# In principle we could take a massive shortcut here, since the fftn function
+# is symmetric, i.e. the transpose of fftn is identical to fftn.
+# So we could write
+#    fftn_transposed = fftn
+# but for the sake of completeness, let's spell everything out again
+ 
 def fftn_transposed(out, args, kwargs_dump):
     (x,) = args
     kwargs = jaxbind.load_kwargs(kwargs_dump)
@@ -83,11 +88,8 @@ def fftn_transposed(out, args, kwargs_dump):
     if batch_axes:
         axes = [i for i in range(len(x.shape)) if not i in batch_axes[0]]
 
-    # JAX needs the transposed function and not the adjoint (transposed+complex
-    # conjugated). Since scipy.fft.ifftn is the adjoint of scipy.fft.fftn we
-    # have to undo the complex conjugation.
-    out[0][()] = scipy.fft.ifftn(
-        x.conj(), axes=axes, norm="backward", workers=workers
+    out[0][()] = scipy.fft.fftn(
+        x.conj(), axes=axes, norm="forward", workers=workers
     ).conj()
 
 
@@ -143,6 +145,10 @@ def fftn_abstract_eval(*args, **kwargs):
 
 # %%
 
+
+# Same as above. In principle
+#     fftn_transposed_abstract_eval = fftn_abstract_eval
+# would be sufficient...
 
 def fftn_transposed_abstract_eval(*args, **kwargs):
     (a,) = args
