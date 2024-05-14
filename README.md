@@ -133,7 +133,7 @@ The documentation of the JAXbind API is available [here](https://nifty-ppl.githu
 
 Currently, `JAXbind` only has CPU but no GPU support.
 With some expertise on Python bindings for GPU kernels adding GPU support should be fairly simple.
-The Interfacing with the JAX automatic differentiation engine is identical for CPU and GPU.
+The interfacing with the JAX automatic differentiation engine is identical for CPU and GPU.
 Contributions are welcome!
 
 ## Installation
@@ -155,7 +155,7 @@ pip install .
 ## Contributing
 
 Contributions are highly appreciated!
-Please open an issue first if you think your PR changes current code substanitally.
+Please open an issue first if you think your PR changes current code substantially.
 Please format your code using black.
 PRs affecting the public API, including adding new features, should update the public documentation.
 If possible, add appropriate tests to your PR.

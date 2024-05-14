@@ -61,7 +61,7 @@ Furthermore, we intend to connect the non-uniform FFT from DUCC with JAX for app
 We envision many further applications within and outside of astrophysics.
 
 The functionality of `JAXbind` extends the external callback functionality in JAX.
-Currently, `JAXbind`, akin to the external callback functions in JAX, briefly requires python's global interpreter lock (GIL) to call the user specified python function.
+Currently, `JAXbind`, akin to the external callback functions in JAX, briefly requires Python's global interpreter lock (GIL) to call the user specified Python function.
 In contrast to JAX's external callback functions, it allows for both a custom Jacobian-vector product and vector-Jacobian product.
 To the best of our knowledge no other code currently exists for connecting generic functions and both of their Jacobian products to JAX.
 The package that comes the closest is Enzyme-JAX [@Moses2024].
