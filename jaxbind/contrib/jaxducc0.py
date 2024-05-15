@@ -10,8 +10,8 @@
 # [DUCC](https://gitlab.mpcdf.mpg.de/mtr/ducc) package to JAX.
 
 # This provides real world examples on the usage of JAXbind. Together with
-# the [demos](https://nifty-ppl.github.io/JAXbind/demos/index.html) could be a
-# good starting point on the usage of JAXbind.
+# the [demos](https://nifty-ppl.github.io/JAXbind/demos/index.html) this could
+# be a good starting point on the usage of JAXbind.
 
 # Please note: This file is JAXbind internal. When executing the blow code
 # blocks outside of JAXbind you need to import `get_linear_call` and
@@ -56,7 +56,7 @@ def _realtype(dtype):
 
 # In the following we provide a Python `_fht` calling C++ hartly transformation
 # of DUCC ` ducc0.fft.genuine_fht`. The C++ function natively supports
-# batching along axis. To make use of that the the python function also
+# batching along multiple axes. To make use of that the the python function also
 # translates potential batching axis of JAX to axis of DUCC. Detailed
 # explanations on custom batching along axis can be found in the
 # `01_linear_function.py` demo.
@@ -96,7 +96,7 @@ def _fht_abstract(*args, **kwargs):
 
 # %% [markdown]
 
-# How we register the hartly transformation JAX primitive via the
+# Now we register the hartly transformation JAX primitive via the
 # `get_linear_call` functionality of JAXbind.
 
 # %%
