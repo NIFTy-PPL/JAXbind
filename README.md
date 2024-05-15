@@ -127,6 +127,8 @@ Additional demos can be found in the demos folder.
 Specifically, there is a basic demo [01_linear_function.py](https://github.com/NIFTy-PPL/JAXbind/blob/main/demos/01_linear_function.py) showcasing the interface for linear functions and custom batching rules.
 [02_multilinear_function.py](https://github.com/NIFTy-PPL/JAXbind/blob/main/demos/02_multilinear_function.py) binds a multi-linear function as a JAX primitive.
 Finally, [03_nonlinear_function.py](https://github.com/NIFTy-PPL/JAXbind/blob/main/demos/03_nonlinear_function.py) demonstrates the interface for non-linear functions and shows how to deal with fixed arguments, which cannot be differentiated.
+JAXbind provides bindings to parts of the functionality of the [DUCC](https://gitlab.mpcdf.mpg.de/mtr/ducc) package.
+The DUCC bindings are also exposed as a [webpage](https://nifty-ppl.github.io/JAXbind/contrib) to showcase a real-world example of the usage of JAXbind.
 The documentation of the JAXbind API is available [here](https://nifty-ppl.github.io/JAXbind/).
 
 ## Platforms

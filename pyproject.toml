@@ -45,6 +45,8 @@ doc = [
   "notebook",
   "jupytext",
   "nbconvert",
+  "ducc0",
+  "scipy",
 ]
 all = ["jaxbind[test,doc]"]
 

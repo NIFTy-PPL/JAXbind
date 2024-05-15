@@ -15,5 +15,6 @@ In contrast, the JAX built-in `external callback interface <https://jax.readthed
    :maxdepth: 1
 
    Demos <demos/index>
+   Jaxducc0 <contrib/index>
    Internals <internals>
    API reference <mod/jaxbind>
