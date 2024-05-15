@@ -18,7 +18,7 @@ jax.config.update("jax_enable_x64", True)
 # # Binding Scipy's FFT to JAX
 
 # This demo showcases the use of the interface of JAXbind for binding linear
-# functions to jax. Specifically, it wraps scipy's FFT as a JAX primitive.
+# functions to JAX. Specifically, it wraps scipy's FFT as a JAX primitive.
 
 # The code wraps the scipy.fft.fftn function as a JAX primitive using JAXbind.
 # It defines the fftn function with the required signature for JAXbind. The
@@ -32,9 +32,9 @@ jax.config.update("jax_enable_x64", True)
 
 # All native JAX primitives can be batched via 'jax.vmap'. Primitives
 # registered via JAXbind are no exception here. By default, JAXbind performs
-# the batching by sequential applying the function along the batching axis.
-# However, it also exposes an interface to allow the user to perform the
-# batching themself. As the FFT natively support mapping over input axis and
+# the batching by sequentially applying the function along the batching axis.
+# However, it also exposes an interface to allow users to perform the
+# batching themselves. As the FFT natively supports mapping over input axis and
 # yields significant speedups compared to a sequential computation, we
 # demonstrate in the following how JAXbind can be used to register a custom
 # batching.
@@ -59,7 +59,7 @@ def fftn(out, args, kwargs_dump):
     if batch_axes:
         axes = [i for i in range(len(x.shape)) if not i in batch_axes[0]]
 
-    # compute the fft and write the result in the out tuple
+    # compute the FFT and write the result in the out tuple
     out[0][()] = scipy.fft.fftn(x, axes=axes, norm="forward", workers=workers)
 
 
@@ -71,7 +71,12 @@ def fftn(out, args, kwargs_dump):
 
 # %%
 
-
+# In principle we could take a massive shortcut here, since the fftn function
+# is symmetric, i.e. the transpose of fftn is identical to fftn.
+# So we could write
+#    fftn_transposed = fftn
+# but for the sake of completeness, let's spell everything out again
+ 
 def fftn_transposed(out, args, kwargs_dump):
     (x,) = args
     kwargs = jaxbind.load_kwargs(kwargs_dump)
@@ -83,11 +88,8 @@ def fftn_transposed(out, args, kwargs_dump):
     if batch_axes:
         axes = [i for i in range(len(x.shape)) if not i in batch_axes[0]]
 
-    # JAX need the transposed function and not he adjoint (transposed+complex
-    # conjugated). Since scipy.fft.ifftn is the adjoint of scipy.fft.fftn we
-    # have to undo the complex conjugation.
-    out[0][()] = scipy.fft.ifftn(
-        x.conj(), axes=axes, norm="backward", workers=workers
+    out[0][()] = scipy.fft.fftn(
+        x.conj(), axes=axes, norm="forward", workers=workers
     ).conj()
 
 
@@ -130,19 +132,23 @@ def fftn_abstract_eval(*args, **kwargs):
             # multiple times take the last batching axis
             out_ax = batch_axes[0][-1]
 
-    # return shape dtype and potential batching axis of output
+    # return shape, dtype and potential batching axis of output
     return ((x.shape, x.dtype, out_ax),)
 
 
 # %% [markdown]
 
 # JAX also needs to abstractly evaluate the transposed function. For that we
-# have to provide the same information as for fftn. Since a fft is not changing
+# have to provide the same information as for fftn. Since an FFT does not change
 # the shape or dtype this function is identical to the fftn_abstract_eval. For
 # general linear functions this might be different.
 
 # %%
 
+
+# Same as above. In principle
+#     fftn_transposed_abstract_eval = fftn_abstract_eval
+# would be sufficient...
 
 def fftn_transposed_abstract_eval(*args, **kwargs):
     (a,) = args
@@ -156,8 +162,8 @@ def fftn_transposed_abstract_eval(*args, **kwargs):
 
 # %% [markdown]
 
-# Now we register our function as a custom JAX primitive using the interface for
-# linear functions of JAXbind. JAXbind returns the resulting JAX primitive.
+# Now we register our function as a custom JAX primitive using JAXbind's
+# interface for linear functions. JAXbind returns the resulting JAX primitive.
 
 # %%
 fftn_jax = jaxbind.get_linear_call(
@@ -169,7 +175,7 @@ fftn_jax = jaxbind.get_linear_call(
 )
 
 
-# generate some random input to showcase the use of the newly register JAX primitive
+# generate some random input to showcase the use of the newly registered JAX primitive
 key = random.PRNGKey(42)
 key, subkey = random.split(key)
 inp = jax.random.uniform(subkey, shape=(10, 10), dtype=jnp.float64)
@@ -186,7 +192,7 @@ res2 = fftn_jax(inp, workers=2)
 fftn_jax_jit = jax.jit(fftn_jax)
 res_jit = fftn_jax_jit(inp)
 
-# vmap fft_jax over the fist axis of the input
+# vmap fft_jax over the first axis of the input
 res_vmap = jax.vmap(fftn_jax, in_axes=0)
 
 # compute the jvp of fftn

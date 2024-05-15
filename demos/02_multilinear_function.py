@@ -18,11 +18,11 @@ jax.config.update("jax_enable_x64", True)
 # # Binding a multi-linear function to JAX
 
 # This demo showcases the use of JAXbind for binding multi-linear functions to
-# JAX. As an example we bind the python function mlin computing
+# JAX. As an example we bind the Python function mlin computing
 # (x,y) -> (x*y, x*y) to a JAX primitive. Note: multi-linear functions can also
 # be regarded als general non-linear functions. For the JAXbind interface for
 # non-linear functions see the 'demo_nonlin.py' and the docstring of the
-# jaxbind.get_nonlinear_cal'. Additional information for linear functions can
+# jaxbind.get_nonlinear_call'. Additional information for linear functions can
 # also be found in 'demo_scipy_fft.py'.
 
 
@@ -40,8 +40,8 @@ def mlin(out, args, kwargs_dump):
 
 # %% [markdown]
 
-# Besides the application of the function ('mlin') itself, JAXbind required the
-# linear transposed of the partial derivatives of 'mlin'.
+# Besides the application of the function ('mlin') itself, JAXbind requires the
+# linear transpose of the partial derivatives of 'mlin'.
 # %%
 
 
@@ -61,7 +61,7 @@ def mlin_T2(out, args, kwargs_dump):
 
 # %% [markdown]
 
-# JAX needs to abstractly evaluate the code, thus needs to be abel to evaluate
+# JAX needs to abstractly evaluate the code, thus needs to be able to evaluate
 # the shape and dtype of the output of a function given the shape and dtype of
 # the input. For this we have to provide the abstract eval functions for mlin,
 # mlin_T1, and mlin_T2. The abstract evaluations functions return for each
@@ -90,7 +90,7 @@ def mlin_abstract_T2(*args, **kwargs):
 
 # %% [markdown]
 
-# Now we can register the JAX primitive corresponding to the python function
+# Now we can register the JAX primitive corresponding to the Python function
 # mlin.
 
 # %%
