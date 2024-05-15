@@ -63,7 +63,7 @@ We envision many further applications within and outside of astrophysics.
 The functionality of `JAXbind` extends the external callback functionality in JAX.
 Currently, `JAXbind`, akin to the external callback functions in JAX, briefly requires python's global interpreter lock (GIL) to call the user specified python function.
 In contrast to JAX's external callback functions, it allows for both a custom Jacobian-vector product and vector-Jacobian product.
-To the best of our knowledge no other code currently exists for connecting generic functions and both of their Jacobian products to JAX.
+To the best of our knowledge no other code currently exists for binding generic functions and both of their Jacobian products to JAX, without the need for C++ or LLVM.
 The package that comes the closest is Enzyme-JAX [@Moses2024].
 Enzyme-JAX allows one to differentiate a C++ function with Enzyme [@Moses2020; @Moses2021; @Moses2022] and connect it together with its derivative to JAX.
 However, it enforces the use of Enzyme for deriving derivatives and does not allow for connecting arbitrary code to JAX.
