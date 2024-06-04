@@ -68,6 +68,10 @@ The package that comes the closest is Enzyme-JAX [@Moses2024].
 Enzyme-JAX allows one to differentiate a C++ function with Enzyme [@Moses2020; @Moses2021; @Moses2022] and connect it together with its derivative to JAX.
 However, it enforces the use of Enzyme for deriving derivatives and does not allow for connecting arbitrary code to JAX.
 
+PyTorch [@PyTorch2024] and TensorFlow [@tensorflow2015] also provide interfaces for custom extensions.
+PyTorch has an extensively documented Python interface to wrap custom Python functions as PyTorch functions.
+TensorFlow allows to expose a custom C++ function as a TensorFlow Op via a C++ interface.
+
 # Automatic Differentiation and Code Example
 
 Automatic differentiation is a core feature of JAX and often one of the main reasons for using it.
