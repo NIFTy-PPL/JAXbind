@@ -69,8 +69,12 @@ Enzyme-JAX allows one to differentiate a C++ function with Enzyme [@Moses2020; @
 However, it enforces the use of Enzyme for deriving derivatives and does not allow for connecting arbitrary code to JAX.
 
 PyTorch [@PyTorch2024] and TensorFlow [@tensorflow2015] also provide interfaces for custom extensions.
-PyTorch has an extensively documented Python interface to wrap custom Python functions as PyTorch functions.
-TensorFlow allows to expose a custom C++ function as a TensorFlow Op via a C++ interface.
+PyTorch has an extensively documented Python interface^[[https://pytorch.org/docs/stable/notes/extending.html](https://pytorch.org/docs/stable/notes/extending.html)] for wrapping custom Python functions as PyTorch functions.
+This interface connects the custom function to PyTorch's automatic differentiation engine, allowing for custom Jacobian and Jacobian transposed applications, similar to what is possible with JAXbind.
+Additionally, PyTorch allows to interface its C++ backend with custom C++ or CUDA extensions^[[https://pytorch.org/tutorials/advanced/cpp_extension.html](https://pytorch.org/tutorials/advanced/cpp_extension.html)].
+JAXbind, in contrast, currently only supports functions executed on the CPU, although the JAX build-in C++ interface also allows for custom GPU kernels.
+TensorFlow includes a C++ interface^[[https://www.tensorflow.org/guide/create_op](https://www.tensorflow.org/guide/create_op)] for custom functions that can be executed on the CPU or GPU.
+Custom gradients can be added to these functions.
 
 # Automatic Differentiation and Code Example
 
