@@ -185,7 +185,7 @@ To make use of these simplifications, `JAXbind` provides a special interface for
 # Platforms
 
 Currently, `JAXbind` only supports primitives that act on CPU memory.
-In the future, GPU support could be added analogous to the CPU backend.
+In the future, GPU support could be added.
 The automatic differentiation in JAX is backend agnostic and would thus not require any additional bindings to work on the GPU.
 
 # Acknowledgements
