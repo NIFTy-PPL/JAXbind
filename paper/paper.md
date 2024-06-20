@@ -78,7 +78,7 @@ Custom gradients can be added to these functions.
 
 Automatic differentiation is a core feature of JAX and often one of the main reasons for using it.
 Thus, it is essential that custom functions registered with JAX support automatic differentiation.
-In the following, we will outline which functions our package respectively JAX requires to enable automatic differentiation.
+In the following, we will outline which functions our package requires to enable automatic differentiation via JAX.
 For simplicity, we assume that we want to connect the nonlinear function $f(x_1,x_2) = x_1x_2^2$ to JAX.
 The `JAXbind` package expects the Python function for $f$ to take three positional arguments.
 The first argument, `out`, is a `tuple` into which the results are written.
@@ -176,16 +176,16 @@ In the future, the interface could be easily expanded if specific use cases requ
 
 In scientific computing, linear functions such as, e.g., spherical harmonic transforms are widespread.
 If the function $f$ is linear, differentiation becomes trivial.
-Specifically for a linear function $f$, the pushforward respectively the `jvp` of $f$ is identical to $f$ itself and independent of the position at which it is computed.
+Specifically for a linear function $f$, the pushforward or `jvp` of $f$ is identical to $f$ itself and independent of the position at which it is computed.
 Expressed in formulas, $\partial f(x)(dx) = f(dx)$ if $f$ is linear in $x$.
-Analogously, the pullback respectively the `vjp` becomes independent of the initial position and is given by the linear transpose of $f$, thus $(\partial f(x))^{T}(dy) = f^T(dy)$.
+Analogously, the pullback or `vjp` becomes independent of the initial position and is given by the linear transpose of $f$, thus $(\partial f(x))^{T}(dy) = f^T(dy)$.
 Also, all higher order derivatives can be expressed in terms of $f$ and its transpose.
 To make use of these simplifications, `JAXbind` provides a special interface for linear functions, supporting higher order derivatives, only requiring an implementation of the function and its transpose.
 
 # Platforms
 
 Currently, `JAXbind` only supports primitives that act on CPU memory.
-In the future, GPU support could be added analogous to the CPU backend.
+In the future, GPU support could be added, which should work analogously to the CPU support in most respects.
 The automatic differentiation in JAX is backend agnostic and would thus not require any additional bindings to work on the GPU.
 
 # Acknowledgements
