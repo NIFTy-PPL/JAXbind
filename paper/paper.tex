@@ -339,59 +339,86 @@ JAX is widely used in machine learning and scientific computing, the
 latter of which often relies on existing high-performance code that we
 would ideally like to incorporate into JAX. Reimplementing the existing
 code in JAX is often impractical and the existing interface in JAX for
-binding custom code requires deep knowledge of JAX and its C++ backend.
-The goal of \texttt{JAXbind} is to drastically reduce the effort
-required to bind custom functions implemented in other programming
-languages to JAX. Specifically, \texttt{JAXbind} provides an easy-to-use
-Python interface for defining custom so-called JAX primitives that
-support arbitrary JAX transformations.
+binding custom code either limits the user to a single Jacobian product
+or requires deep knowledge of JAX and its C++ backend for general
+Jacobian products. With \texttt{JAXbind} we drastically reduce the
+effort required to bind custom functions implemented in other
+programming languages with full support for Jacobian-vector products and
+vector-Jacobian products to JAX. Specifically, \texttt{JAXbind} provides
+an easy-to-use Python interface for defining custom, so-called JAX
+primitives. Via \texttt{JAXbind}, any function callable from Python can
+be exposed as a JAX primitive. \texttt{JAXbind} allows a user to
+interface the JAX function transformation engine with custom derivatives
+and batching rules, enabling all JAX transformations for the custom
+primitive.
 
 \hypertarget{statement-of-need}{%
 \section{Statement of Need}\label{statement-of-need}}
 
-The use of JAX (Bradbury et al., 2018) is widespread in the natural
-sciences. Of particular interest is JAX's powerful transformation
-system. It enables to retrieve arbitrary derivatives of functions, batch
-computations, and just-in-time compile code for additional performance.
-Its transformation system relies on all components of the computation
-being written in JAX.
+The use of JAX (\protect\hyperlink{ref-Jax2018}{Bradbury et al., 2018})
+is widespread in the natural sciences. Of particular interest is JAX's
+powerful transformation system. It enables a user to retrieve arbitrary
+derivatives of functions, batch computations, and just-in-time compile
+code for additional performance. Its transformation system requires that
+all components of the computation are written in JAX.
 
 A plethora of high-performance code is not written in JAX and thus not
-accessible from within JAX. Rewriting these is often infeasible and/or
-inefficient. Ideally, we would like to mix existing high-performance
-code with JAX code. However, connecting code to JAX requires knowledge
-of the internals of JAX and its C++ backend.
+accessible from within JAX. Rewriting these codes is often infeasible
+and/or inefficient. Ideally, we would like to mix existing
+high-performance code with JAX code. However, connecting code to JAX
+requires knowledge of the internals of JAX and its C++ backend.
 
 In this paper, we present \texttt{JAXbind}, a package for bridging any
 function to JAX without in-depth knowledge of JAX's transformation
 system. The interface is accessible from Python without requiring any
-development in C++. The package is able to register any function, its
+development in C++. The package is able to register any function and its
 partial derivatives and their transpose functions as a JAX native call,
 a so-called primitive.
 
 We believe \texttt{JAXbind} to be highly useful in scientific computing.
 We intend to use this package to connect the Hartley transform and the
-spherical harmonic transform from DUCC (Reinecke, 2024) to the
-probabilistic programming package NIFTy (Edenhofer et al., 2024) as well
-as the radio interferometry response from DUCC with the radio astronomy
-package \texttt{resolve} (Arras et al., 2024). Furthermore, we intend to
-connect the non-uniform FFT from DUCC with JAX for applications in
-strong-lensing astrophysics. We envision many further applications
-within and outside of astrophysics.
+spherical harmonic transform from DUCC
+(\protect\hyperlink{ref-ducc0}{Reinecke, 2024}) to the probabilistic
+programming package NIFTy
+(\protect\hyperlink{ref-Edenhofer2023NIFTyRE}{Edenhofer et al., 2024})
+as well as the radio interferometry response from DUCC with the radio
+astronomy package \texttt{resolve}
+(\protect\hyperlink{ref-Resolve2024}{Arras et al., 2024}). Furthermore,
+we intend to connect the non-uniform FFT from DUCC with JAX for
+applications in strong-lensing astrophysics. We envision many further
+applications within and outside of astrophysics.
 
 The functionality of \texttt{JAXbind} extends the external callback
 functionality in JAX. Currently, \texttt{JAXbind}, akin to the external
-callback functions in JAX, briefly requires python's global interpreter
-lock (GIL) to call the user specified python function. In contrast to
-JAX's external callback functions, it allows for both a custom
-Jacobian-vector product and vector-Jacobian product. To the best of our
-knowledge no other code currently exists for connecting generic
-functions and both of their Jacobian products to JAX. The package that
-comes the closest is Enzyme-JAX (EnzymeAD, 2024). Enzyme-JAX allows one
-to differentiate a C++ function with Enzyme (W. Moses \& Churavy, 2020;
-W. S. Moses et al., 2021, 2022) and connect it together with its
-derivative to JAX. However, it enforces the use of Enzyme for deriving
-derivatives and does not allow for connecting arbitrary code to JAX.
+callback functions in JAX, briefly requires Python's global interpreter
+lock (GIL) to call the user-specified Python function. In contrast to
+JAX's external callback functions, \texttt{JAXbind} allows for both a
+custom Jacobian-vector product and vector-Jacobian product. To the best
+of our knowledge no other code currently exists for easily binding
+generic functions and both of their Jacobian products to JAX, without
+the need for C++ or LLVM. The package that comes the closest is
+Enzyme-JAX (\protect\hyperlink{ref-Moses2024}{W. S. Moses \& Zinenko,
+2024}), which allows one to bind arbitrary LLVM/MLIR, including C++,
+with automatically-generated (\protect\hyperlink{ref-Moses2021}{W. S.
+Moses et al., 2021}, \protect\hyperlink{ref-Moses2022}{2022};
+\protect\hyperlink{ref-Moses2020}{W. Moses \& Churavy, 2020}) or
+manually-defined derivatives to JAX.
+
+PyTorch (\protect\hyperlink{ref-PyTorch2024}{Ansel et al., 2024}) and
+TensorFlow (\protect\hyperlink{ref-tensorflow2015}{Abadi et al., 2015})
+also provide interfaces for custom extensions. PyTorch has an
+extensively documented Python interface\footnote{\url{https://pytorch.org/docs/stable/notes/extending.html}}
+for wrapping custom Python functions as PyTorch functions. This
+interface connects the custom function to PyTorch's automatic
+differentiation engine, allowing for custom Jacobian and Jacobian
+transposed applications, similar to what is possible with JAXbind.
+Additionally, PyTorch allows a user to interface its C++ backend with
+custom C++ or CUDA extensions\footnote{\url{https://pytorch.org/tutorials/advanced/cpp_extension.html}}.
+JAXbind, in contrast, currently only supports functions executed on the
+CPU, although the JAX built-in C++ interface also allows for custom GPU
+kernels. TensorFlow includes a C++ interface\footnote{\url{https://www.tensorflow.org/guide/create_op}}
+for custom functions that can be executed on the CPU or GPU. Custom
+gradients can be added to these functions.
 
 \hypertarget{automatic-differentiation-and-code-example}{%
 \section{Automatic Differentiation and Code
@@ -400,9 +427,9 @@ Example}\label{automatic-differentiation-and-code-example}}
 Automatic differentiation is a core feature of JAX and often one of the
 main reasons for using it. Thus, it is essential that custom functions
 registered with JAX support automatic differentiation. In the following,
-we will outline which functions our package respectively JAX requires to
-enable automatic differentiation. For simplicity, we assume that we want
-to connect the nonlinear function \(f(x_1,x_2) = x_1x_2^2\) to JAX. The
+we will outline which functions our package requires to enable automatic
+differentiation via JAX. For simplicity, we assume that we want to
+connect the nonlinear function \(f(x_1,x_2) = x_1x_2^2\) to JAX. The
 \texttt{JAXbind} package expects the Python function for \(f\) to take
 three positional arguments. The first argument, \texttt{out}, is a
 \texttt{tuple} into which the results are written. The second argument
@@ -465,7 +492,7 @@ vector-Jacobian product is
 \end{Shaded}
 
 To just-in-time compile the function, JAX needs to abstractly evaluate
-the code, i.e.~it needs to be able to infer the shape and dtype of the
+the code, i.e., it needs to be able to infer the shape and dtype of the
 output of the function given only the shape and dtype of the input. We
 have to provide these abstract evaluation functions returning the output
 shape and dtype given an input shape and dtype for \(f\) as well as for
@@ -541,13 +568,12 @@ cases require higher order derivatives.
 In scientific computing, linear functions such as, e.g., spherical
 harmonic transforms are widespread. If the function \(f\) is linear,
 differentiation becomes trivial. Specifically for a linear function
-\(f\), the pushforward respectively the \texttt{jvp} of \(f\) is
-identical to \(f\) itself and independent of the position at which it is
-computed. Expressed in formulas, \(\partial f(x)(dx) = f(dx)\) if \(f\)
-is linear in \(x\). Analogously, the pullback respectively the
-\texttt{vjp} becomes independent of the initial position and is given by
-the linear transpose of \(f\), thus
-\((\partial f(x))^{T}(dy) = f^T(dy)\). Also, all higher order
+\(f\), the pushforward or \texttt{jvp} of \(f\) is identical to \(f\)
+itself and independent of the position at which it is computed.
+Expressed in formulas, \(\partial f(x)(dx) = f(dx)\) if \(f\) is linear
+in \(x\). Analogously, the pullback or \texttt{vjp} becomes independent
+of the initial position and is given by the linear transpose of \(f\),
+thus \((\partial f(x))^{T}(dy) = f^T(dy)\). Also, all higher order
 derivatives can be expressed in terms of \(f\) and its transpose. To
 make use of these simplifications, \texttt{JAXbind} provides a special
 interface for linear functions, supporting higher order derivatives,
@@ -557,9 +583,10 @@ only requiring an implementation of the function and its transpose.
 \section{Platforms}\label{platforms}}
 
 Currently, \texttt{JAXbind} only supports primitives that act on CPU
-memory. In the future, GPU support could be added analogous to the CPU
-backend. The automatic differentiation in JAX is backend agnostic and
-would thus not require any additional bindings to work on the GPU.
+memory. In the future, GPU support could be added, which should work
+analogously to the CPU support in most respects. The automatic
+differentiation in JAX is backend agnostic and would thus not require
+any additional bindings to work on the GPU.
 
 \hypertarget{acknowledgements}{%
 \section{Acknowledgements}\label{acknowledgements}}
@@ -579,6 +606,24 @@ Volkes'').
 
 \hypertarget{refs}{}
 \begin{CSLReferences}{1}{0}
+\leavevmode\hypertarget{ref-tensorflow2015}{}%
+Abadi, M., Agarwal, A., Barham, P., Brevdo, E., Chen, Z., Citro, C.,
+Corrado, G. S., Davis, A., Dean, J., Devin, M., Ghemawat, S.,
+Goodfellow, I., Harp, A., Irving, G., Isard, M., Jia, Y., Jozefowicz,
+R., Kaiser, L., Kudlur, M., … Zheng, X. (2015). \emph{{TensorFlow}:
+Large-scale machine learning on heterogeneous systems}.
+\url{https://www.tensorflow.org/}
+
+\leavevmode\hypertarget{ref-PyTorch2024}{}%
+Ansel, J., Yang, E., He, H., Gimelshein, N., Jain, A., Voznesensky, M.,
+Bao, B., Bell, P., Berard, D., Burovski, E., Chauhan, G., Chourdia, A.,
+Constable, W., Desmaison, A., DeVito, Z., Ellison, E., Feng, W., Gong,
+J., Gschwind, M., … Chintala, S. (2024, April). {PyTorch} 2: Faster
+machine learning through dynamic {P}ython bytecode transformation and
+graph compilation. \emph{29th ACM International Conference on
+Architectural Support for Programming Languages and Operating Systems,
+Volume 2 (ASPLOS ’24)}. \url{https://doi.org/10.1145/3620665.3640366}
+
 \leavevmode\hypertarget{ref-Resolve2024}{}%
 Arras, P., Roth, J., Ding, S., Reinecke, M., Fuchs, R., \& Johnson, V.
 (2024). \emph{RESOLVE}. \url{https://gitlab.mpcdf.mpg.de/ift/resolve}
@@ -587,27 +632,16 @@ Arras, P., Roth, J., Ding, S., Reinecke, M., Fuchs, R., \& Johnson, V.
 Bradbury, J., Frostig, R., Hawkins, P., Johnson, M. J., Leary, C.,
 Maclaurin, D., Necula, G., Paszke, A., VanderPlas, J., Wanderman-Milne,
 S., \& Zhang, Q. (2018). \emph{{JAX}: Composable transformations of
-{P}ython+{N}um{P}y programs} (Version 0.3.13) {[}Computer software{]}.
+{P}ython+{N}um{P}y programs} (Version 0.3.13).
 \url{http://github.com/google/jax}
 
 \leavevmode\hypertarget{ref-Edenhofer2023NIFTyRE}{}%
 Edenhofer, G., Frank, P., Roth, J., Leike, R. H., Guerdi, M.,
 Scheel-Platz, L. I., Guardiani, M., Eberle, V., Westerkamp, M., \&
-Enßlin, T. A. (2024). \emph{{Re-Envisioning Numerical Information Field
-Theory (NIFTy.re): A Library for Gaussian Processes and Variational
-Inference}}. \url{https://doi.org/10.48550/arXiv.2402.16683}
-
-\leavevmode\hypertarget{ref-Moses2024}{}%
-EnzymeAD. (2024). \emph{{Enzyme-JAX}} (Version 0.0.6) {[}Computer
-software{]}. \url{https://github.com/EnzymeAD/Enzyme-JAX}
-
-\leavevmode\hypertarget{ref-Moses2020}{}%
-Moses, W., \& Churavy, V. (2020). Instead of rewriting foreign code for
-machine learning, automatically synthesize fast gradients. In H.
-Larochelle, M. Ranzato, R. Hadsell, M. F. Balcan, \& H. Lin (Eds.),
-\emph{Advances in neural information processing systems} (Vol. 33, pp.
-12472--12485). Curran Associates, Inc.
-\url{https://proceedings.neurips.cc/paper/2020/file/9332c513ef44b682e9347822c2e457ac-Paper.pdf}
+Enßlin, T. A. (2024). Re-envisioning numerical information field theory
+({NIFTy.re}): A library for {G}aussian processes and variational
+inference. \emph{Journal of Open Source Software}, \emph{9}(98), 6593.
+\url{https://doi.org/10.21105/joss.06593}
 
 \leavevmode\hypertarget{ref-Moses2021}{}%
 Moses, W. S., Churavy, V., Paehler, L., Hückelheim, J., Narayanan, S. H.
@@ -625,10 +659,21 @@ compiler augmentation. \emph{Proceedings of the International Conference
 on High Performance Computing, Networking, Storage and Analysis}.
 \url{https://doi.org/10.1109/SC41404.2022.00065}
 
+\leavevmode\hypertarget{ref-Moses2024}{}%
+Moses, W. S., \& Zinenko, O. (2024). \emph{{Enzyme-JAX}} (Version
+0.0.6). \url{https://github.com/EnzymeAD/Enzyme-JAX}
+
+\leavevmode\hypertarget{ref-Moses2020}{}%
+Moses, W., \& Churavy, V. (2020). Instead of rewriting foreign code for
+machine learning, automatically synthesize fast gradients. In H.
+Larochelle, M. Ranzato, R. Hadsell, M. F. Balcan, \& H. Lin (Eds.),
+\emph{Advances in neural information processing systems} (Vol. 33, pp.
+12472–12485). Curran Associates, Inc.
+\url{https://proceedings.neurips.cc/paper/2020/file/9332c513ef44b682e9347822c2e457ac-Paper.pdf}
+
 \leavevmode\hypertarget{ref-ducc0}{}%
 Reinecke, M. (2024). \emph{{DUCC}: Distinctly useful code collection}
-(Version 0.33.0) {[}Computer software{]}.
-\url{https://gitlab.mpcdf.mpg.de/mtr/ducc}
+(Version 0.33.0). \url{https://gitlab.mpcdf.mpg.de/mtr/ducc}
 
 \end{CSLReferences}
 
