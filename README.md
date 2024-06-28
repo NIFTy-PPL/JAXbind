@@ -166,4 +166,23 @@ Feel free to open a PR early on in the development process, we are happy to help
 ## Licensing terms
 
 All source code in this package is released under the 2-clause BSD license.
-All of JAXbind is distributed *without any warranty*.
+All of `JAXbind` is distributed *without any warranty*.
+
+## Citing JAXbind
+
+To cite `JAXbind`, please use the citation provided below.
+
+```
+@article{jaxbind,
+    title = {JAXbind: Bind any function to JAX},
+    author = {Jakob Roth and Martin Reinecke and Gordian Edenhofer},
+    year = {2024},
+    journal = {Journal of Open Source Software},
+    publisher = {The Open Journal},
+    volume = {9},
+    number = {98},
+    pages = {6532},
+    doi = {10.21105/joss.06532},
+    url = {https://doi.org/10.21105/joss.06532},
+}
+```
