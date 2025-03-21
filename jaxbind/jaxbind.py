@@ -11,6 +11,7 @@ from typing import Union
 import jax
 import jaxlib.mlir.dialects.stablehlo as hlo
 import jaxlib.mlir.ir as ir
+import jax.extend as jex
 import numpy as np
 from jax.interpreters import ad, batching, mlir
 from jax.interpreters.mlir import ir_constant as irc
@@ -386,7 +387,7 @@ def _batch(args, in_axes, *, _func: FunctionType, **kwargs):
 
 
 # actually register the above functions in JAX
-_prim = jax.core.Primitive("jaxbind_prim")
+_prim = jex.core.Primitive("jaxbind_prim")
 _prim.multiple_results = True
 _prim.def_impl(partial(jax.interpreters.xla.apply_primitive, _prim))
 _prim.def_abstract_eval(_exec_abstract)
