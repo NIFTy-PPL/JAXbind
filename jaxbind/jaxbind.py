@@ -7,11 +7,11 @@ import pickle
 from collections import namedtuple
 from functools import partial
 from typing import Union
+from packaging import version
 
 import jax
 import jaxlib.mlir.dialects.stablehlo as hlo
 import jaxlib.mlir.ir as ir
-import jax.extend as jex
 import numpy as np
 from jax.interpreters import ad, batching, mlir
 from jax.interpreters.mlir import ir_constant as irc
@@ -23,7 +23,10 @@ __all__ = ["get_linear_call", "get_nonlinear_call"]
 import _jaxbind
 
 for _name, _value in _jaxbind.registrations().items():
-    jax.lib.xla_client.register_custom_call_target(_name, _value, platform="cpu")
+    if version.parse(jax.__version__) >= version.parse("0.4.31"):
+        jax.ffi.register_ffi_target(_name, _value, platform="cpu", api_version=0)
+    else:
+        jax.lib.xla_client.register_custom_call_target(_name, _value, platform="cpu")
 
 
 # Hack to avoid classes and having to register a PyTree
@@ -387,7 +390,12 @@ def _batch(args, in_axes, *, _func: FunctionType, **kwargs):
 
 
 # actually register the above functions in JAX
-_prim = jex.core.Primitive("jaxbind_prim")
+if version.parse(jax.__version__) >= version.parse("0.4.27"):
+    import jax.extend as jex
+
+    _prim = jex.core.Primitive("jaxbind_prim")
+else:
+    _prim = jax.core.Primitive("jaxbind_prim")
 _prim.multiple_results = True
 _prim.def_impl(partial(jax.interpreters.xla.apply_primitive, _prim))
 _prim.def_abstract_eval(_exec_abstract)
