@@ -28,7 +28,7 @@ version = "1.1.0"
 
 [project.urls]
 "Source Code" = "https://github.com/NIFTy-PPL/JAXbind"
-"Bug Tracker" = "https://github.com/NIFTy-PPL/JAXbind/issues/issues"
+"Bug Tracker" = "https://github.com/NIFTy-PPL/JAXbind/issues"
 "README" = "https://github.com/NIFTy-PPL/JAXbind/blob/main/README.md"
 
 [project.optional-dependencies]
