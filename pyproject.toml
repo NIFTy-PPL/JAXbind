@@ -24,11 +24,11 @@ classifiers = [
   "Programming Language :: C++",
   "Programming Language :: Python",
 ]
-dynamic = ["version"]
+version = "1.1.0"
 
 [project.urls]
 "Source Code" = "https://github.com/NIFTy-PPL/JAXbind"
-"Bug Tracker" = "https://github.com/NIFTy-PPL/JAXbind/issues/issues"
+"Bug Tracker" = "https://github.com/NIFTy-PPL/JAXbind/issues"
 "README" = "https://github.com/NIFTy-PPL/JAXbind/blob/main/README.md"
 
 [project.optional-dependencies]
@@ -53,13 +53,14 @@ all = ["jaxbind[test,doc]"]
 
 [build-system]
 requires = [
-  "setuptools >= 40.6.0",
+  "scikit-build-core>0.5", 
   "pybind11 >= 2.6.0",
   "numpy >= 1.17.0",
   "jax >= 0.4",
   "jaxlib",
 ]
-build-backend = "setuptools.build_meta"
+build-backend = "scikit_build_core.build"
 
-[tool.setuptools.packages.find]
-include = ["jaxbind", "jaxbind*"]
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+build-dir = "build/{wheel_tag}"
