@@ -25,75 +25,20 @@ using namespace std;
 
 using shape_t = vector<size_t>;
 
-inline nb::object normalizeDtype(const nb::object &dtype)
-  {
-  static nb::object converter = nb::module_::import_("numpy").attr("dtype");
-  return converter(dtype);
-  }
-template<typename T> inline nb::object Dtype();
-template<> inline nb::object Dtype<uint8_t>()
-  { static auto res = normalizeDtype(nb::cast("u1")); return res; }
-template<> inline nb::object Dtype<uint64_t>()
-  { static auto res = normalizeDtype(nb::cast("u8")); return res; }
-template<> inline nb::object Dtype<float>()
-  { static auto res = normalizeDtype(nb::cast("f4")); return res; }
-template<> inline nb::object Dtype<double>()
-  { static auto res = normalizeDtype(nb::cast("f8")); return res; }
-template<> inline nb::object Dtype<complex<float>>()
-  { static auto res = normalizeDtype(nb::cast("c8")); return res; }
-template<> inline nb::object Dtype<complex<double>>()
-  { static auto res = normalizeDtype(nb::cast("c16")); return res; }
-template<typename T> bool isDtype(const nb::object &dtype)
-  { return Dtype<T>().equal(dtype); }
-
 using NpArr = nb::ndarray<nb::numpy, nb::device::cpu>;
 using CNpArr = nb::ndarray<nb::numpy, nb::ro, nb::device::cpu>;
-template<typename T> using NpArrT = nb::ndarray<nb::numpy, nb::device::cpu, T>;
-template<typename T> using CNpArrT = nb::ndarray<nb::numpy, nb::ro, nb::device::cpu, T>;
 
-template<typename T> CNpArr make_CArr_wrapper(const T *ptr, const shape_t &dims)
+CNpArr make_CArr_wrapper(const nb::dlpack::dtype &dtype, const void *ptr, const shape_t &dims)
   {
   nb::capsule owner(ptr, [](void *p) noexcept {});
-  CNpArr res_(CNpArrT<T>(ptr, dims.size(), dims.data(), owner));
+  CNpArr res_(ptr, dims.size(), dims.data(), owner, nullptr, dtype);
   return res_;
   }
-CNpArr make_CArr_wrapper(const nb::object &dtype, const void *ptr, const shape_t &dims)
-  {
-  if (isDtype<uint8_t>(dtype))
-    return make_CArr_wrapper<uint8_t>(reinterpret_cast<const uint8_t *>(ptr), dims);
-  if (isDtype<uint64_t>(dtype))
-    return make_CArr_wrapper<uint64_t>(reinterpret_cast<const uint64_t *>(ptr), dims);
-  if (isDtype<float>(dtype))
-    return make_CArr_wrapper<float>(reinterpret_cast<const float *>(ptr), dims);
-  if (isDtype<double>(dtype))
-    return make_CArr_wrapper<double>(reinterpret_cast<const double *>(ptr), dims);
-  if (isDtype<complex<float>>(dtype))
-    return make_CArr_wrapper<complex<float>>(reinterpret_cast<const complex<float> *>(ptr), dims);
-  if (isDtype<complex<double>>(dtype))
-    return make_CArr_wrapper<complex<double>>(reinterpret_cast<const complex<double> *>(ptr), dims);
-  throw runtime_error("unsupported data type");
-  }
-template<typename T> NpArr make_Arr_wrapper(T *ptr, const shape_t &dims)
+NpArr make_Arr_wrapper(const nb::dlpack::dtype &dtype, void *ptr, const shape_t &dims)
   {
   nb::capsule owner(ptr, [](void *p) noexcept {});
-  NpArr res_(NpArrT<T>(ptr, dims.size(), dims.data(), owner));
+  NpArr res_(ptr, dims.size(), dims.data(), owner, nullptr, dtype);
   return res_;
-  }
-NpArr make_Arr_wrapper(const nb::object &dtype, void *ptr, const shape_t &dims)
-  {
-  if (isDtype<uint8_t>(dtype))
-    return make_Arr_wrapper<uint8_t>(reinterpret_cast<uint8_t *>(ptr), dims);
-  if (isDtype<uint64_t>(dtype))
-    return make_Arr_wrapper<uint64_t>(reinterpret_cast<uint64_t *>(ptr), dims);
-  if (isDtype<float>(dtype))
-    return make_Arr_wrapper<float>(reinterpret_cast<float *>(ptr), dims);
-  if (isDtype<double>(dtype))
-    return make_Arr_wrapper<double>(reinterpret_cast<double *>(ptr), dims);
-  if (isDtype<complex<float>>(dtype))
-    return make_Arr_wrapper<complex<float>>(reinterpret_cast<complex<float> *>(ptr), dims);
-  if (isDtype<complex<double>>(dtype))
-    return make_Arr_wrapper<complex<double>>(reinterpret_cast<complex<double> *>(ptr), dims);
-  throw runtime_error("unsupported data type");
   }
 
 // https://en.cppreference.com/w/cpp/numeric/bit_cast
@@ -120,13 +65,13 @@ void pycall(void *out_raw, void **in)
   {
   nb::gil_scoped_acquire get_GIL;
 
-  static const map<uint8_t, nb::object> tcdict = {
-    { 3, Dtype<float>()},
-    { 7, Dtype<double>()},
-    {32, Dtype<uint8_t>()},
-    {39, Dtype<uint64_t>()},
-    {67, Dtype<complex<float>>()},
-    {71, Dtype<complex<double>>()}};
+  static const map<uint8_t, nb::dlpack::dtype> tcdict = {
+    { 3, nb::dtype<float>()},
+    { 7, nb::dtype<double>()},
+    {32, nb::dtype<uint8_t>()},
+    {39, nb::dtype<uint64_t>()},
+    {67, nb::dtype<complex<float>>()},
+    {71, nb::dtype<complex<double>>()}};
 
   nb::str dummy;
 
@@ -140,7 +85,7 @@ void pycall(void *out_raw, void **in)
     // Getting type, rank, and shape of the input
     auto dtp_a = tcdict.at(uint8_t(*reinterpret_cast<int64_t *>(in[idx++])));
     size_t ndim_a = *reinterpret_cast<uint64_t *>(in[idx++]);
-    vector<size_t> shape_a;
+    shape_t shape_a;
     for (size_t j=0; j<ndim_a; ++j) {
       shape_a.push_back(*reinterpret_cast<uint64_t *>(in[idx++]));
     }
@@ -161,7 +106,7 @@ void pycall(void *out_raw, void **in)
     // Getting type, rank, and shape of the output
     auto dtp_out = tcdict.at(uint8_t(*reinterpret_cast<int64_t *>(in[idx++])));
     size_t ndim_out = *reinterpret_cast<uint64_t *>(in[idx++]);
-    vector<size_t> shape_out;
+    shape_t shape_out;
     for (size_t j=0; j<ndim_out; ++j) {
       shape_out.push_back(*reinterpret_cast<uint64_t *>(in[idx++]));
     }
