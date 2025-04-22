@@ -10,8 +10,8 @@ requires-python = ">=3.10"
 dependencies = [
   "packaging",
   "numpy >= 1.17.0",
-  "jax >= 0.4",
-  "jaxlib",
+  "jax >= 0.5",
+  "jaxlib >= 0.5",
 ]
 description = "Bind any function written in another language to JAX with support for JVP/VJP/batching/jit compilation"
 license = {file = "LICENSE"}
@@ -56,8 +56,8 @@ requires = [
   "scikit-build-core>0.5",
   "nanobind >= 2.5.0",
   "numpy >= 1.17.0",
-  "jax >= 0.4",
-  "jaxlib",
+  "jax >= 0.5",
+  "jaxlib >= 0.5",
 ]
 build-backend = "scikit_build_core.build"
 
