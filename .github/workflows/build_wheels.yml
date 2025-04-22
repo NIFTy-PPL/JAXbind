@@ -17,7 +17,6 @@ jobs:
           python-version: '3.12'
       - uses: pypa/cibuildwheel@v2.23.2
         env:
-          MACOSX_DEPLOYMENT_TARGET: '10.15'
           CIBW_ARCHS: auto64
           CIBW_BUILD_FRONTEND: build[uv]
           CIBW_SKIP: cp36-* cp37-* cp38-* pp* *-musllinux*
