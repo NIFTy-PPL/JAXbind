@@ -9,13 +9,17 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.6.14" # Or latest, or a specific version
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - uses: pypa/cibuildwheel@v2.17.0
+      - uses: pypa/cibuildwheel@v2.23.2
         env:
           MACOSX_DEPLOYMENT_TARGET: '10.15'
           CIBW_ARCHS: auto64
+          CIBW_BUILD_FRONTEND: build[uv]
           CIBW_SKIP: cp36-* cp37-* cp38-* pp* *-musllinux*
           CIBW_TEST_REQUIRES: pytest
           CIBW_TEST_COMMAND: python -m pytest -x {project}/test
