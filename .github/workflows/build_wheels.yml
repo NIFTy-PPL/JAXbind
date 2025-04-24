@@ -1,11 +1,16 @@
 name: Build all wheels
-on: [workflow_dispatch]
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    types: [opened, reopened]
 jobs:
   build_wheels:
     name: Build wheels on ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-14]
+        os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
