@@ -76,7 +76,7 @@ def fftn(out, args, kwargs_dump):
 # So we could write
 #    fftn_transposed = fftn
 # but for the sake of completeness, let's spell everything out again
- 
+
 def fftn_transposed(out, args, kwargs_dump):
     (x,) = args
     kwargs = jaxbind.load_kwargs(kwargs_dump)

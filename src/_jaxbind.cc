@@ -63,7 +63,9 @@ template <typename T>
 nb::capsule EncapsulateFunction(T* fn)
   { return nb::capsule(bit_cast<void*>(fn), "xla._CUSTOM_CALL_TARGET"); }
 
-ffi::Error pycallImpl(ffi::Dictionary attrs,
+ffi::Error pycallImpl(int64_t func_id,
+                      // ffi::Dictionary attrs,
+                      ffi::AnyBuffer kwargs,
                       ffi::RemainingArgs args,
                       ffi::RemainingRets results)
   {
@@ -78,13 +80,22 @@ ffi::Error pycallImpl(ffi::Dictionary attrs,
     {ffi::DataType::C128, nb::dtype<complex<double>>()}
   };
 
-  size_t nargs = attrs.get<size_t>("nargs").value();
-  size_t n_out = attrs.get<size_t>("n_out").value();
+  // FIXME: would be nicer to get func_id and maybe kwargs via attribute dict
+  // auto func_id = attrs.get<int64_t>("func_id");
+  // std::cout << func_id << std::endl;
+  auto dtp_kwargs = tcdict.at(kwargs.element_type());
+  auto dims = kwargs.dimensions();
+  shape_t shape_kwargs;
+  for (auto x : dims) shape_kwargs.push_back(x);
+  CNpArr py_kwargs = make_CArr_wrapper(dtp_kwargs, kwargs.untyped_data(), shape_kwargs);
+
+  auto n_args = args.size();
+  auto n_out = results.size();
+
 
   nb::list py_in;
-  for (size_t i=0; i<nargs; i++)
+  for (size_t i=0; i<n_args; i++)
     {
-    // Getting type, rank, and shape of the input
     auto arg = args.get<ffi::AnyBuffer>(i).value();  //FIXME
     auto dtp_a = tcdict.at(arg.element_type());
     auto dims = arg.dimensions();
@@ -96,9 +107,9 @@ ffi::Error pycallImpl(ffi::Dictionary attrs,
     CNpArr py_a = make_CArr_wrapper(dtp_a, arg.untyped_data(), shape_a);
     py_in.append(py_a);
     }
+
   nb::list py_out;
   for (size_t i=0; i<n_out; i++) {
-    // Getting type, rank, and shape of the output
     auto out = results.get<ffi::AnyBuffer>(i).value();  //FIXME
     auto dtp_out = tcdict.at(out->element_type());
     auto dims = out->dimensions();
@@ -107,82 +118,27 @@ ffi::Error pycallImpl(ffi::Dictionary attrs,
     NpArr py_o = make_Arr_wrapper(dtp_out, out->untyped_data(), shape_out);
     py_out.append(py_o);
   }
-//  auto func = attrs.get<nb::object>("func").value();
-//  auto py_kwargs = attrs.get<nb::dict>("kwargs").value();
-//  func(py_out, py_in, py_kwargs);
-  return ffi::Error::Success();
-  }
-  
-void pycall(void *out_raw, void **in)
-  {
-  nb::gil_scoped_acquire get_GIL;
 
-  static const map<uint8_t, nb::dlpack::dtype> tcdict = {
-    { 3, nb::dtype<float>()},
-    { 7, nb::dtype<double>()},
-    {32, nb::dtype<uint8_t>()},
-    {39, nb::dtype<uint64_t>()},
-    {67, nb::dtype<complex<float>>()},
-    {71, nb::dtype<complex<double>>()}};
-
-  nb::str dummy;
-
-  nb::handle hnd(*reinterpret_cast<PyObject **>(in[0]));
-  auto func = nb::borrow<nb::object>(hnd);
-
-  size_t idx = 1;
-  size_t nargs = *reinterpret_cast<uint64_t *>(in[idx++]);
-  nb::list py_in;
-  for (size_t i=0; i<nargs; i++) {
-    // Getting type, rank, and shape of the input
-    auto dtp_a = tcdict.at(uint8_t(*reinterpret_cast<int64_t *>(in[idx++])));
-    size_t ndim_a = *reinterpret_cast<uint64_t *>(in[idx++]);
-    shape_t shape_a;
-    for (size_t j=0; j<ndim_a; ++j) {
-      shape_a.push_back(*reinterpret_cast<uint64_t *>(in[idx++]));
-    }
-    // Building "pseudo" numpy arrays on top of the provided memory regions.
-    // This should be completely fine, as long as the called function does not
-    // keep any references to them.
-    CNpArr py_a = make_CArr_wrapper(dtp_a, in[idx++], shape_a);
-    py_in.append(py_a);
-  }
-
-  // if we have only one output, out_raw is a void * pointing to the data of this output
-  // otherwise, out_raw is a void ** pointing to an array of void * pointing to the individual data
-  void **out = reinterpret_cast<void **>(out_raw);
-  void *out_single = reinterpret_cast<void *>(out_raw);
-  size_t nout = *reinterpret_cast<uint64_t *>(in[idx++]);
-  nb::list py_out;
-  for (size_t i=0; i<nout; i++) {
-    // Getting type, rank, and shape of the output
-    auto dtp_out = tcdict.at(uint8_t(*reinterpret_cast<int64_t *>(in[idx++])));
-    size_t ndim_out = *reinterpret_cast<uint64_t *>(in[idx++]);
-    shape_t shape_out;
-    for (size_t j=0; j<ndim_out; ++j) {
-      shape_out.push_back(*reinterpret_cast<uint64_t *>(in[idx++]));
-    }
-    NpArr py_o = make_Arr_wrapper(dtp_out, (nout==1) ? out_single : out[i], shape_out);
-    py_out.append(py_o);
-  }
-
-  auto dtp_kwargs = tcdict.at(uint8_t(*reinterpret_cast<int64_t *>(in[idx++])));
-  size_t size_kwargs = *reinterpret_cast<uint64_t *>(in[idx++]);
-  CNpArr py_kwargs = make_CArr_wrapper(dtp_kwargs, in[idx++], {size_kwargs});
-
-  // Execute the Python function implementing the desired operation
+  PyObject* raw_ptr = reinterpret_cast<PyObject*>(func_id);
+  nb::handle hnd(raw_ptr);
+  nb::object func = nb::borrow<nb::object>(hnd);
   func(py_out, py_in, py_kwargs);
+  return ffi::Error::Success();
   }
 
 XLA_FFI_DEFINE_HANDLER_SYMBOL(
-    pycallNew, pycallImpl,
-    ffi::Ffi::Bind().Attrs().RemainingArgs().RemainingRets());
+    pycall, pycallImpl,
+    // ffi::Ffi::Bind().Attrs().RemainingArgs().RemainingRets());
+    ffi::Ffi::Bind()
+                  .Attr<int64_t>("id_func")
+                  .Arg<ffi::AnyBuffer>()
+                  .RemainingArgs()
+                  .RemainingRets());
 
 nb::dict Registrations()
   {
   nb::dict dict;
   dict["cpu_pycall"] = EncapsulateFunction(pycall);
-//  dict["cpu_pycall"] = nb::capsule(reinterpret_cast<void *>(pycall);
   return dict;
   }
 
