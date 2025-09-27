@@ -71,6 +71,9 @@ def _exec_abstract(*args, _func: FunctionType, **kwargs):
 
 def func_for_lowering(*args, _func: FunctionType, _platform="cpu", **kwargs):
     out_type = _exec_abstract(*args, _func=_func, **kwargs)
+    if _func.can_batch:
+        assert "batch_axes" not in kwargs
+        kwargs["batch_axes"] = _func.batch_axes
     kwargs_serial = np.frombuffer(pickle.dumps(kwargs), dtype=np.uint8)
     return jax.ffi.ffi_call(_platform + "_pycall", out_type)(
         kwargs_serial, *args, id_func=id(_func.f)
