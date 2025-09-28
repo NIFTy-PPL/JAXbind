@@ -69,7 +69,7 @@ def _exec_abstract(*args, _func: FunctionType, **kwargs):
     return tuple(jax.core.ShapedArray(*sdb[:2]) for sdb in ae)
 
 
-def func_for_lowering(*args, _func: FunctionType, _platform="cpu", **kwargs):
+def ffi_func(*args, _func: FunctionType, _platform="cpu", **kwargs):
     out_type = _exec_abstract(*args, _func=_func, **kwargs)
     if _func.can_batch:
         assert "batch_axes" not in kwargs
@@ -80,7 +80,7 @@ def func_for_lowering(*args, _func: FunctionType, _platform="cpu", **kwargs):
     )
 
 
-_lowering = mlir.lower_fun(func_for_lowering, multiple_results=True)
+_lowering = mlir.lower_fun(ffi_func, multiple_results=True)
 
 
 def _explicify_zeros(x):

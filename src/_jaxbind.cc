@@ -64,7 +64,6 @@ nb::capsule EncapsulateFunction(T* fn)
   { return nb::capsule(bit_cast<void*>(fn), "xla._CUSTOM_CALL_TARGET"); }
 
 ffi::Error pycallImpl(int64_t func_id,
-                      // ffi::Dictionary attrs,
                       ffi::AnyBuffer kwargs,
                       ffi::RemainingArgs args,
                       ffi::RemainingRets results)
@@ -80,9 +79,6 @@ ffi::Error pycallImpl(int64_t func_id,
     {ffi::DataType::C128, nb::dtype<complex<double>>()}
   };
 
-  // FIXME: would be nicer to get func_id and maybe kwargs via attribute dict
-  // auto func_id = attrs.get<int64_t>("func_id");
-  // std::cout << func_id << std::endl;
   auto dtp_kwargs = tcdict.at(kwargs.element_type());
   auto dims = kwargs.dimensions();
   shape_t shape_kwargs;
@@ -96,7 +92,7 @@ ffi::Error pycallImpl(int64_t func_id,
   nb::list py_in;
   for (size_t i=0; i<n_args; i++)
     {
-    auto arg = args.get<ffi::AnyBuffer>(i).value();  //FIXME
+    auto arg = args.get<ffi::AnyBuffer>(i).value();
     auto dtp_a = tcdict.at(arg.element_type());
     auto dims = arg.dimensions();
     shape_t shape_a;
@@ -110,7 +106,7 @@ ffi::Error pycallImpl(int64_t func_id,
 
   nb::list py_out;
   for (size_t i=0; i<n_out; i++) {
-    auto out = results.get<ffi::AnyBuffer>(i).value();  //FIXME
+    auto out = results.get<ffi::AnyBuffer>(i).value();
     auto dtp_out = tcdict.at(out->element_type());
     auto dims = out->dimensions();
     shape_t shape_out;
@@ -128,7 +124,6 @@ ffi::Error pycallImpl(int64_t func_id,
 
 XLA_FFI_DEFINE_HANDLER_SYMBOL(
     pycall, pycallImpl,
-    // ffi::Ffi::Bind().Attrs().RemainingArgs().RemainingRets());
     ffi::Ffi::Bind()
                   .Attr<int64_t>("id_func")
                   .Arg<ffi::AnyBuffer>()
