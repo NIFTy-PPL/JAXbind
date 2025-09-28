@@ -13,11 +13,10 @@
 #include <nanobind/ndarray.h>
 #include <nanobind/stl/complex.h>
 #include <xla/ffi/api/ffi.h>
-#include <iostream>
 
+#include <cstring>  // for memcpy()
 #include <vector>
 #include <map>
-#include <exception>
 
 namespace detail_pymodule_jax {
 
@@ -69,56 +68,57 @@ ffi::Error pycallImpl(int64_t func_id,
                       ffi::RemainingRets results)
   {
   nb::gil_scoped_acquire get_GIL;
-
-  static const map<ffi::DataType, nb::dlpack::dtype> tcdict = {
-    {ffi::DataType::F32 , nb::dtype<float>()},
-    {ffi::DataType::F64 , nb::dtype<double>()},
-    {ffi::DataType::U8  , nb::dtype<uint8_t>()},
-    {ffi::DataType::U64 , nb::dtype<uint64_t>()},
-    {ffi::DataType::C64 , nb::dtype<complex<float>>()},
-    {ffi::DataType::C128, nb::dtype<complex<double>>()}
-  };
-
-  auto dtp_kwargs = tcdict.at(kwargs.element_type());
-  auto dims = kwargs.dimensions();
-  shape_t shape_kwargs;
-  for (auto x : dims) shape_kwargs.push_back(x);
-  CNpArr py_kwargs = make_CArr_wrapper(dtp_kwargs, kwargs.untyped_data(), shape_kwargs);
-
-  auto n_args = args.size();
-  auto n_out = results.size();
-
-
-  nb::list py_in;
-  for (size_t i=0; i<n_args; i++)
-    {
-    auto arg = args.get<ffi::AnyBuffer>(i).value();
-    auto dtp_a = tcdict.at(arg.element_type());
-    auto dims = arg.dimensions();
-    shape_t shape_a;
-    for (auto x : dims) shape_a.push_back(x);
-    // Building "pseudo" numpy arrays on top of the provided memory regions.
-    // This should be completely fine, as long as the called function does not
-    // keep any references to them.
-    CNpArr py_a = make_CArr_wrapper(dtp_a, arg.untyped_data(), shape_a);
-    py_in.append(py_a);
+  try {
+    static const map<ffi::DataType, nb::dlpack::dtype> tcdict = {
+      {ffi::DataType::F32 , nb::dtype<float>()},
+      {ffi::DataType::F64 , nb::dtype<double>()},
+      {ffi::DataType::U8  , nb::dtype<uint8_t>()},
+      {ffi::DataType::U64 , nb::dtype<uint64_t>()},
+      {ffi::DataType::C64 , nb::dtype<complex<float>>()},
+      {ffi::DataType::C128, nb::dtype<complex<double>>()}
+    };
+  
+    auto dtp_kwargs = tcdict.at(kwargs.element_type());
+    auto dims = kwargs.dimensions();
+    shape_t shape_kwargs;
+    for (auto x : dims) shape_kwargs.push_back(x);
+    CNpArr py_kwargs = make_CArr_wrapper(dtp_kwargs, kwargs.untyped_data(), shape_kwargs);
+  
+    nb::list py_in;
+    for (size_t i=0; i<args.size(); i++)
+      {
+      auto arg = args.get<ffi::AnyBuffer>(i).value();
+      auto dtp_a = tcdict.at(arg.element_type());
+      auto dims = arg.dimensions();
+      shape_t shape_a;
+      for (auto x : dims) shape_a.push_back(x);
+      // Building "pseudo" numpy arrays on top of the provided memory regions.
+      // This should be completely fine, as long as the called function does not
+      // keep any references to them.
+      CNpArr py_a = make_CArr_wrapper(dtp_a, arg.untyped_data(), shape_a);
+      py_in.append(py_a);
+      }
+  
+    nb::list py_out;
+    for (size_t i=0; i<results.size(); i++) {
+      auto out = results.get<ffi::AnyBuffer>(i).value();
+      auto dtp_out = tcdict.at(out->element_type());
+      auto dims = out->dimensions();
+      shape_t shape_out;
+      for (auto x : dims) shape_out.push_back(x);
+      NpArr py_o = make_Arr_wrapper(dtp_out, out->untyped_data(), shape_out);
+      py_out.append(py_o);
     }
-
-  nb::list py_out;
-  for (size_t i=0; i<n_out; i++) {
-    auto out = results.get<ffi::AnyBuffer>(i).value();
-    auto dtp_out = tcdict.at(out->element_type());
-    auto dims = out->dimensions();
-    shape_t shape_out;
-    for (auto x : dims) shape_out.push_back(x);
-    NpArr py_o = make_Arr_wrapper(dtp_out, out->untyped_data(), shape_out);
-    py_out.append(py_o);
-  }
-
-  PyObject* raw_ptr = reinterpret_cast<PyObject*>(func_id);
-  nb::handle hnd(raw_ptr);
-  nb::object func = nb::borrow<nb::object>(hnd);
-  func(py_out, py_in, py_kwargs);
+  
+    PyObject* raw_ptr = reinterpret_cast<PyObject*>(func_id);
+    nb::handle hnd(raw_ptr);
+    nb::object func = nb::borrow<nb::object>(hnd);
+    func(py_out, py_in, py_kwargs);
+    }
+  catch (...)
+    {
+    return ffi::Error::Internal("Something happened; no idea what");
+    }
   return ffi::Error::Success();
   }
 
