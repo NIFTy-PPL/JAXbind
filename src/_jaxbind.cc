@@ -68,7 +68,9 @@ ffi::Error pycallImpl(int64_t func_id,
                       ffi::RemainingRets results)
   {
   nb::gil_scoped_acquire get_GIL;
-  try {
+// MR: disabling the try-catch for the time being, since the diagnostics
+// appear to be better when leaving the exception handling to JAX.
+//  try {
     static const map<ffi::DataType, nb::dlpack::dtype> tcdict = {
       {ffi::DataType::F32 , nb::dtype<float>()},
       {ffi::DataType::F64 , nb::dtype<double>()},
@@ -114,11 +116,11 @@ ffi::Error pycallImpl(int64_t func_id,
     nb::handle hnd(raw_ptr);
     nb::object func = nb::borrow<nb::object>(hnd);
     func(py_out, py_in, py_kwargs);
-    }
-  catch (...)
-    {
-    return ffi::Error::Internal("Something happened; no idea what");
-    }
+//    }
+//  catch (...)
+//    {
+//    return ffi::Error::Internal("Something happened; no idea what");
+//    }
   return ffi::Error::Success();
   }
 
