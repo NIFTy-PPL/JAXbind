@@ -10,12 +10,8 @@ from typing import Union
 from packaging import version
 
 import jax
-import jaxlib.mlir.dialects.stablehlo as hlo
-import jaxlib.mlir.ir as ir
 import numpy as np
 from jax.interpreters import ad, batching, mlir
-from jax.interpreters.mlir import ir_constant as irc
-from jaxlib.hlo_helpers import custom_call
 
 
 __all__ = ["get_linear_call", "get_nonlinear_call"]
@@ -23,10 +19,7 @@ __all__ = ["get_linear_call", "get_nonlinear_call"]
 import _jaxbind
 
 for _name, _value in _jaxbind.registrations().items():
-    if version.parse(jax.__version__) >= version.parse("0.4.31"):
-        jax.ffi.register_ffi_target(_name, _value, platform="cpu", api_version=0)
-    else:
-        jax.lib.xla_client.register_custom_call_target(_name, _value, platform="cpu")
+    jax.ffi.register_ffi_target(_name, _value, platform="cpu")
 
 
 # Hack to avoid classes and having to register a PyTree
@@ -76,90 +69,18 @@ def _exec_abstract(*args, _func: FunctionType, **kwargs):
     return tuple(jax.core.ShapedArray(*sdb[:2]) for sdb in ae)
 
 
-# the values are explained in src/ducc0/bindings/typecode.h
-_dtype_dict = {
-    np.dtype(np.float32): 3,
-    np.dtype(np.float64): 7,
-    np.dtype(np.uint8): 32,
-    np.dtype(np.uint64): 39,
-    np.dtype(np.complex64): 67,
-    np.dtype(np.complex128): 71,
-}
-
-
-def _lowering(ctx, *args, _func: FunctionType, _platform="cpu", **kwargs):
-    """lowering the user function to JAX/XLA
-
-
-    Parameters
-    ----------
-    ctx : mlir.LoweringRuleContext
-    _func : FunctionType
-        namedtuple containing all arguments from 'get_linear_call' and
-        'get_nonlinear_call'.
-    _platform : string
-        Indicates the desired backend. For now only 'cpu' is supported.
-    **kwargs : dict
-        Additional keyword arguments forwarded to functions contained in _func.
-
-
-    Returns
-    -------
-    tuple : ir.OpResultList
-        Results of the function 'f' in _func as mlir object.
-
-    """
-    operands = [irc(id(_func.f))]  # Pass the ID of the callable to C++
-    operand_layouts = [()]
-
-    operands += [irc(len(args))]
-    operand_layouts += [()]
-    assert len(args) == len(ctx.avals_in)
-    # All `args` are assumed to be JAX arrays
-    for a, ca in zip(args, ctx.avals_in):
-        operands += (
-            [irc(_dtype_dict[ca.dtype]), irc(ca.ndim)]
-            + [irc(i) for i in ca.shape]
-            + [a]
-        )
-        lyt_a = tuple(range(ca.ndim - 1, -1, -1))
-        operand_layouts += [()] * (2 + ca.ndim) + [lyt_a]
-
-    operands += [irc(len(ctx.avals_out))]
-    operand_layouts += [()]
-    result_layouts = []
-    result_types = []
-    for co in ctx.avals_out:
-        operands += [irc(_dtype_dict[co.dtype]), irc(co.ndim)] + [
-            irc(i) for i in co.shape
-        ]
-        operand_layouts += [()] * (2 + co.ndim)
-        result_layouts += [tuple(range(co.ndim - 1, -1, -1))]
-        rs_typ = mlir.ir.RankedTensorType.get(co.shape, mlir.dtype_to_ir_type(co.dtype))
-        result_types += [rs_typ]
-
+def ffi_func(*args, _func: FunctionType, _platform="cpu", **kwargs):
+    out_type = _exec_abstract(*args, _func=_func, **kwargs)
     if _func.can_batch:
         assert "batch_axes" not in kwargs
         kwargs["batch_axes"] = _func.batch_axes
-    kwargs = np.frombuffer(pickle.dumps(kwargs), dtype=np.uint8)
-    kwargs_ir = hlo.constant(
-        ir.DenseElementsAttr.get(kwargs, type=ir.IntegerType.get_unsigned(8))
+    kwargs_serial = np.frombuffer(pickle.dumps(kwargs), dtype=np.uint8)
+    return jax.ffi.ffi_call(_platform + "_pycall", out_type)(
+        kwargs_serial, *args, id_func=id(_func.f)
     )
-    operands += [irc(_dtype_dict[kwargs.dtype]), irc(kwargs.size), kwargs_ir]
-    operand_layouts += [(), (), [0]]
 
-    assert len(operand_layouts) == len(operands)
-    if _platform == "cpu":
-        return custom_call(
-            _platform + "_pycall",
-            result_types=result_types,
-            result_layouts=result_layouts,
-            operands=operands,
-            operand_layouts=operand_layouts,
-        ).results
-    elif _platform == "gpu":
-        raise ValueError("No GPU support")
-    raise ValueError("Unsupported platform; this must be either 'cpu' or 'gpu'")
+
+_lowering = mlir.lower_fun(ffi_func, multiple_results=True)
 
 
 def _explicify_zeros(x):
