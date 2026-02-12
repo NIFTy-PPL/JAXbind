@@ -20,14 +20,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - uses: pypa/cibuildwheel@v2.23.2
+      - uses: pypa/cibuildwheel@v3.3.1
         env:
           CIBW_ARCHS: auto64
           CIBW_BUILD_FRONTEND: build[uv]
-          CIBW_SKIP: cp36-* cp37-* cp38-* pp* *-musllinux*
+          CIBW_SKIP: cp36-* cp37-* cp38-* pp* *-musllinux* cp314t-win*
           CIBW_TEST_REQUIRES: pytest
           CIBW_TEST_COMMAND: python -m pytest -x {project}/test
-          CIBW_TEST_SKIP: cp36-* cp37-* cp38-* cp39-* cp310-* cp311-*
+          CIBW_TEST_SKIP: cp36-* cp37-* cp38-* cp39-* cp310-* cp311-* cp312-*
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
           CIBW_MANYLINUX_I686_IMAGE: manylinux_2_28
           CIBW_MANYLINUX_PYPY_X86_64_IMAGE: manylinux_2_28
